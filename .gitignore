@@ -11,3 +11,5 @@ maps/upload-*
 bin/
 *.log
 server.pid
+# accounts/logins (created at runtime)
+data/

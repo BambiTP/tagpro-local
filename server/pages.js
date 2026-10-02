@@ -21,7 +21,76 @@ function setStatsProvider(fn) { statsProvider = fn; }
 
 function render(name, vars = {}) {
   vars = Object.assign({}, statsProvider(), vars);
-  return tpl(name).replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => (k in vars ? vars[k] : m));
+  let html = tpl(name).replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => (k in vars ? vars[k] : m));
+  if (vars.USER_NAME) {
+    // logged in: the header's "Log In / Sign Up" becomes the player's name (links to the profile)
+    html = html.replace('<a id="login-btn" class="btn btn-secondary" href="/login">Log In / Sign Up</a>', `<a id="login-btn" class="btn btn-secondary" href="/profile">${esc(vars.USER_NAME)}</a>`)
+      .replace('<li class="nav-mobile"><a href="/login">Log In / Sign Up</a></li>', `<li class="nav-mobile"><a href="/profile">${esc(vars.USER_NAME)}</a></li>`);
+  }
+  return html;
+}
+
+function loginCard(error, tab) {
+  const field = (label, name, type, extra = '') => `
+                            <div class="form-group">
+                                <label class="col-sm-4 control-label" for="${name}">${label}</label>
+                                <div class="col-sm-8"><input class="form-control" id="${name}" name="${name}" type="${type}" ${extra}></div>
+                            </div>`;
+  return `
+                        <h1>Log In</h1>
+                        ${error ? `<div class="alert alert-danger">${esc(error)}</div>` : ''}
+                        <form class="form form-horizontal" action="/login" method="post">${field('Username', 'username', 'text', 'maxlength="16" autocomplete="username" required')}${field('Password', 'password', 'password', 'autocomplete="current-password" required')}
+                            <div class="form-group"><div class="col-sm-12 text-center"><button class="btn btn-primary" type="submit">Log In</button></div></div>
+                        </form>
+                        <hr>
+                        <h1>Create Account</h1>
+                        <form class="form form-horizontal" action="/register" method="post">${field('Username', 'username', 'text', 'maxlength="16" autocomplete="username" required')}${field('Password', 'password', 'password', 'minlength="6" autocomplete="new-password" required')}
+                            <div class="form-group"><div class="col-sm-12 text-center"><button class="btn btn-default" type="submit">Create Account</button></div></div>
+                        </form>`;
+}
+
+function profileCard(account, flairs) {
+  const items = [{ key: '', className: '', x: -1, y: -1, description: 'No Flair', extra: 'Remove your flair', category: '' }].concat(flairs).map((f) => `
+                                <li class="otherFlair">
+                                    <div class="flair-item flair-available${(account.flair || '') === f.key ? ' selected' : ''}" data-flair="${esc(f.key)}">
+                                        ${f.key ? `<span class="flair ${esc(f.className)}" style="--flair-col: ${f.x}; --flair-row: ${f.y};"></span>` : '<span class="flair" style="display:inline-block;width:16px;height:16px;border:1px dashed #888;"></span>'}
+                                        <div class="flair-tooltip">
+                                            <div class="flair-header">${esc(f.description)}</div>
+                                            <div class="flair-description">${esc(f.extra || '')}</div>
+                                            <div class="flair-footer"><div class="flair-type">${esc(f.category)}</div></div>
+                                        </div>
+                                    </div>
+                                </li>`).join('');
+  return `<div class="profile">
+                        <h1>${esc(account.displayName)}</h1>
+                        <form class="form form-horizontal" action="/profile" method="post">
+                            <div class="form-group">
+                                <label class="col-sm-4 control-label" for="reservedName">Username</label>
+                                <div class="col-sm-8"><input class="form-control" id="reservedName" name="reservedName" type="text" value="${esc(account.username)}" disabled></div>
+                            </div>
+                            <div class="form-group">
+                                <label class="col-sm-4 control-label" for="displayedName">Display Name</label>
+                                <div class="col-sm-8"><input class="form-control" id="displayedName" name="displayedName" type="text" maxlength="12" value="${esc(account.displayName)}"></div>
+                            </div>
+                            <div class="form-group">
+                                <div class="col-sm-12 text-center">
+                                    <div class="form-status" style="margin-bottom: 10px;"></div>
+                                    <button id="saveSettings" class="btn btn-primary" type="submit">Save</button>
+                                    <a class="btn btn-default" href="/logout">Log Out</a>
+                                </div>
+                            </div>
+                        </form>
+                        <hr>
+                        <h2>Flair</h2>
+                        <p>Click a flair to wear it.</p>
+                        <div class="profile-flair block">
+                            <div class="tab-content">
+                                <div class="tab-pane active" id="flair">
+                                    <ul class="flair-list js-flair-owner">${items}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div></div>`;
 }
 
 function groupItem(g) {
@@ -65,4 +134,4 @@ ${members.map((m) => `                                            <div class="gr
                         </div>`;
 }
 
-module.exports = { render, esc, groupItem, setStatsProvider };
+module.exports = { render, esc, groupItem, setStatsProvider, loginCard, profileCard };

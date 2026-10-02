@@ -52,4 +52,15 @@ def groups(h):
     return h[:a] + '\n{{GROUPS_LIST}}\n                    ' + h[b:]
 page('groups-real.html', 'groups.html', groups)
 page('home-real.html', 'home.html')
+page('settings-real.html', 'settings.html')
+
+# generic card page (login, profile) built from the real settings page layout
+def card(h):
+    a = h.index('<div class="card">') + len('<div class="card">')
+    b = h.index('</form>', a) + len('</form>')
+    h = h[:a] + '\n{{CARD}}\n' + h[b:]
+    h = h.replace('/R-965af4e7a4b8-z/compact/global-settings.js', '{{PAGE_SCRIPT}}')
+    h = re.sub(r'<title>[\s\S]*?</title>', '<title>{{TITLE}}</title>', h, count=1)
+    return h
+page('settings-real.html', 'card.html', card)
 page('find-live-real.html', 'find.html')

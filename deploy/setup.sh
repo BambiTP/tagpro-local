@@ -34,6 +34,7 @@ bash deploy/fetch-music.sh || echo "(music download failed - the game works with
 
 echo "== service user (the game does not run as root)"
 id tagpro >/dev/null 2>&1 || useradd --system --home "$APP_DIR" --shell /usr/sbin/nologin tagpro
+mkdir -p "$APP_DIR/data"
 chown -R tagpro:tagpro "$APP_DIR"
 
 echo "== systemd service (listens on localhost only; Caddy is the public front)"
@@ -53,7 +54,7 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=$APP_DIR/maps
+ReadWritePaths=$APP_DIR/maps $APP_DIR/data
 
 [Install]
 WantedBy=multi-user.target

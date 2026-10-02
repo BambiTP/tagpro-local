@@ -1,0 +1,2382 @@
+[
+{
+"category": "special",
+"name": "dinosaur",
+"x": 10,
+"y": 1,
+"description": "Dinosaur",
+"extra": "Where has the time gone?",
+"key": "special.dinosaur",
+"className": "special-dinosaur"
+},
+{
+"category": "special",
+"name": "fossil",
+"x": 9,
+"y": 1,
+"description": "Fossil",
+"extra": "10 years?! 10 YEARS?!",
+"key": "special.fossil",
+"className": "special-fossil"
+},
+{
+"category": "boards",
+"name": "month",
+"x": 2,
+"y": 0,
+"description": "Monthly Leader Board Winner",
+"extra": "Topped the monthly leaderboard",
+"key": "boards.month",
+"className": "boards-month"
+},
+{
+"category": "boards",
+"name": "day",
+"x": 0,
+"y": 0,
+"description": "Daily Leader Board Winner",
+"extra": "Topped the daily leaderboard",
+"key": "boards.day",
+"className": "boards-day"
+},
+{
+"category": "winRate",
+"name": "good",
+"x": 3,
+"y": 0,
+"description": "Good Win Rate",
+"extra": "Achieved 55% win rate for 300 games",
+"key": "winRate.good",
+"className": "winRate-good"
+},
+{
+"category": "ranked",
+"name": "rankedBall",
+"x": 12,
+"y": 11,
+"description": "Ranked Ball (Tier 8)",
+"extra": "Achieved at least tier 8 in the current or previous ranked season",
+"key": "ranked.rankedBall",
+"className": "ranked-rankedBall"
+},
+{
+"category": "ranked",
+"name": "iron",
+"x": 0,
+"y": 12,
+"description": "Iron (Tier 7)",
+"extra": "Achieved at least tier 7 in the current or previous ranked season",
+"key": "ranked.iron",
+"className": "ranked-iron"
+},
+{
+"category": "ranked",
+"name": "bronze",
+"x": 1,
+"y": 12,
+"description": "Bronze (Tier 6)",
+"extra": "Achieved at least tier 6 in the current or previous ranked season",
+"key": "ranked.bronze",
+"className": "ranked-bronze"
+},
+{
+"category": "ranked",
+"name": "silver",
+"x": 2,
+"y": 12,
+"description": "Silver (Tier 5)",
+"extra": "Achieved at least tier 5 in the current or previous ranked season",
+"key": "ranked.silver",
+"className": "ranked-silver"
+},
+{
+"category": "ranked",
+"name": "gold",
+"x": 3,
+"y": 12,
+"description": "Gold (Tier 4)",
+"extra": "Achieved at least tier 4 in the current or previous ranked season",
+"key": "ranked.gold",
+"className": "ranked-gold"
+},
+{
+"category": "ranked",
+"name": "platinum",
+"x": 4,
+"y": 12,
+"description": "Platinum (Tier 3)",
+"extra": "Achieved at least tier 3 in the current or previous ranked season",
+"key": "ranked.platinum",
+"className": "ranked-platinum"
+},
+{
+"category": "season",
+"name": "0",
+"x": 10,
+"y": 12,
+"description": "Ranked Matchmaking",
+"extra": "Stuck around for a full ranked match in season 0",
+"key": "season.0",
+"className": "season-0"
+},
+{
+"category": "season",
+"name": "1",
+"x": 11,
+"y": 12,
+"description": "Campfire",
+"extra": "Completed 150+ games during TagPro Season 1",
+"key": "season.1",
+"className": "season-1"
+},
+{
+"category": "season",
+"name": "2",
+"x": 12,
+"y": 12,
+"description": "Phoenix",
+"extra": "Completed 150+ games during TagPro Season 2",
+"key": "season.2",
+"className": "season-2"
+},
+{
+"category": "season",
+"name": "3",
+"x": 6,
+"y": 18,
+"description": "Whale",
+"extra": "Completed 150+ games during TagPro Season 3",
+"key": "season.3",
+"className": "season-3"
+},
+{
+"category": "event",
+"name": "birthday",
+"x": 0,
+"y": 2,
+"description": "Happy Birthday TagPro",
+"extra": "Awarded for TagPro's 1st birthday",
+"key": "event.birthday",
+"className": "event-birthday"
+},
+{
+"category": "event",
+"name": "stPatricksDay",
+"x": 1,
+"y": 2,
+"description": "Lucky You",
+"extra": "Hattrick for a new hat",
+"key": "event.stPatricksDay",
+"className": "event-stPatricksDay"
+},
+{
+"category": "event",
+"name": "easter",
+"x": 3,
+"y": 2,
+"description": "Hare Today, Goon Tomorrow",
+"extra": "Awarded Easter 2014",
+"key": "event.easter",
+"className": "event-easter"
+},
+{
+"category": "event",
+"name": "halloween",
+"x": 5,
+"y": 2,
+"description": "So Very Scary",
+"extra": "Played zombie mode in 2014",
+"key": "event.halloween",
+"className": "event-halloween"
+},
+{
+"category": "event",
+"name": "birthday2",
+"x": 7,
+"y": 2,
+"description": "Happy 2nd Birthday TagPro",
+"extra": "Awarded for TagPro's 2nd birthday",
+"key": "event.birthday2",
+"className": "event-birthday2"
+},
+{
+"category": "event",
+"name": "stPatricksDay2",
+"x": 9,
+"y": 2,
+"description": "Good and Lucky",
+"extra": "Awarded for St. Patrick's Day 2015",
+"key": "event.stPatricksDay2",
+"className": "event-stPatricksDay2"
+},
+{
+"category": "event",
+"name": "aprilFoolsDay2",
+"x": 10,
+"y": 2,
+"description": "Clowning Around Gravity",
+"extra": "April Fools 2015",
+"key": "event.aprilFoolsDay2",
+"className": "event-aprilFoolsDay2"
+},
+{
+"category": "event",
+"name": "easter2",
+"x": 0,
+"y": 3,
+"description": "Racing For Eggs",
+"extra": "Played Easter event in 2015",
+"key": "event.easter2",
+"className": "event-easter2"
+},
+{
+"category": "event",
+"name": "lgbt",
+"x": 2,
+"y": 3,
+"description": "All balls are created equal!",
+"extra": "Supreme Court rules in favor of nationwide gay marriage",
+"key": "event.lgbt",
+"className": "event-lgbt"
+},
+{
+"category": "event",
+"name": "halloween2",
+"x": 3,
+"y": 3,
+"description": "Easy as Pumpkin Pie",
+"extra": "Played in zombie event 2015",
+"key": "event.halloween2",
+"className": "event-halloween2"
+},
+{
+"category": "event",
+"name": "dootdoot",
+"x": 5,
+"y": 3,
+"description": "DOOT DOOT",
+"extra": "Good bones and calcium will come to you",
+"key": "event.dootdoot",
+"className": "event-dootdoot"
+},
+{
+"category": "event",
+"name": "survivor2",
+"x": 4,
+"y": 3,
+"description": "Lighter Than a Duck",
+"extra": "2015 zombie mode survivor",
+"key": "event.survivor2",
+"className": "event-survivor2"
+},
+{
+"category": "event",
+"name": "birthday3",
+"x": 6,
+"y": 3,
+"description": "Happy 3rd Birthday TagPro",
+"extra": "Awarded for TagPro's 3rd Birthday",
+"key": "event.birthday3",
+"className": "event-birthday3"
+},
+{
+"category": "event",
+"name": "stPatricksDay3",
+"x": 8,
+"y": 3,
+"description": "Pup Drunk",
+"extra": "TagPro celebrates St Patrick's Day",
+"key": "event.stPatricksDay3",
+"className": "event-stPatricksDay3"
+},
+{
+"category": "event",
+"name": "easter3_1",
+"x": 9,
+"y": 3,
+"description": "Participation Egg",
+"extra": "Awarded for TagPro's 2016 Easter event",
+"key": "event.easter3_1",
+"className": "event-easter3_1"
+},
+{
+"category": "event",
+"name": "easter3_2",
+"x": 10,
+"y": 3,
+"description": "Valued Member Egg",
+"extra": "Dank Sniper",
+"key": "event.easter3_2",
+"className": "event-easter3_2"
+},
+{
+"category": "event",
+"name": "halloween3",
+"x": 1,
+"y": 4,
+"description": "Really? Another Pumpkin?",
+"extra": "Played in zombie event 2016",
+"key": "event.halloween3",
+"className": "event-halloween3"
+},
+{
+"category": "event",
+"name": "brains",
+"x": 2,
+"y": 4,
+"description": "MMM... Brains",
+"extra": "It's not that bad when fried",
+"key": "event.brains",
+"className": "event-brains"
+},
+{
+"category": "event",
+"name": "survivor3",
+"x": 3,
+"y": 4,
+"description": "Backstabber",
+"extra": "How can you live with yourself?",
+"key": "event.survivor3",
+"className": "event-survivor3"
+},
+{
+"category": "event",
+"name": "candycane",
+"x": 4,
+"y": 4,
+"description": "Cheap Christmas Candy",
+"extra": "Common Christmas 2016 present",
+"key": "event.candycane",
+"className": "event-candycane"
+},
+{
+"category": "event",
+"name": "gingerbread",
+"x": 5,
+"y": 4,
+"description": "You Could Catch Me!",
+"extra": "Rare Christmas 2016 present",
+"key": "event.gingerbread",
+"className": "event-gingerbread"
+},
+{
+"category": "event",
+"name": "santahat",
+"x": 6,
+"y": 4,
+"description": "Ho! Ho! Ho!",
+"extra": "Coveted Christmas 2016 present",
+"key": "event.santahat",
+"className": "event-santahat"
+},
+{
+"category": "event",
+"name": "birthday4",
+"x": 7,
+"y": 4,
+"description": "Happy 4th Birthday TagPro",
+"extra": "Awarded for TagPro's 4th Birthday",
+"key": "event.birthday4",
+"className": "event-birthday4"
+},
+{
+"category": "event",
+"name": "halloween4",
+"x": 11,
+"y": 4,
+"description": "Bat",
+"extra": "I am vengeance! I am the night!",
+"key": "event.halloween4",
+"className": "event-halloween4"
+},
+{
+"category": "event",
+"name": "survivor4",
+"x": 12,
+"y": 4,
+"description": "Jack",
+"extra": "The Pumpkin King",
+"key": "event.survivor4",
+"className": "event-survivor4"
+},
+{
+"category": "event",
+"name": "birthday5",
+"x": 0,
+"y": 8,
+"description": "Happy 5th Birthday TagPro",
+"extra": "Awarded for TagPro's 5th Birthday",
+"key": "event.birthday5",
+"className": "event-birthday5"
+},
+{
+"category": "event",
+"name": "coin",
+"x": 1,
+"y": 8,
+"description": "Coin",
+"extra": "Awarded for good team work",
+"key": "event.coin",
+"className": "event-coin"
+},
+{
+"category": "event",
+"name": "fall",
+"x": 4,
+"y": 8,
+"description": "Golden Fall Leaf",
+"extra": "It's the time of year again...",
+"key": "event.fall",
+"className": "event-fall"
+},
+{
+"category": "event",
+"name": "xmastree",
+"x": 7,
+"y": 8,
+"description": "Christmas Tree",
+"extra": "Oh Christmas Tree! Oh Christmas Tree!",
+"key": "event.xmastree",
+"className": "event-xmastree"
+},
+{
+"category": "event",
+"name": "lambda",
+"x": 8,
+"y": 8,
+"description": "ylambda",
+"extra": "Celebrate the developer ylambda's birthday!",
+"key": "event.lambda",
+"className": "event-lambda"
+},
+{
+"category": "event",
+"name": "pbcandy",
+"x": 9,
+"y": 8,
+"description": "Gross Peanut Butter Candy",
+"extra": "I'd rather eat brains...",
+"key": "event.pbcandy",
+"className": "event-pbcandy"
+},
+{
+"category": "event",
+"name": "halloween6",
+"x": 10,
+"y": 8,
+"description": "Zombie Head Trophy",
+"extra": "Teamwork for the win!",
+"key": "event.halloween6",
+"className": "event-halloween6"
+},
+{
+"category": "event",
+"name": "covid19stPatricksDay",
+"x": 11,
+"y": 7,
+"description": "Counterfeit Leprechaun Hat",
+"extra": "Awarded for 50 wins during COVID-19 event 2020",
+"key": "event.covid19stPatricksDay",
+"className": "event-covid19stPatricksDay"
+},
+{
+"category": "event",
+"name": "covid19aprilFoolsDay",
+"x": 12,
+"y": 7,
+"description": "Counterfeit Jester Hat",
+"extra": "Awarded for 100 wins during COVID-19 event 2020",
+"key": "event.covid19aprilFoolsDay",
+"className": "event-covid19aprilFoolsDay"
+},
+{
+"category": "event",
+"name": "covid19easter",
+"x": 10,
+"y": 7,
+"description": "Counterfeit Bunny Ears",
+"extra": "Awarded for 150 wins during COVID-19 event 2020",
+"key": "event.covid19easter",
+"className": "event-covid19easter"
+},
+{
+"category": "event",
+"name": "loveAndHealth",
+"x": 12,
+"y": 8,
+"description": "Stay Safe Flair",
+"extra": "Awarded for 200 wins during COVID-19 event 2020",
+"key": "event.loveAndHealth",
+"className": "event-loveAndHealth"
+},
+{
+"category": "event",
+"name": "blm",
+"x": 0,
+"y": 9,
+"description": "Fight Injustice Flair",
+"extra": "Make the world a better place",
+"key": "event.blm",
+"className": "event-blm"
+},
+{
+"category": "event",
+"name": "halloween7",
+"x": 2,
+"y": 9,
+"description": "Rat",
+"extra": "Are rats team players?",
+"key": "event.halloween7",
+"className": "event-halloween7"
+},
+{
+"category": "event",
+"name": "survivor7",
+"x": 3,
+"y": 9,
+"description": "Vampire",
+"extra": "They never seen you coming",
+"key": "event.survivor7",
+"className": "event-survivor7"
+},
+{
+"category": "event",
+"name": "tiara",
+"x": 5,
+"y": 9,
+"description": "Tiara",
+"extra": "You're halfway to the top",
+"key": "event.tiara",
+"className": "event-tiara"
+},
+{
+"category": "event",
+"name": "reaper",
+"x": 7,
+"y": 9,
+"description": "Reaper",
+"extra": "That Jimmy had a family!",
+"key": "event.reaper",
+"className": "event-reaper"
+},
+{
+"category": "event",
+"name": "devilHorns",
+"x": 8,
+"y": 9,
+"description": "Devil Horns",
+"extra": "You teamed up and massacred all of the Jimmys. Are you proud of yourself???",
+"key": "event.devilHorns",
+"className": "event-devilHorns"
+},
+{
+"category": "event",
+"name": "ghost",
+"x": 9,
+"y": 9,
+"description": "Ghost",
+"extra": "oooooOOOOOooooo!",
+"key": "event.ghost",
+"className": "event-ghost"
+},
+{
+"category": "event",
+"name": "pumpkinCollector",
+"x": 10,
+"y": 9,
+"description": "Pumpkin Collector",
+"extra": "You hogged all the pumpkins for yourself!",
+"key": "event.pumpkinCollector",
+"className": "event-pumpkinCollector"
+},
+{
+"category": "event",
+"name": "ukraineSunflower",
+"x": 11,
+"y": 9,
+"description": "Ukrainian Sunflower",
+"extra": "You brought seeds to a gunfight and won",
+"key": "event.ukraineSunflower",
+"className": "event-ukraineSunflower"
+},
+{
+"category": "event",
+"name": "ukraineFighter",
+"x": 12,
+"y": 9,
+"description": "Ukrainian Fighter",
+"extra": "Russian warship, go pop yourself",
+"key": "event.ukraineFighter",
+"className": "event-ukraineFighter"
+},
+{
+"category": "event",
+"name": "piratehat",
+"x": 0,
+"y": 10,
+"description": "Pirate Hat",
+"extra": "Arrrrrgh, halfway there...",
+"key": "event.piratehat",
+"className": "event-piratehat"
+},
+{
+"category": "event",
+"name": "duck",
+"x": 11,
+"y": 3,
+"description": "Duck",
+"extra": "In honor of our ducking quacktastic neighbours during /r/place!",
+"key": "event.duck",
+"className": "event-duck"
+},
+{
+"category": "event",
+"name": "bossJimmy1",
+"x": 3,
+"y": 11,
+"description": "Fancy Double Ply Idol",
+"extra": "Defeated Boss Jimmy",
+"key": "event.bossJimmy1",
+"className": "event-bossJimmy1"
+},
+{
+"category": "event",
+"name": "bossJimmy2",
+"x": 0,
+"y": 11,
+"description": "It's Just a Flesh Wound Idol",
+"extra": "Defeated Boss Jimmy with a single idol",
+"key": "event.bossJimmy2",
+"className": "event-bossJimmy2"
+},
+{
+"category": "event",
+"name": "bossJimmy3",
+"x": 1,
+"y": 11,
+"description": "You Just Brought a Knife to an Idol Fight",
+"extra": "Defeated Boss Jimmy with two idols",
+"key": "event.bossJimmy3",
+"className": "event-bossJimmy3"
+},
+{
+"category": "event",
+"name": "bossJimmy4",
+"x": 2,
+"y": 11,
+"description": "Pharaoh-well Jimmy Idol",
+"extra": "Defeated Boss Jimmy with all idols",
+"key": "event.bossJimmy4",
+"className": "event-bossJimmy4"
+},
+{
+"category": "event",
+"name": "smiley",
+"x": 6,
+"y": 11,
+"description": "Smile",
+"extra": "Don't forget to smile on World Smile Day!",
+"key": "event.smiley",
+"className": "event-smiley"
+},
+{
+"category": "event",
+"name": "cheezedoodle",
+"x": 9,
+"y": 11,
+"description": "Cheezedoodle",
+"extra": "Celebrate Cheezedoodle's birthday!",
+"key": "event.cheezedoodle",
+"className": "event-cheezedoodle"
+},
+{
+"category": "event",
+"name": "stormtrooper",
+"x": 7,
+"y": 11,
+"description": "Stormtrooper",
+"extra": "May the Fourth be with you",
+"key": "event.stormtrooper",
+"className": "event-stormtrooper"
+},
+{
+"category": "degree",
+"name": "pencil",
+"x": 3,
+"y": 7,
+"description": "Pencil",
+"extra": "Awarded for reaching 2\u00b0.",
+"key": "degree.pencil",
+"className": "degree-pencil"
+},
+{
+"category": "degree",
+"name": "bacon",
+"x": 0,
+"y": 5,
+"description": "Bacon",
+"extra": "Awarded for reaching 6\u00b0.",
+"key": "degree.bacon",
+"className": "degree-bacon"
+},
+{
+"category": "degree",
+"name": "baseball",
+"x": 4,
+"y": 7,
+"description": "Baseball",
+"extra": "Awarded for reaching 9\u00b0.",
+"key": "degree.baseball",
+"className": "degree-baseball"
+},
+{
+"category": "degree",
+"name": "banada",
+"x": 3,
+"y": 10,
+"description": "Banada",
+"extra": "Awarded for reaching 10\u00b0.",
+"key": "degree.banada",
+"className": "degree-banada"
+},
+{
+"category": "degree",
+"name": "moon",
+"x": 1,
+"y": 5,
+"description": "Moon",
+"extra": "Awarded for reaching 11\u00b0.",
+"key": "degree.moon",
+"className": "degree-moon"
+},
+{
+"category": "degree",
+"name": "penguin",
+"x": 7,
+"y": 6,
+"description": "Penguin",
+"extra": "Awarded for reaching 17\u00b0.",
+"key": "degree.penguin",
+"className": "degree-penguin"
+},
+{
+"category": "degree",
+"name": "rockhopper",
+"x": 11,
+"y": 11,
+"description": "Rockhopper",
+"extra": "Awarded for reaching 18\u00b0.",
+"key": "degree.rockhopper",
+"className": "degree-rockhopper"
+},
+{
+"category": "degree",
+"name": "chesspiece",
+"x": 12,
+"y": 10,
+"description": "Chess Piece",
+"extra": "Awarded for reaching 20\u00b0.",
+"key": "degree.chesspiece",
+"className": "degree-chesspiece"
+},
+{
+"category": "degree",
+"name": "musicnotes",
+"x": 4,
+"y": 10,
+"description": "Music Notes",
+"extra": "Awarded for reaching 24\u00b0.",
+"key": "degree.musicnotes",
+"className": "degree-musicnotes"
+},
+{
+"category": "degree",
+"name": "freezing",
+"x": 2,
+"y": 5,
+"description": "Freezing",
+"extra": "Awarded for reaching 32\u00b0.",
+"key": "degree.freezing",
+"className": "degree-freezing"
+},
+{
+"category": "degree",
+"name": "dolphin",
+"x": 3,
+"y": 5,
+"description": "Dolphin",
+"extra": "Awarded for reaching 42\u00b0.",
+"key": "degree.dolphin",
+"className": "degree-dolphin"
+},
+{
+"category": "degree",
+"name": "alien",
+"x": 4,
+"y": 5,
+"description": "Alien",
+"extra": "Awarded for reaching 51\u00b0.",
+"key": "degree.alien",
+"className": "degree-alien"
+},
+{
+"category": "degree",
+"name": "tomato",
+"x": 5,
+"y": 7,
+"description": "Tomato",
+"extra": "Awarded for reaching 57\u00b0.",
+"key": "degree.tomato",
+"className": "degree-tomato"
+},
+{
+"category": "degree",
+"name": "roadsign",
+"x": 5,
+"y": 5,
+"description": "Road Sign",
+"extra": "Awarded for reaching 66\u00b0.",
+"key": "degree.roadsign",
+"className": "degree-roadsign"
+},
+{
+"category": "degree",
+"name": "peace",
+"x": 6,
+"y": 5,
+"description": "Peace",
+"extra": "Awarded for reaching 69\u00b0.",
+"key": "degree.peace",
+"className": "degree-peace"
+},
+{
+"category": "degree",
+"name": "magma",
+"x": 8,
+"y": 6,
+"description": "Magma",
+"extra": "Awarded for reaching 79\u00b0.",
+"key": "degree.magma",
+"className": "degree-magma"
+},
+{
+"category": "degree",
+"name": "flux",
+"x": 7,
+"y": 5,
+"description": "Flux Capacitor",
+"extra": "Awarded for reaching 88\u00b0.",
+"key": "degree.flux",
+"className": "degree-flux"
+},
+{
+"category": "degree",
+"name": "microphone",
+"x": 8,
+"y": 5,
+"description": "Microphone",
+"extra": "Awarded for reaching 98\u00b0.",
+"key": "degree.microphone",
+"className": "degree-microphone"
+},
+{
+"category": "degree",
+"name": "boiling",
+"x": 9,
+"y": 5,
+"description": "Boiling",
+"extra": "Awarded for reaching 100\u00b0.",
+"key": "degree.boiling",
+"className": "degree-boiling"
+},
+{
+"category": "degree",
+"name": "dalmatians",
+"x": 0,
+"y": 6,
+"description": "Dalmatians",
+"extra": "Awarded for reaching 101\u00b0.",
+"key": "degree.dalmatians",
+"className": "degree-dalmatians"
+},
+{
+"category": "degree",
+"name": "lightning1",
+"x": 6,
+"y": 7,
+"description": "Yellow Lightning",
+"extra": "Awarded for reaching 110\u00b0.",
+"key": "degree.lightning1",
+"className": "degree-lightning1"
+},
+{
+"category": "degree",
+"name": "abc",
+"x": 1,
+"y": 6,
+"description": "ABC",
+"extra": "Awarded for reaching 123\u00b0.",
+"key": "degree.abc",
+"className": "degree-abc"
+},
+{
+"category": "degree",
+"name": "plane",
+"x": 9,
+"y": 6,
+"description": "Plane",
+"extra": "Awarded for reaching 130\u00b0.",
+"key": "degree.plane",
+"className": "degree-plane"
+},
+{
+"category": "shop",
+"name": "key",
+"x": 3,
+"y": 15,
+"description": "Key",
+"extra": "Where's ma lock?",
+"key": "shop.key",
+"className": "shop-key"
+},
+{
+"category": "shop",
+"name": "apple",
+"x": 5,
+"y": 15,
+"description": "Apple",
+"extra": "How do you like them apples?",
+"key": "shop.apple",
+"className": "shop-apple"
+},
+{
+"category": "shop",
+"name": "eightBall",
+"x": 12,
+"y": 16,
+"description": "Eight Ball",
+"extra": "Ask again later",
+"key": "shop.eightBall",
+"className": "shop-eightBall"
+},
+{
+"category": "shop",
+"name": "cutlery",
+"x": 7,
+"y": 17,
+"description": "Cutlery",
+"extra": "YES CHEF!",
+"key": "shop.cutlery",
+"className": "shop-cutlery"
+},
+{
+"category": "special",
+"name": "developer",
+"x": 2,
+"y": 1,
+"description": "TagPro Developer",
+"extra": "Given to TagPro Developers",
+"key": "special.developer",
+"className": "special-developer"
+},
+{
+"category": "special",
+"name": "tpfg",
+"x": 11,
+"y": 1,
+"description": "TagPro Future Group",
+"extra": "This player helps decide the Future of TagPro!",
+"key": "special.tpfg",
+"className": "special-tpfg"
+},
+{
+"category": "special",
+"name": "helper",
+"x": 0,
+"y": 1,
+"description": "Community Contributor",
+"extra": "Awarded to recognize players who have gone above and beyond to help the community",
+"key": "special.helper",
+"className": "special-helper"
+},
+{
+"category": "special",
+"name": "mod",
+"x": 6,
+"y": 0,
+"description": "Moderator",
+"extra": "This player moderates TagPro",
+"key": "special.mod",
+"className": "special-mod"
+},
+{
+"category": "special",
+"name": "monitor",
+"x": 8,
+"y": 0,
+"description": "Monitor",
+"extra": "This player Monitors pubs for the Moderators",
+"key": "special.monitor",
+"className": "special-monitor"
+},
+{
+"category": "special",
+"name": "mtc",
+"x": 7,
+"y": 0,
+"description": "Map Tester",
+"extra": "A difficult job",
+"key": "special.mtc",
+"className": "special-mtc"
+},
+{
+"category": "special",
+"name": "mtcCurrent",
+"x": 1,
+"y": 18,
+"description": "Map Test Committee",
+"extra": "Rate the map, please",
+"key": "special.mtcCurrent",
+"className": "special-mtcCurrent"
+},
+{
+"category": "special",
+"name": "artist",
+"x": 5,
+"y": 1,
+"description": "Artist",
+"extra": "This player is a true TagPro artist!",
+"key": "special.artist",
+"className": "special-artist"
+},
+{
+"category": "special",
+"name": "blueprint",
+"x": 9,
+"y": 0,
+"description": "Blueprint",
+"extra": "This player made a good map!",
+"key": "special.blueprint",
+"className": "special-blueprint"
+},
+{
+"category": "special",
+"name": "chameleon",
+"x": 10,
+"y": 0,
+"description": "Chameleon",
+"extra": "This player does well with colors! Can you find their texture pack?",
+"key": "special.chameleon",
+"className": "special-chameleon"
+},
+{
+"category": "special",
+"name": "gramophone",
+"x": 11,
+"y": 0,
+"description": "Gramophone",
+"extra": "Sounds like this player knows how to make a song!",
+"key": "special.gramophone",
+"className": "special-gramophone"
+},
+{
+"category": "special",
+"name": "kongregate",
+"x": 6,
+"y": 1,
+"description": "Kongregate",
+"extra": "Thanks for winning 30 games and reviewing on Kongregate",
+"key": "special.kongregate",
+"className": "special-kongregate"
+},
+{
+"category": "special",
+"name": "supporter",
+"x": 1,
+"y": 1,
+"description": "Level 1 Donor",
+"extra": "This player has donated $10 to TagPro",
+"key": "special.supporter",
+"className": "special-supporter"
+},
+{
+"category": "special",
+"name": "supporter2",
+"x": 3,
+"y": 1,
+"description": "Level 2 Donor",
+"extra": "This player has donated $40 to TagPro",
+"key": "special.supporter2",
+"className": "special-supporter2"
+},
+{
+"category": "special",
+"name": "supporter3",
+"x": 4,
+"y": 1,
+"description": "Level 3 Donor",
+"extra": "This player has donated $100 to TagPro",
+"key": "special.supporter3",
+"className": "special-supporter3"
+},
+{
+"category": "special",
+"name": "supporter4",
+"x": 7,
+"y": 1,
+"description": "Level 4 Donor",
+"extra": "This player has donated $200 to TagPro",
+"key": "special.supporter4",
+"className": "special-supporter4"
+},
+{
+"category": "special",
+"name": "supporter5",
+"x": 12,
+"y": 0,
+"description": "Level 5 Donor",
+"extra": "This player has donated $300 to TagPro",
+"key": "special.supporter5",
+"className": "special-supporter5"
+},
+{
+"category": "special",
+"name": "supporter6",
+"x": 12,
+"y": 1,
+"description": "Level 6 Donor",
+"extra": "This player has donated $400 to TagPro",
+"key": "special.supporter6",
+"className": "special-supporter6"
+},
+{
+"category": "special",
+"name": "supporter7",
+"x": 12,
+"y": 3,
+"description": "Level 7 Donor",
+"extra": "This player has donated $500 to TagPro",
+"key": "special.supporter7",
+"className": "special-supporter7"
+},
+{
+"category": "special",
+"name": "supporter8",
+"x": 0,
+"y": 19,
+"description": "Level 8 Donor",
+"extra": "This player has donated $750 to TagPro",
+"key": "special.supporter8",
+"className": "special-supporter8"
+},
+{
+"category": "special",
+"name": "bitcoin",
+"x": 8,
+"y": 1,
+"description": "Bitcoin Donor (Any Amount)",
+"extra": "This player donated BTC to TagPro",
+"key": "special.bitcoin",
+"className": "special-bitcoin"
+},
+{
+"category": "special",
+"name": "mobile",
+"x": 10,
+"y": 11,
+"description": "Mobile Master",
+"extra": "This player has won at least 3 games using the official TagPro mobile app",
+"key": "special.mobile",
+"className": "special-mobile"
+},
+{
+"category": "boards",
+"name": "season",
+"x": 0,
+"y": 13,
+"description": "Seasonal Leader Board Winner",
+"extra": "Topped the seasonal leaderboard",
+"key": "boards.season",
+"className": "boards-season"
+},
+{
+"category": "boards",
+"name": "week",
+"x": 1,
+"y": 0,
+"description": "Weekly Leader Board Winner",
+"extra": "Topped the weekly leaderboard",
+"key": "boards.week",
+"className": "boards-week"
+},
+{
+"category": "winRate",
+"name": "insane",
+"x": 5,
+"y": 0,
+"description": "Insane Win Rate",
+"extra": "Achieved 75% win rate for 300 games",
+"key": "winRate.insane",
+"className": "winRate-insane"
+},
+{
+"category": "winRate",
+"name": "awesome",
+"x": 4,
+"y": 0,
+"description": "Awesome Win Rate",
+"extra": "Achieved 65% win rate for 300 games",
+"key": "winRate.awesome",
+"className": "winRate-awesome"
+},
+{
+"category": "ranked",
+"name": "ctfChampion",
+"x": 8,
+"y": 12,
+"description": "Historical CTF Champion (Tier 1-1)",
+"extra": "Finished a Ranked Capture The Flag season in the highest tier",
+"key": "ranked.ctfChampion",
+"className": "ranked-ctfChampion"
+},
+{
+"category": "ranked",
+"name": "nfChampion",
+"x": 9,
+"y": 12,
+"description": "Historical NF Champion (Tier 1-1)",
+"extra": "Finished a Ranked Neutral Flag season in the highest tier",
+"key": "ranked.nfChampion",
+"className": "ranked-nfChampion"
+},
+{
+"category": "ranked",
+"name": "diamond",
+"x": 5,
+"y": 12,
+"description": "Diamond (Tier 2)",
+"extra": "Achieved at least tier 2 in the current or previous ranked season",
+"key": "ranked.diamond",
+"className": "ranked-diamond"
+},
+{
+"category": "ranked",
+"name": "contender",
+"x": 6,
+"y": 12,
+"description": "TagPro Contender (Tier 1-3)",
+"extra": "Achieved at least tier 1-3 in the current or previous ranked season",
+"key": "ranked.contender",
+"className": "ranked-contender"
+},
+{
+"category": "ranked",
+"name": "challenger",
+"x": 7,
+"y": 12,
+"description": "TagPro Challenger (Tier 1-2)",
+"extra": "Achieved at least tier 1-2 in the current or previous ranked season",
+"key": "ranked.challenger",
+"className": "ranked-challenger"
+},
+{
+"category": "ranked",
+"name": "champion",
+"x": 7,
+"y": 12,
+"description": "TagPro Champion (Tier 1-1)",
+"extra": "Achieved tier 1-1 in the current or previous ranked season",
+"key": "ranked.champion",
+"className": "ranked-champion"
+},
+{
+"category": "event",
+"name": "aprilFoolsDay",
+"x": 2,
+"y": 2,
+"description": "How Foolish",
+"extra": "You're a square",
+"key": "event.aprilFoolsDay",
+"className": "event-aprilFoolsDay"
+},
+{
+"category": "event",
+"name": "hacked",
+"x": 4,
+"y": 2,
+"description": "UnfortunateSniper Hacks TagPro",
+"extra": "TagPro\u200bAnd\u200bLuckySpammer\u200bSucks\u200bAnd\u200bUnfortunateSniper\u200bIs\u200bAwesome",
+"key": "event.hacked",
+"className": "event-hacked"
+},
+{
+"category": "event",
+"name": "survivor",
+"x": 6,
+"y": 2,
+"description": "Daryl Would Be Proud",
+"extra": "Survived zombie mode in 2014",
+"key": "event.survivor",
+"className": "event-survivor"
+},
+{
+"category": "event",
+"name": "platformer",
+"x": 8,
+"y": 2,
+"description": "Tower 1-1 Complete",
+"extra": "Climbed to the top of the TagPro tower",
+"key": "event.platformer",
+"className": "event-platformer"
+},
+{
+"category": "event",
+"name": "carrot",
+"x": 1,
+"y": 3,
+"description": "Racing For Carrots",
+"extra": "Raced for the carrot during Easter 2015",
+"key": "event.carrot",
+"className": "event-carrot"
+},
+{
+"category": "event",
+"name": "platformer2",
+"x": 7,
+"y": 3,
+"description": "Tower 1-2 Complete",
+"extra": "But our princess is in another castle",
+"key": "event.platformer2",
+"className": "event-platformer2"
+},
+{
+"category": "event",
+"name": "easter3_3",
+"x": 0,
+"y": 4,
+"description": "Bounty Hunter Egg",
+"extra": "Sniiiiiiiped!",
+"key": "event.easter3_3",
+"className": "event-easter3_3"
+},
+{
+"category": "event",
+"name": "platformer3",
+"x": 8,
+"y": 4,
+"description": "Tower 1-3 Complete",
+"extra": "It's on like Donkey Kong",
+"key": "event.platformer3",
+"className": "event-platformer3"
+},
+{
+"category": "event",
+"name": "purplecarrot",
+"x": 9,
+"y": 4,
+"description": "WOAH! It's real!",
+"extra": "$%#!... this is impossible.",
+"key": "event.purplecarrot",
+"className": "event-purplecarrot"
+},
+{
+"category": "event",
+"name": "soccerball",
+"x": 12,
+"y": 2,
+"description": "Soccer Ball",
+"extra": "Eggball 2017 - Fake Football",
+"key": "event.soccerball",
+"className": "event-soccerball"
+},
+{
+"category": "event",
+"name": "football",
+"x": 11,
+"y": 2,
+"description": "Football",
+"extra": "Eggball 2017 - Real Football",
+"key": "event.football",
+"className": "event-football"
+},
+{
+"category": "event",
+"name": "candycorn",
+"x": 10,
+"y": 4,
+"description": "Delicious Candy Corn",
+"extra": "Made in 1911",
+"key": "event.candycorn",
+"className": "event-candycorn"
+},
+{
+"category": "event",
+"name": "block",
+"x": 2,
+"y": 8,
+"description": "Question Block",
+"extra": "Awarded for incredible team work!",
+"key": "event.block",
+"className": "event-block"
+},
+{
+"category": "event",
+"name": "worldJoiner",
+"x": 3,
+"y": 8,
+"description": "Compass",
+"extra": "Awarded for extensively testing the world joiner",
+"key": "event.worldJoiner",
+"className": "event-worldJoiner"
+},
+{
+"category": "event",
+"name": "halloween5",
+"x": 5,
+"y": 8,
+"description": "Jimmy",
+"extra": "I've got my eye on you!",
+"key": "event.halloween5",
+"className": "event-halloween5"
+},
+{
+"category": "event",
+"name": "survivor5",
+"x": 6,
+"y": 8,
+"description": "Cleaver",
+"extra": "How can you live with yourself? Again?",
+"key": "event.survivor5",
+"className": "event-survivor5"
+},
+{
+"category": "event",
+"name": "survivor6",
+"x": 11,
+"y": 8,
+"description": "Jimmywise Mask",
+"extra": "They all float down there. But not you.",
+"key": "event.survivor6",
+"className": "event-survivor6"
+},
+{
+"category": "event",
+"name": "tombstone",
+"x": 1,
+"y": 9,
+"description": "Tombstone",
+"extra": "Seven years of this and always a zombie",
+"key": "event.tombstone",
+"className": "event-tombstone"
+},
+{
+"category": "event",
+"name": "donkey",
+"x": 4,
+"y": 9,
+"description": "Ogre",
+"extra": "Somebody once told me, a ball was gonna roll me",
+"key": "event.donkey",
+"className": "event-donkey"
+},
+{
+"category": "event",
+"name": "dragon",
+"x": 6,
+"y": 9,
+"description": "Dragon",
+"extra": "You slayed the dragon!",
+"key": "event.dragon",
+"className": "event-dragon"
+},
+{
+"category": "event",
+"name": "parrot",
+"x": 1,
+"y": 10,
+"description": "Parrot",
+"extra": "You freed your pet parrot!",
+"key": "event.parrot",
+"className": "event-parrot"
+},
+{
+"category": "event",
+"name": "shark",
+"x": 2,
+"y": 10,
+"description": "Shark",
+"extra": "You escaped from the Jaws of death, and got its head!",
+"key": "event.shark",
+"className": "event-shark"
+},
+{
+"category": "event",
+"name": "redditBlackout",
+"x": 5,
+"y": 11,
+"description": "/r/TagPro goes dark",
+"extra": "Standing up for Reddit's 3rd party apps and volunteer moderators",
+"key": "event.redditBlackout",
+"className": "event-redditBlackout"
+},
+{
+"category": "event",
+"name": "antlers",
+"x": 12,
+"y": 5,
+"description": "Antlers",
+"extra": "What do you call a deer with no eyes? No eye dear.",
+"key": "event.antlers",
+"className": "event-antlers"
+},
+{
+"category": "event",
+"name": "hotChocolate",
+"x": 11,
+"y": 5,
+"description": "Hot Chocolate",
+"extra": "Drop it like it's hot",
+"key": "event.hotChocolate",
+"className": "event-hotChocolate"
+},
+{
+"category": "event",
+"name": "hockeySticks",
+"x": 12,
+"y": 6,
+"description": "Hockey Sticks",
+"extra": "Can't play ice hockey without a stick, or can you?",
+"key": "event.hockeySticks",
+"className": "event-hockeySticks"
+},
+{
+"category": "event",
+"name": "hockeyHatTrick",
+"x": 11,
+"y": 6,
+"description": "Winter Hat",
+"extra": "Hats off to you!",
+"key": "event.hockeyHatTrick",
+"className": "event-hockeyHatTrick"
+},
+{
+"category": "event",
+"name": "popsicle",
+"x": 8,
+"y": 11,
+"description": "Popsicle",
+"extra": "Still poppin' in summer",
+"key": "event.popsicle",
+"className": "event-popsicle"
+},
+{
+"category": "event",
+"name": "hotdog",
+"x": 2,
+"y": 18,
+"description": "Hot dog",
+"extra": "Hot diggity dog",
+"key": "event.hotdog",
+"className": "event-hotdog"
+},
+{
+"category": "degree",
+"name": "love",
+"x": 2,
+"y": 6,
+"description": "Love",
+"extra": "Awarded for reaching 143\u00b0.",
+"key": "degree.love",
+"className": "degree-love"
+},
+{
+"category": "degree",
+"name": "pokemon",
+"x": 3,
+"y": 6,
+"description": "Pokemon",
+"extra": "Awarded for reaching 151\u00b0.",
+"key": "degree.pokemon",
+"className": "degree-pokemon"
+},
+{
+"category": "degree",
+"name": "phi",
+"x": 4,
+"y": 6,
+"description": "Phi",
+"extra": "Awarded for reaching 162\u00b0.",
+"key": "degree.phi",
+"className": "degree-phi"
+},
+{
+"category": "degree",
+"name": "uturn",
+"x": 5,
+"y": 6,
+"description": "U Turn",
+"extra": "Awarded for reaching 180\u00b0.",
+"key": "degree.uturn",
+"className": "degree-uturn"
+},
+{
+"category": "degree",
+"name": "world",
+"x": 6,
+"y": 6,
+"description": "World",
+"extra": "Awarded for reaching 196\u00b0.",
+"key": "degree.world",
+"className": "degree-world"
+},
+{
+"category": "degree",
+"name": "bones",
+"x": 8,
+"y": 7,
+"description": "Bones",
+"extra": "Awarded for reaching 206\u00b0.",
+"key": "degree.bones",
+"className": "degree-bones"
+},
+{
+"category": "degree",
+"name": "boiling2",
+"x": 10,
+"y": 5,
+"description": "Boiling 2",
+"extra": "Awarded for reaching 212\u00b0.",
+"key": "degree.boiling2",
+"className": "degree-boiling2"
+},
+{
+"category": "degree",
+"name": "lightning2",
+"x": 7,
+"y": 7,
+"description": "Blue Lightning",
+"extra": "Awarded for reaching 220\u00b0.",
+"key": "degree.lightning2",
+"className": "degree-lightning2"
+},
+{
+"category": "degree",
+"name": "magnifyingglass",
+"x": 10,
+"y": 10,
+"description": "Magnifying Glass",
+"extra": "Awarded for reaching 221\u00b0.",
+"key": "degree.magnifyingglass",
+"className": "degree-magnifyingglass"
+},
+{
+"category": "degree",
+"name": "atomic",
+"x": 10,
+"y": 6,
+"description": "Uranium",
+"extra": "Awarded for reaching 238\u00b0.",
+"key": "degree.atomic",
+"className": "degree-atomic"
+},
+{
+"category": "degree",
+"name": "hourglass",
+"x": 9,
+"y": 10,
+"description": "Hourglass",
+"extra": "Awarded for reaching 247\u00b0.",
+"key": "degree.hourglass",
+"className": "degree-hourglass"
+},
+{
+"category": "degree",
+"name": "rainbow",
+"x": 5,
+"y": 10,
+"description": "Rainbow",
+"extra": "Awarded for reaching 255\u00b0.",
+"key": "degree.rainbow",
+"className": "degree-rainbow"
+},
+{
+"category": "degree",
+"name": "boxing",
+"x": 2,
+"y": 7,
+"description": "Boxing",
+"extra": "Awarded for reaching 276\u00b0.",
+"key": "degree.boxing",
+"className": "degree-boxing"
+},
+{
+"category": "degree",
+"name": "wildflower",
+"x": 6,
+"y": 10,
+"description": "Wildflower",
+"extra": "Awarded for reaching 295\u00b0.",
+"key": "degree.wildflower",
+"className": "degree-wildflower"
+},
+{
+"category": "degree",
+"name": "bowling",
+"x": 0,
+"y": 7,
+"description": "Bowling",
+"extra": "Awarded for reaching 300\u00b0.",
+"key": "degree.bowling",
+"className": "degree-bowling"
+},
+{
+"category": "degree",
+"name": "pi",
+"x": 1,
+"y": 7,
+"description": "Pi",
+"extra": "Awarded for reaching 314\u00b0.",
+"key": "degree.pi",
+"className": "degree-pi"
+},
+{
+"category": "degree",
+"name": "rocket",
+"x": 7,
+"y": 10,
+"description": "Rocket",
+"extra": "Awarded for reaching 321\u00b0.",
+"key": "degree.rocket",
+"className": "degree-rocket"
+},
+{
+"category": "degree",
+"name": "sun",
+"x": 8,
+"y": 10,
+"description": "Sun",
+"extra": "Awarded for reaching 333\u00b0.",
+"key": "degree.sun",
+"className": "degree-sun"
+},
+{
+"category": "degree",
+"name": "arcreactor",
+"x": 9,
+"y": 7,
+"description": "Arc Reactor",
+"extra": "Awarded for reaching 360\u00b0.",
+"key": "degree.arcreactor",
+"className": "degree-arcreactor"
+},
+{
+"category": "shop",
+"name": "molecule",
+"x": 1,
+"y": 13,
+"description": "Molecule",
+"extra": "It's balls all the way down.",
+"key": "shop.molecule",
+"className": "shop-molecule"
+},
+{
+"category": "shop",
+"name": "heel",
+"x": 2,
+"y": 13,
+"description": "High Heel",
+"extra": "Putting style into your nubstep.",
+"key": "shop.heel",
+"className": "shop-heel"
+},
+{
+"category": "shop",
+"name": "yoda",
+"x": 0,
+"y": 17,
+"description": "Yoda",
+"extra": "Much you have played to earn this flair.",
+"key": "shop.yoda",
+"className": "shop-yoda"
+},
+{
+"category": "shop",
+"name": "vader",
+"x": 1,
+"y": 17,
+"description": "Darth Vader",
+"extra": "I find your lack of chase.. disturbing.",
+"key": "shop.vader",
+"className": "shop-vader"
+},
+{
+"category": "shop",
+"name": "jango",
+"x": 2,
+"y": 17,
+"description": "Jango Fett",
+"extra": "Boba, close the door.",
+"key": "shop.jango",
+"className": "shop-jango"
+},
+{
+"category": "shop",
+"name": "treasureMap",
+"x": 3,
+"y": 13,
+"description": "Treasure Map",
+"extra": "Take a left after the oversized koala statue\u2026",
+"key": "shop.treasureMap",
+"className": "shop-treasureMap"
+},
+{
+"category": "shop",
+"name": "eagle",
+"x": 4,
+"y": 13,
+"description": "Bald Eagle",
+"extra": "Creators of the world's largest bird nests!",
+"key": "shop.eagle",
+"className": "shop-eagle"
+},
+{
+"category": "shop",
+"name": "sailboat",
+"x": 5,
+"y": 13,
+"description": "Sailboat",
+"extra": "Come sail away.",
+"key": "shop.sailboat",
+"className": "shop-sailboat"
+},
+{
+"category": "shop",
+"name": "frog",
+"x": 6,
+"y": 13,
+"description": "Frog",
+"extra": "It's not easy, being green.",
+"key": "shop.frog",
+"className": "shop-frog"
+},
+{
+"category": "shop",
+"name": "basketball",
+"x": 7,
+"y": 13,
+"description": "Basketball",
+"extra": "Dunking highly encouraged.",
+"key": "shop.basketball",
+"className": "shop-basketball"
+},
+{
+"category": "shop",
+"name": "catEars",
+"x": 8,
+"y": 13,
+"description": "Cat Ears",
+"extra": "meow?",
+"key": "shop.catEars",
+"className": "shop-catEars"
+},
+{
+"category": "shop",
+"name": "cat",
+"x": 9,
+"y": 13,
+"description": "Cat",
+"extra": "A cat's the only cat, who knows where it's at.",
+"key": "shop.cat",
+"className": "shop-cat"
+},
+{
+"category": "shop",
+"name": "treasure",
+"x": 10,
+"y": 13,
+"description": "Treasure Chest",
+"extra": "Yo, ho, yo, ho, a pirate's life for me!",
+"key": "shop.treasure",
+"className": "shop-treasure"
+},
+{
+"category": "shop",
+"name": "yinYang",
+"x": 11,
+"y": 13,
+"description": "Yin and Yang",
+"extra": "You are both light and dark.",
+"key": "shop.yinYang",
+"className": "shop-yinYang"
+},
+{
+"category": "shop",
+"name": "captainHat",
+"x": 12,
+"y": 13,
+"description": "Captain's Cap",
+"extra": "Are ya ready kids? (AYE AYE, CAPTAIN!)",
+"key": "shop.captainHat",
+"className": "shop-captainHat"
+},
+{
+"category": "shop",
+"name": "acorn",
+"x": 0,
+"y": 14,
+"description": "Acorn",
+"extra": "Feeling a little nutty!",
+"key": "shop.acorn",
+"className": "shop-acorn"
+},
+{
+"category": "shop",
+"name": "turtle",
+"x": 1,
+"y": 14,
+"description": "Turtle",
+"extra": "BEHOLD \u2014 the turtle.",
+"key": "shop.turtle",
+"className": "shop-turtle"
+},
+{
+"category": "shop",
+"name": "mushroom",
+"x": 2,
+"y": 14,
+"description": "Mushroom",
+"extra": "Badger badger badger badger badger\u2026",
+"key": "shop.mushroom",
+"className": "shop-mushroom"
+},
+{
+"category": "shop",
+"name": "rubiksCube",
+"x": 3,
+"y": 14,
+"description": "Rubik's Cube",
+"extra": "1: Make a daisy. 2: Solve the cube.",
+"key": "shop.rubiksCube",
+"className": "shop-rubiksCube"
+},
+{
+"category": "shop",
+"name": "puzzle",
+"x": 4,
+"y": 14,
+"description": "Puzzle Piece",
+"extra": "You complete me.",
+"key": "shop.puzzle",
+"className": "shop-puzzle"
+},
+{
+"category": "shop",
+"name": "hammer",
+"x": 5,
+"y": 14,
+"description": "Hammer",
+"extra": "Stop... hammer time.",
+"key": "shop.hammer",
+"className": "shop-hammer"
+},
+{
+"category": "shop",
+"name": "silly",
+"x": 6,
+"y": 14,
+"description": "Silly Face",
+"extra": "Feeling silly today?",
+"key": "shop.silly",
+"className": "shop-silly"
+},
+{
+"category": "shop",
+"name": "poop",
+"x": 7,
+"y": 14,
+"description": "Poop Emoji",
+"extra": "Sh*t happens.",
+"key": "shop.poop",
+"className": "shop-poop"
+},
+{
+"category": "shop",
+"name": "magnet",
+"x": 8,
+"y": 14,
+"description": "Magnet",
+"extra": "Forcefield: activated.",
+"key": "shop.magnet",
+"className": "shop-magnet"
+},
+{
+"category": "shop",
+"name": "wizardHat",
+"x": 9,
+"y": 14,
+"description": "Wizard Hat",
+"extra": "Yer a wizard, Harry.",
+"key": "shop.wizardHat",
+"className": "shop-wizardHat"
+},
+{
+"category": "shop",
+"name": "cards",
+"x": 10,
+"y": 14,
+"description": "Playing Cards",
+"extra": "What are the odds?",
+"key": "shop.cards",
+"className": "shop-cards"
+},
+{
+"category": "shop",
+"name": "wing",
+"x": 11,
+"y": 14,
+"description": "Wing",
+"extra": "Whoa there, Icarus.",
+"key": "shop.wing",
+"className": "shop-wing"
+},
+{
+"category": "shop",
+"name": "koala",
+"x": 12,
+"y": 14,
+"description": "Koala",
+"extra": "Lookin' cute and cuddly.",
+"key": "shop.koala",
+"className": "shop-koala"
+},
+{
+"category": "shop",
+"name": "grapes",
+"x": 0,
+"y": 15,
+"description": "Grapes",
+"extra": "Freeze us first!",
+"key": "shop.grapes",
+"className": "shop-grapes"
+},
+{
+"category": "shop",
+"name": "binoculars",
+"x": 1,
+"y": 15,
+"description": "Binoculars",
+"extra": "What in tarnation...",
+"key": "shop.binoculars",
+"className": "shop-binoculars"
+},
+{
+"category": "shop",
+"name": "computer",
+"x": 2,
+"y": 15,
+"description": "Computer",
+"extra": "\"Can this thing run TagPro?\"",
+"key": "shop.computer",
+"className": "shop-computer"
+},
+{
+"category": "shop",
+"name": "padlock",
+"x": 4,
+"y": 15,
+"description": "Padlock",
+"extra": "Where's ma key?",
+"key": "shop.padlock",
+"className": "shop-padlock"
+},
+{
+"category": "shop",
+"name": "popcorn",
+"x": 6,
+"y": 15,
+"description": "Popcorn",
+"extra": "Pop POP!",
+"key": "shop.popcorn",
+"className": "shop-popcorn"
+},
+{
+"category": "shop",
+"name": "fish",
+"x": 7,
+"y": 15,
+"description": "Fish",
+"extra": "What do you call fish with no eyes? Fsh.",
+"key": "shop.fish",
+"className": "shop-fish"
+},
+{
+"category": "shop",
+"name": "house",
+"x": 8,
+"y": 15,
+"description": "House",
+"extra": "Home is where the flag is.",
+"key": "shop.house",
+"className": "shop-house"
+},
+{
+"category": "shop",
+"name": "vikingHelmet",
+"x": 9,
+"y": 15,
+"description": "Viking Helmet",
+"extra": "See you in Ballhalla.",
+"key": "shop.vikingHelmet",
+"className": "shop-vikingHelmet"
+},
+{
+"category": "shop",
+"name": "seven",
+"x": 10,
+"y": 15,
+"description": "Lucky 7",
+"extra": "The best things come in 7s.",
+"key": "shop.seven",
+"className": "shop-seven"
+},
+{
+"category": "shop",
+"name": "vwBug",
+"x": 11,
+"y": 15,
+"description": "VW Bug",
+"extra": "No punch backs!",
+"key": "shop.vwBug",
+"className": "shop-vwBug"
+},
+{
+"category": "shop",
+"name": "controller",
+"x": 12,
+"y": 15,
+"description": "Controller",
+"extra": "Where are the WASD buttons?",
+"key": "shop.controller",
+"className": "shop-controller"
+},
+{
+"category": "shop",
+"name": "flamingo",
+"x": 0,
+"y": 16,
+"description": "Flamingo",
+"extra": "Simon says 'Stand on one leg'",
+"key": "shop.flamingo",
+"className": "shop-flamingo"
+},
+{
+"category": "shop",
+"name": "tucan",
+"x": 1,
+"y": 16,
+"description": "Toucan",
+"extra": "One ball can't defend your flag, but...",
+"key": "shop.tucan",
+"className": "shop-tucan"
+},
+{
+"category": "shop",
+"name": "snail",
+"x": 2,
+"y": 16,
+"description": "Snail",
+"extra": "THE SNAIL'S HERE!",
+"key": "shop.snail",
+"className": "shop-snail"
+},
+{
+"category": "shop",
+"name": "fishbowl",
+"x": 3,
+"y": 16,
+"description": "Fishbowl",
+"extra": "*blub blub*",
+"key": "shop.fishbowl",
+"className": "shop-fishbowl"
+},
+{
+"category": "shop",
+"name": "tree",
+"x": 4,
+"y": 16,
+"description": "Tree",
+"extra": "Many say that trees arboring. I disagree.",
+"key": "shop.tree",
+"className": "shop-tree"
+},
+{
+"category": "shop",
+"name": "lemon",
+"x": 5,
+"y": 16,
+"description": "Lemon",
+"extra": "Life gave you this.",
+"key": "shop.lemon",
+"className": "shop-lemon"
+},
+{
+"category": "shop",
+"name": "pepper",
+"x": 6,
+"y": 16,
+"description": "Pepper",
+"extra": "Stay HOT!",
+"key": "shop.pepper",
+"className": "shop-pepper"
+},
+{
+"category": "shop",
+"name": "bananas",
+"x": 7,
+"y": 16,
+"description": "Bananas",
+"extra": "B-A-N-A-N-A-S",
+"key": "shop.bananas",
+"className": "shop-bananas"
+},
+{
+"category": "shop",
+"name": "cheeseburger",
+"x": 8,
+"y": 16,
+"description": "Cheeseburger",
+"extra": "Want some fries with that?",
+"key": "shop.cheeseburger",
+"className": "shop-cheeseburger"
+},
+{
+"category": "shop",
+"name": "hosomaki",
+"x": 9,
+"y": 16,
+"description": "Hosomaki",
+"extra": "Let the good times roll.",
+"key": "shop.hosomaki",
+"className": "shop-hosomaki"
+},
+{
+"category": "shop",
+"name": "joystick",
+"x": 10,
+"y": 16,
+"description": "Joystick",
+"extra": "For old heads only.",
+"key": "shop.joystick",
+"className": "shop-joystick"
+},
+{
+"category": "shop",
+"name": "magicWand",
+"x": 11,
+"y": 16,
+"description": "Magic Wand",
+"extra": "And for my next trick\u2026",
+"key": "shop.magicWand",
+"className": "shop-magicWand"
+},
+{
+"category": "shop",
+"name": "homer",
+"x": 0,
+"y": 18,
+"description": "Homer",
+"extra": "DOH!",
+"key": "shop.homer",
+"className": "shop-homer"
+},
+{
+"category": "shop",
+"name": "clapperboard",
+"x": 3,
+"y": 17,
+"description": "Clapperboard",
+"extra": "Aaaand action!",
+"key": "shop.clapperboard",
+"className": "shop-clapperboard"
+},
+{
+"category": "shop",
+"name": "battery",
+"x": 4,
+"y": 17,
+"description": "Battery",
+"extra": "Fully charged and ready to roll.",
+"key": "shop.battery",
+"className": "shop-battery"
+},
+{
+"category": "shop",
+"name": "scissors",
+"x": 5,
+"y": 17,
+"description": "Scissors",
+"extra": "Not to be used against rock.",
+"key": "shop.scissors",
+"className": "shop-scissors"
+},
+{
+"category": "shop",
+"name": "d6",
+"x": 6,
+"y": 17,
+"description": "d6",
+"extra": "Dice, dice, baby.",
+"key": "shop.d6",
+"className": "shop-d6"
+},
+{
+"category": "shop",
+"name": "taxi",
+"x": 8,
+"y": 17,
+"description": "Taxi",
+"extra": "You talkin' to me? You talkin' to me??",
+"key": "shop.taxi",
+"className": "shop-taxi"
+},
+{
+"category": "shop",
+"name": "barGraph",
+"x": 9,
+"y": 17,
+"description": "Bar Graph",
+"extra": "Trending in the right direction.",
+"key": "shop.barGraph",
+"className": "shop-barGraph"
+},
+{
+"category": "shop",
+"name": "horse",
+"x": 10,
+"y": 17,
+"description": "Horse",
+"extra": "Why the long face?",
+"key": "shop.horse",
+"className": "shop-horse"
+},
+{
+"category": "shop",
+"name": "3DGlasses",
+"x": 11,
+"y": 17,
+"description": "3D Glasses",
+"extra": "\"I thought they were pucks until I put these on!\"",
+"key": "shop.3DGlasses",
+"className": "shop-3DGlasses"
+},
+{
+"category": "shop",
+"name": "tennisRacquet",
+"x": 12,
+"y": 17,
+"description": "Tennis Racquet",
+"extra": "40, love? Degrees are just a number.",
+"key": "shop.tennisRacquet",
+"className": "shop-tennisRacquet"
+}
+]

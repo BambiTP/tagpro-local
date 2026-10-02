@@ -1,0 +1,36 @@
+// Browser test: register, rename, pick flair, then play and check name/flair/auth in game.
+const { chromium } = require('playwright');
+const base = process.argv[2] || 'http://localhost:3000';
+const out = __dirname + '/../ref/shots';
+(async () => {
+  const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--ignore-gpu-blocklist'] });
+  const page = await b.newPage({ viewport: { width: 1280, height: 900 } });
+  page.on('pageerror', (e) => console.log('PAGEERROR', e.message));
+  const user = 'tester' + Math.floor(Math.random() * 1e5);
+  await page.goto(base + '/login');
+  const reg = page.locator('form[action="/register"]');
+  await reg.locator('input[name=username]').fill(user);
+  await reg.locator('input[name=password]').fill('hunter22');
+  await Promise.all([page.waitForNavigation(), reg.locator('button').click()]);
+  console.log('after register at', page.url());
+  await page.fill('#displayedName', 'Ballsy');
+  await page.click('#saveSettings');
+  await page.waitForTimeout(800);
+  console.log('status:', (await page.textContent('.form-status')).trim());
+  await page.locator('.flair-item[data-flair="special.dinosaur"]').dispatchEvent('mouseup');
+  await page.waitForTimeout(800);
+  console.log('selected flair:', await page.getAttribute('.flair-item.selected', 'data-flair'));
+  await page.screenshot({ path: out + '/profile.png' });
+  await page.goto(base + '/groups');
+  console.log('header button:', (await page.textContent('#login-btn')).trim());
+  await page.fill('input[name=name]', 'Acct Test'); await page.check('input[name=private]');
+  await Promise.all([page.waitForNavigation(), page.click('#create-group-btn')]);
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => tagpro.group.socket.emit('groupPlay'));
+  await page.waitForURL('**/game', { timeout: 15000 });
+  await page.waitForTimeout(4000);
+  const me = await page.evaluate(() => { const p = tagpro.players[tagpro.playerId]; return { name: p.name, auth: p.auth, flair: p.flair && p.flair.key }; });
+  console.log('in game:', JSON.stringify(me));
+  await page.screenshot({ path: out + '/ingame-flair.png' });
+  await b.close();
+})().catch((e) => { console.error(e); process.exit(1); });

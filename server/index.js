@@ -8,6 +8,7 @@ const sessions = require('./sessions');
 const pages = require('./pages');
 const groups = require('./groups');
 const games = require('./games');
+const accounts = require('./accounts');
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0'; // the VPS service sets 127.0.0.1 so only Caddy is public
@@ -32,6 +33,43 @@ pages.setStatsProvider(() => {
 });
 
 const html = (res, s) => res.type('html').send(s);
+// every page shows the logged-in name in the header
+const _render = pages.render;
+let currentReq = null;
+pages.render = (name, vars = {}) => _render(name, Object.assign({ USER_NAME: currentReq && currentReq.session.account ? currentReq.session.account.displayName : '' }, vars));
+app.use((req, res, next) => { currentReq = req; next(); });
+
+const card = (title, content, script) => pages.render('card.html', { TITLE: title, CARD: content, PAGE_SCRIPT: script || '/R-965af4e7a4b8-z/compact/global-settings.js' });
+
+// ---- accounts (local username/password instead of the real site's OAuth logins) ----
+app.get('/login', (req, res) => req.session.account ? res.redirect('/profile') : html(res, card('TagPro Log In', pages.loginCard())));
+app.post('/login', (req, res) => {
+  const r = accounts.login(req.body.username, req.body.password);
+  if (r.error) return html(res, card('TagPro Log In', pages.loginCard(r.error)));
+  accounts.bind(req.session, r.account);
+  res.redirect('/');
+});
+app.post('/register', (req, res) => {
+  const r = accounts.register(req.body.username, req.body.password);
+  if (r.error) return html(res, card('TagPro Log In', pages.loginCard(r.error)));
+  accounts.bind(req.session, r.account);
+  res.redirect('/profile');
+});
+app.get('/logout', (req, res) => { accounts.unbind(req.session); res.redirect('/'); });
+app.get('/profile', (req, res) => {
+  if (!req.session.account) return res.redirect('/login');
+  html(res, card('TagPro Profile', pages.profileCard(req.session.account, accounts.flairs), '/R-965af4e7a4b8-z/compact/global-profile.js'));
+});
+app.post('/profile', (req, res) => {
+  const r = accounts.setDisplayName(req.session, req.body.displayedName);
+  if (r.error) return res.json(r);
+  res.json({ success: true, reservedName: req.session.account.username, displayName: req.session.account.displayName });
+});
+app.post('/profile/selectedFlair', (req, res) => res.json(accounts.setFlair(req.session, req.body.flair)));
+
+// settings are browser cookies; the real page just posts for an acknowledgement
+app.get('/settings', (req, res) => html(res, pages.render('settings.html')));
+app.post('/settings', (req, res) => res.json({ success: true }));
 
 app.get('/', (req, res) => html(res, pages.render('home.html', { GROUP_ID: req.session.groupId || 'null' })));
 

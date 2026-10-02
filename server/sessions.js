@@ -2,6 +2,7 @@
 const crypto = require('crypto');
 
 const sessions = new Map(); // tpid -> session
+let accounts = null; // set lazily (accounts.js) to apply logged-in name/flair
 
 function newId(len = 32) {
   const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
@@ -47,12 +48,15 @@ function middleware(req, res, next) {
     res.setHeader('Set-Cookie', `tpid=${id}; Path=/; Max-Age=${60 * 60 * 24 * 365 * 10}; SameSite=Lax`);
   }
   req.session = get(id);
+  (accounts || (accounts = require('./accounts'))).apply(req.session);
   next();
 }
 
 // For socket.io handshakes
 function fromSocket(socket) {
-  return get(parseCookies(socket.handshake.headers.cookie).tpid);
+  const s = get(parseCookies(socket.handshake.headers.cookie).tpid);
+  if (s) (accounts || (accounts = require('./accounts'))).apply(s);
+  return s;
 }
 
 module.exports = { get, middleware, fromSocket, newId, parseCookies };
