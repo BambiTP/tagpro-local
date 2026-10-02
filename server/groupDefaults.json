@@ -1,0 +1,343 @@
+{
+ "settings": [
+  [
+   "isPrivate",
+   false
+  ],
+  [
+   "discoverable",
+   false
+  ],
+  [
+   "serverSelect",
+   false
+  ],
+  [
+   "allowPlayers",
+   0
+  ],
+  [
+   "map",
+   "random"
+  ],
+  [
+   "mode",
+   "classic"
+  ],
+  [
+   "mapId",
+   null
+  ],
+  [
+   "time",
+   6
+  ],
+  [
+   "caps",
+   0
+  ],
+  [
+   "laps",
+   3
+  ],
+  [
+   "overtime",
+   true
+  ],
+  [
+   "overtimeRespawnIncrement",
+   3000
+  ],
+  [
+   "overtimeJukeJuice",
+   true
+  ],
+  [
+   "rollingBombBehavior",
+   "default"
+  ],
+  [
+   "mercyRule",
+   3
+  ],
+  [
+   "accel",
+   1
+  ],
+  [
+   "topspeed",
+   1
+  ],
+  [
+   "bounce",
+   1
+  ],
+  [
+   "playerRespawnTime",
+   3000
+  ],
+  [
+   "speedPadRespawnTime",
+   10000
+  ],
+  [
+   "dynamiteRespawnTime",
+   30000
+  ],
+  [
+   "powerupRespawnTime",
+   60000
+  ],
+  [
+   "powerupJukeJuiceDuration",
+   "20000"
+  ],
+  [
+   "powerupRollingBombDuration",
+   "20000"
+  ],
+  [
+   "powerupTagproDuration",
+   "20000"
+  ],
+  [
+   "redTeamName",
+   "Red"
+  ],
+  [
+   "blueTeamName",
+   "Blue"
+  ],
+  [
+   "redTeamScore",
+   0
+  ],
+  [
+   "blueTeamScore",
+   0
+  ],
+  [
+   "potatoTime",
+   0
+  ],
+  [
+   "powerupDelay",
+   true
+  ],
+  [
+   "lastPossession",
+   "disabled"
+  ],
+  [
+   "ghostMode",
+   "disabled"
+  ],
+  [
+   "poosts",
+   true
+  ],
+  [
+   "kissingFCs",
+   true
+  ],
+  [
+   "kissingTPs",
+   true
+  ],
+  [
+   "jukeJuiceBoost",
+   false
+  ],
+  [
+   "jukeJuiceBoostPower",
+   70
+  ],
+  [
+   "rollingBombForceMultipler",
+   1
+  ],
+  [
+   "rollingBombDistanceMultipler",
+   1
+  ],
+  [
+   "spacebarDetonateAll",
+   false
+  ],
+  [
+   "tagproMaxTags",
+   0
+  ],
+  [
+   "gravityWellForce",
+   1
+  ],
+  [
+   "selfAssignment",
+   true
+  ],
+  [
+   "analytics",
+   true
+  ],
+  [
+   "noScript",
+   false
+  ],
+  [
+   "powerupJukeJuice",
+   true
+  ],
+  [
+   "powerupTagPro",
+   true
+  ],
+  [
+   "powerupRollingBomb",
+   true
+  ],
+  [
+   "eggballLosingTeamStarts",
+   true
+  ],
+  [
+   "combinejjrb",
+   false
+  ],
+  [
+   "jumpLimit",
+   2
+  ],
+  [
+   "speedLimit",
+   true
+  ],
+  [
+   "isPlayerJumpResetEnabled",
+   false
+  ],
+  [
+   "mapTestingMode",
+   false
+  ],
+  [
+   "respawnWarnings",
+   true
+  ],
+  [
+   "pupIndicators",
+   true
+  ],
+  [
+   "disableAllPups",
+   false
+  ],
+  [
+   "stickyBallFix",
+   "none"
+  ],
+  [
+   "stickyBallTimeout",
+   250
+  ],
+  [
+   "server",
+   null
+  ],
+  [
+   "name",
+   "Some Group"
+  ],
+  [
+   "regions",
+   [
+    "US East",
+    "US Central",
+    "US West",
+    "Europe",
+    "Oceanic"
+   ]
+  ],
+  [
+   "groupId",
+   null
+  ]
+ ],
+ "servers": [
+  {
+   "name": "Atlanta, GA",
+   "value": "01b011ac8116",
+   "key": "at"
+  },
+  {
+   "name": "New York, NY",
+   "value": "9a6e1bc2c4c8",
+   "key": "ny"
+  },
+  {
+   "name": "Toronto, CAN",
+   "value": "fcdba9650e5e",
+   "key": "to"
+  },
+  {
+   "name": "Chicago 2, IL",
+   "value": "c89032ef8f96",
+   "key": "c2"
+  },
+  {
+   "name": "Chicago 5, IL",
+   "value": "a77fbc407c2b",
+   "key": "c5"
+  },
+  {
+   "name": "Dallas, TX",
+   "value": "040f9334d182",
+   "key": "da"
+  },
+  {
+   "name": "Chicago, IL",
+   "value": "26611098815d",
+   "key": "ch"
+  },
+  {
+   "name": "Chicago 4, IL",
+   "value": "a52cc8e0c6d5",
+   "key": "c4"
+  },
+  {
+   "name": "Chicago 3, IL",
+   "value": "f1ffe2def84b",
+   "key": "c3"
+  },
+  {
+   "name": "Dallas 2, TX",
+   "value": "7d7278e4e155",
+   "key": "d2"
+  },
+  {
+   "name": "San Francisco, CA",
+   "value": "41adffac6f58",
+   "key": "sf"
+  },
+  {
+   "name": "Seattle, WA",
+   "value": "ab0118cf5df3",
+   "key": "se"
+  },
+  {
+   "name": "Sydney, AUS",
+   "value": "da0381ab7d5d",
+   "key": "sy"
+  },
+  {
+   "name": "Amsterdam, NLD",
+   "value": "73a361a903f3",
+   "key": "am"
+  },
+  {
+   "name": "London, GBR",
+   "value": "319d6cb98d5e",
+   "key": "lo"
+  }
+ ]
+}

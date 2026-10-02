@@ -1,0 +1,318 @@
+<!doctype html> <!-- eslint-disable-line vue/no-parsing-error -->
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <title>Find a TagPro Game</title>
+
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <meta property="og:title" content="Find a TagPro Game">
+        <meta property="og:image" content="/images/thumbnail.png">
+
+        <link rel="apple-touch-icon" href="/images/thumbnail.png">
+        <link rel="shortcut icon" href="/favicon.ico">
+
+        <link rel="stylesheet" href="/R-62bb0909b74c-z/stylesheets/bootstrap.css">
+        <link rel="stylesheet" href="/R-62bb0909b74c-z/stylesheets/bootstrap-datepicker3.standalone.css">
+        <link rel="stylesheet" href="/R-62bb0909b74c-z/stylesheets/bootstrap-select.css">
+        <link rel="stylesheet" href="/R-62bb0909b74c-z/stylesheets/style.css">
+        <link rel="stylesheet" href="/R-62bb0909b74c-z/stylesheets/font-awesome.css">
+
+        <script src="/R-62bb0909b74c-z/compact/global-findGame.js"></script>
+            <script type="text/javascript" src="/socket.io/socket.io.min.js"></script>
+    <script type="text/javascript">
+        tagproConfig.joiner = false;
+        tagproConfig.regionConfig = [{"name":"US East","displayName":"US East","cookieName":"region_us_east","statKey":"NAE","rankedKey":null,"ranked":false,"presetKey":"e"},{"name":"US Central","displayName":"US Central","cookieName":"region_us_central","statKey":"NAC","rankedKey":"na","ranked":true,"presetKey":"c"},{"name":"US West","displayName":"US West","cookieName":"region_us_west","statKey":"NAW","rankedKey":null,"ranked":false,"presetKey":"w"},{"name":"Europe","displayName":"Europe","cookieName":"region_europe","statKey":"EU","rankedKey":"eu","ranked":true,"presetKey":"u"},{"name":"Oceanic","displayName":"Oceania","cookieName":"region_oceanic","statKey":"OC","rankedKey":"oc","ranked":true,"presetKey":"o"}];
+    </script>
+
+
+        <script>
+            tagproConfig.serverPort = location.port || 80;
+            tagproConfig.serverHost = location.hostname + (tagproConfig.serverPort != 80 ? ':' + tagproConfig.serverPort : '');
+            tagproConfig.cookieHost = location.hostname;
+        </script>
+            <input id="groupId" type="hidden" value="{{GROUP_ID}}">
+    </head>
+    <body class="body-with-footer" id="1cc1930d38137c59799a051c942cbd1cecff0aba929b345a5d14310f3da07b99">
+
+        <div id="header" class="header">
+            <div class="container header-main">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="header-top">
+                            <div class="row">
+                                <div class="col-sm-9 col-md-7 col-lg-6">
+                                    <h1 id="logo" class="logo">
+                                            <a href="/"><img src="/images/logo.png" alt="TagPro"></a>
+                                    </h1>
+
+                                        <div class="server-stats">
+                                            <div>Stats</div>
+                                            <div>{{STATS_PLAYERS}} players in {{STATS_GAMES}} games
+                                            </div>
+                                            <div>{{STATS_ONLINE}} total users online</div>
+                                        </div>
+                                </div>
+                                <div class="col-sm-3 col-md-5 col-lg-6">
+                                    <div class="flair-log hidden-sm" id="flair-log">
+                                    </div>
+
+
+                                    <div class="userbar pull-right">
+                                            <a id="login-btn" class="btn btn-secondary" href="/login">Log In / Sign Up</a>
+                                            <a id="settings-btn" class="btn btn-default" href="/settings">Settings</a>
+                                    </div>
+
+                                    <div class="clearfix"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                        <div id="site-nav" class="nav">
+                            <button class="mobile-menu-toggle" onclick="this.blur();">
+                            <svg width="32" height="32" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1664 1344v128q0 26-19 45t-45 19h-1408q-26 0-45-19t-19-45v-128q0-26 19-45t45-19h1408q26 0 45 19t19 45zm0-512v128q0 26-19 45t-45 19h-1408q-26 0-45-19t-19-45v-128q0-26 19-45t45-19h1408q26 0 45 19t19 45zm0-512v128q0 26-19 45t-45 19h-1408q-26 0-45-19t-19-45v-128q0-26 19-45t45-19h1408q26 0 45 19t19 45z"/></svg>
+                            </button>
+                            <div class="visible-xs clearfix"></div>
+                            <ul>
+                                <li id="nav-tagpro" class=""><a href="/">TagPro</a></li>
+                                <li id="nav-groups" class=""><a href="/groups">Groups<span class="group-indicator groupsAvailable bounce">&#x25cf;</span></a></li>
+                                <li id="nav-leaderboards" class=""><a href="/leaders">Leaders</a></li>
+                                <li id="nav-maps" class=""><a href="/maps">Maps</a></li>
+                                <li id="nav-playersearch" class=""><a href="/playersearch">Player Search</a></li>
+                                <li id="nav-competitive" class=""><a href="/competitive">Competitive</a></li>
+                                <li id="nav-replays" class=""><a href="/replays">Replays</a></li>
+                                <li id="nav-feedback" class=""><a href="/feedback">Feedback<span id="feedback-indicator" style="display: none;" class="group-indicator bounce">&#x25cf;</span></a></li>
+
+                                    <li class="nav-mobile"><a href="/login">Log In / Sign Up</a></li>
+                                    <li class="nav-mobile"><a href="/settings">Settings</a></li>
+                            </ul>
+                        </div>
+            </div>
+        </div>
+
+        <!-- start userscript site-wide top -->
+        <div id="userscript-top" class="hidden">
+            <div class="container">
+                <div class="row">
+                    <div class="col-xs-12 userscript-template hidden">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- end userscript site-wide top -->
+
+        <input type="hidden" id="userId" value="">
+<input type="hidden" id="isPrivateGroup" value="true">
+
+<div class="container joiner">
+    <div class="row">
+        <div class="joiner-message">Connecting...</div>
+    </div>
+    <div class="row">
+        <div class="col-xs-3">
+            <div id="joiner-settings">
+                <div class="title">Joiner Settings</div>
+                <div class="queue-select-message">
+    Connecting...
+</div>
+<div class="queue-select-options">
+    <div id="casual-display">
+            <div class="joiner-header">CASUAL REGIONS</div>
+        <ul class="region-list show">
+            <li>
+                <div class="joiner-display">
+                    <label class="joiner-automatic">
+                        <input name="Automatic" id="region_auto" class="child-check" type="checkbox">
+                        Automatic
+                            <a href="https://reddit.com/r/TagPro/wiki/servers" target="_blank" class="btn btn-default btn-regions">About<br>regions &amp;<br>servers</a>
+                    </label>
+                </div>
+            </li>
+                <li>
+                    <div class="joiner-display">
+                        <label>
+                            <input name="US East"  type="checkbox" class="js-region-cookie joiner-option" data-region="US East" cookie="region_us_east">
+                            US East
+                        </label>
+                    </div>
+                </li>
+                <li>
+                    <div class="joiner-display">
+                        <label>
+                            <input name="US Central"  type="checkbox" class="js-region-cookie joiner-option" data-region="US Central" cookie="region_us_central">
+                            US Central
+                        </label>
+                    </div>
+                </li>
+                <li>
+                    <div class="joiner-display">
+                        <label>
+                            <input name="US West"  type="checkbox" class="js-region-cookie joiner-option" data-region="US West" cookie="region_us_west">
+                            US West
+                        </label>
+                    </div>
+                </li>
+                <li>
+                    <div class="joiner-display">
+                        <label>
+                            <input name="Europe"  type="checkbox" class="js-region-cookie joiner-option" data-region="Europe" cookie="region_europe">
+                            Europe
+                        </label>
+                    </div>
+                </li>
+                <li>
+                    <div class="joiner-display">
+                        <label>
+                            <input name="Oceania"  type="checkbox" class="js-region-cookie joiner-option" data-region="Oceanic" cookie="region_oceanic">
+                            Oceania
+                        </label>
+                    </div>
+                </li>
+        </ul>
+            <div class="waiting-options">While you wait:</div>
+    </div>
+        <div class="joiner-display">
+            <label>
+                <input name="Minigames"  type="checkbox" class="js-game-mode-cookie joiner-option" data-queue="minigames" cookie="waiting_minigames">
+                    Minigames
+            </label>
+        </div>
+        <div class="joiner-display">
+            <label>
+                <input name="Spectate"  type="checkbox" class="js-game-mode-cookie joiner-option" data-queue="spectate" cookie="waiting_spectate">
+                    Spectate <span class="joiner-quiet">Random games</span>
+            </label>
+        </div>
+</div>                <div id="spinner" class="spinner" style="display: none;">
+                    <div class="spinner-item"></div>
+                    <div class="spinner-item"></div>
+                    <div class="spinner-item"></div>
+                    <div class="spinner-item"></div>
+                </div>
+                <a id="leave-joiner" class="btn btn-default">Exit</a>
+            </div>
+            <div class="stats ranked-stats"></div>
+        </div>
+        <div class="col-xs-9">
+            <div class="row joiner-content">
+                <div class="main-content-wrapper">
+                    <div class="joiner-map-group">
+
+
+                        <!-- Center world map (always shown, moved to sidebar by JS when spectate_game_list exists) -->
+                        <div id="world-map" class="joiner-map" style="display: block;">
+                            <div id="worldmap-container" style="opacity: 0;" data-hidden="true">
+                                <img id="worldmap" src="/images/worldmap.png" class="img-responsive">
+                                <div id="worldmap-targets"></div>
+                            </div>
+                        </div>
+
+
+                        <div id="tip-container">
+                            <div class="text-center ranked-tips">
+                                <span id="tip"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-offset-3 col-md-6">
+            <div id="flagged">
+                Sorry, there have been some reports on your IP address that are causing this delay.<br><br>
+                You can bypass this delay by <a href="/login">logging in</a>.
+            </div>
+        </div>
+    </div>
+</div>
+
+        <!-- start userscript site-wide bottom -->
+        <div id="userscript-bottom" class="hidden">
+            <div class="container">
+                <div class="row">
+                    <div class="col-xs-12 userscript-template hidden">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- end userscript site-wide bottom -->
+
+        <footer class="footer">
+            <div class="container">
+                <div class="row">
+                    <div class="col-md-3 col-sm-3">
+                        <div class="visible-xs text-center">
+                            <img src="/images/KoalaBeast.png">
+                            <div class="copyright">
+                                &copy; <span class="js-copyright-date">2016</span>
+                                Koalabeast Games
+                            </div>
+                        </div>
+                        <div class="hidden-xs">
+                            <img src="/images/KoalaBeast.png">
+                            <div class="copyright">
+                                &copy; <span class="js-copyright-date">2016</span>
+                                Koalabeast Games
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="col-md-9 col-sm-9 col-xs-12">
+                        <div class="row">
+                            <div class="col-sm-4 col-xs-12">
+                                <h3 class="header-title">TagPro</h3>
+                                <ul>
+                                    <li><a href="mailto:tagpro@koalabeast.com">Support</a></li>
+                                    <li><a href="https://docs.google.com/document/d/1n90H8CXwr_yNVWsxrcbPDZl2qhUd9JN9FWX-0qw0Qew/edit?usp=sharing" target="_blank">Code of Conduct</a></li>
+                                    <li><a href="https://docs.google.com/document/d/1yPGNGaHY5JNh1UGVmtMGz8cDZalgGoOMCNgjnKThpPo/edit?usp=sharing" target="_blank">Privacy Policy</a></li>
+                                </ul>
+                            </div>
+                            <div class="col-sm-4 col-xs-12">
+                                <h3 class="header-title">Community</h3>
+                                <ul>
+                                    <li><a href="https://www.reddit.com/r/tagpro" target="_blank">Subreddit</a></li>
+                                    <li><a href="https://discord.gg/hhW3MDzrt3" target="_blank">Discord</a></li>
+                                    <li><a href="https://www.reddit.com/r/tagpro/wiki/index" target="_blank">Wiki</a></li>
+                                </ul>
+                            </div>
+                            <div class="col-sm-4 col-xs-12">
+                                <h3 class="header-title">Social Media</h3>
+                                <ul>
+                                    <li><a href="https://twitter.com/play_tagpro" target="_blank">Twitter</a></li>
+                                    <li><a href="https://www.tiktok.com/@tagpro.gg" target="_blank">TikTok</a></li>
+                                    <li><a href="https://www.youtube.com/user/KoalaBeastGames" target="_blank">YouTube</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </footer>
+
+        
+
+            <script src="/R-62bb0909b74c-z/compact/redirect.js"></script>
+
+        <script>
+            !function (w, d) {
+                if (w.rdt) return;
+                var p = (w.rdt = function () { p.sendEvent ? p.sendEvent.apply(p, arguments) : p.callQueue.push(arguments) });
+                p.callQueue = [];
+                var t = d.createElement("script");
+                t.src = "https://www.redditstatic.com/ads/pixel.js";
+                t.async = !0;
+                var s = d.getElementsByTagName("script")[0];
+                s.parentNode.insertBefore(t, s);
+            }(window, document);
+            rdt("init", "t2_vrwbckj1", { "optOut": false, "useDecimalCurrencyValues": true, "email": "", "externalId": "" });
+            rdt("track", "PageVisit");
+        </script>
+    </body>
+</html>

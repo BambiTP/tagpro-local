@@ -1,0 +1,22 @@
+{
+  "name": "tagpro-local",
+  "version": "1.0.0",
+  "description": "Local TagPro: real client + recoded server",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "compression": "^1.8.2",
+    "express": "^5.2.1",
+    "multer": "^2.4.0",
+    "pngjs": "^7.0.0",
+    "socket.io": "^4.8.4"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

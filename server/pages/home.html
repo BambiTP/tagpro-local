@@ -1,0 +1,542 @@
+<!doctype html> <!-- eslint-disable-line vue/no-parsing-error -->
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <title>TagPro Capture the Flag</title>
+
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <meta property="og:title" content="TagPro Capture the Flag">
+        <meta property="og:image" content="/images/thumbnail.png">
+            <meta property="og:url" content="https://tagpro.gg">
+            <meta property="og:description" content="TagPro is a free-to-play online multiplayer capture the flag video game with servers in North America, Europe, and Australia that runs through all mainstream browsers!">
+            <meta name="description" content="TagPro is a free-to-play online multiplayer capture the flag video game with servers in North America, Europe, and Australia that runs through all mainstream browsers!">
+
+        <link rel="apple-touch-icon" href="/images/thumbnail.png">
+        <link rel="shortcut icon" href="/favicon.ico">
+
+        <link rel="stylesheet" href="/R-62bb0909b74c-z/stylesheets/bootstrap.css">
+        <link rel="stylesheet" href="/R-62bb0909b74c-z/stylesheets/bootstrap-datepicker3.standalone.css">
+        <link rel="stylesheet" href="/R-62bb0909b74c-z/stylesheets/bootstrap-select.css">
+        <link rel="stylesheet" href="/R-62bb0909b74c-z/stylesheets/style.css">
+        <link rel="stylesheet" href="/R-62bb0909b74c-z/stylesheets/font-awesome.css">
+
+        <script src="/R-62bb0909b74c-z/compact/global-home-streams.js"></script>
+        
+
+        <script>
+            tagproConfig.serverPort = location.port || 80;
+            tagproConfig.serverHost = location.hostname + (tagproConfig.serverPort != 80 ? ':' + tagproConfig.serverPort : '');
+            tagproConfig.cookieHost = location.hostname;
+        </script>
+    </head>
+    <body class="body-with-footer" id="693b6b450a8cc14b324a4ce22434e0af52eaeedc990df486d35969a618dd0c0c">
+
+        <div id="header" class="header">
+            <div class="container header-main">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="header-top">
+                            <div class="row">
+                                <div class="col-sm-9 col-md-7 col-lg-6">
+                                    <h1 id="logo" class="logo">
+                                            <a href="/"><img src="/images/logo.png" alt="TagPro"></a>
+                                    </h1>
+
+                                        <div class="server-stats">
+                                            <div>Stats</div>
+                                            <div>{{STATS_PLAYERS}} players in {{STATS_GAMES}} games
+                                            </div>
+                                            <div>{{STATS_ONLINE}} total users online</div>
+                                        </div>
+                                </div>
+                                <div class="col-sm-3 col-md-5 col-lg-6">
+                                    <div class="flair-log hidden-sm" id="flair-log">
+                                    </div>
+
+
+                                    <div class="userbar pull-right">
+                                            <a id="login-btn" class="btn btn-secondary" href="/login">Log In / Sign Up</a>
+                                            <a id="settings-btn" class="btn btn-default" href="/settings">Settings</a>
+                                    </div>
+
+                                    <div class="clearfix"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                        <div id="site-nav" class="nav">
+                            <button class="mobile-menu-toggle" onclick="this.blur();">
+                            <svg width="32" height="32" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1664 1344v128q0 26-19 45t-45 19h-1408q-26 0-45-19t-19-45v-128q0-26 19-45t45-19h1408q26 0 45 19t19 45zm0-512v128q0 26-19 45t-45 19h-1408q-26 0-45-19t-19-45v-128q0-26 19-45t45-19h1408q26 0 45 19t19 45zm0-512v128q0 26-19 45t-45 19h-1408q-26 0-45-19t-19-45v-128q0-26 19-45t45-19h1408q26 0 45 19t19 45z"/></svg>
+                            </button>
+                            <div class="visible-xs clearfix"></div>
+                            <ul>
+                                <li id="nav-tagpro" class="active-tab"><a href="/">TagPro</a></li>
+                                <li id="nav-groups" class=""><a href="/groups">Groups<span class="group-indicator groupsAvailable bounce">&#x25cf;</span></a></li>
+                                <li id="nav-leaderboards" class=""><a href="/leaders">Leaders</a></li>
+                                <li id="nav-maps" class=""><a href="/maps">Maps</a></li>
+                                <li id="nav-playersearch" class=""><a href="/playersearch">Player Search</a></li>
+                                <li id="nav-competitive" class=""><a href="/competitive">Competitive</a></li>
+                                <li id="nav-replays" class=""><a href="/replays">Replays</a></li>
+                                <li id="nav-feedback" class=""><a href="/feedback">Feedback<span id="feedback-indicator" style="display: none;" class="group-indicator bounce">&#x25cf;</span></a></li>
+
+                                    <li class="nav-mobile"><a href="/login">Log In / Sign Up</a></li>
+                                    <li class="nav-mobile"><a href="/settings">Settings</a></li>
+                            </ul>
+                        </div>
+            </div>
+        </div>
+
+        <!-- start userscript site-wide top -->
+        <div id="userscript-top" class="hidden">
+            <div class="container">
+                <div class="row">
+                    <div class="col-xs-12 userscript-template hidden">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- end userscript site-wide top -->
+
+        <div class="container home">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="row main-block">
+                <div id="home-error" class="col-md-offset-2 col-md-8 home-error">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                    <div class="msg msg-warning">
+                        Sorry. Unable to find the game you were looking for. Hit the 'Play Now' button and try again.
+                    </div>
+
+
+
+
+
+
+
+                </div>
+                <div class="col-md-6">
+                    <div class="play-now block">
+                        <div class="row">
+                            <div class="col-md-12 text-center">
+                                <a id="play-now" class="btn btn-primary" href="/games/select">
+                                    Play Now<br>
+                                    <span class="sub-text">No login required</span>
+                                </a>
+                                <br>
+                                <a href="https://www.youtube.com/watch?v=eDrsWwGul70" target="_blank">How to Play</a>
+                                <span id="nosound" class="hide">
+                                    <br><a href="https://www.reddit.com/r/TagPro/wiki/nosound" target="_blank">Sound Not Working?</a>
+                                </span>
+                            </div>
+                            <div id="game-controls" class="controls col-md-12 text-center">
+    <div class="key key-arrows">
+        <img width="160" src="/images/arrowkeys.png">
+        <div>Movement</div>
+    </div>
+    <div class="key key-escape">
+        <img width="69" src="/images/esckey.png">
+        <div>Scoreboard</div>
+    </div>
+    <div class="visible-xs visible-md"></div>
+    <div class="key key-enter">
+        <img width="126" src="/images/enterkey.png">
+        <div>All Chat</div>
+    </div>
+    <div class="key key-t">
+        <img width="52" src="/images/tkey.png">
+        <div>Team Chat</div>
+    </div>
+</div>
+<div class="controls controls-2 col-md-12 text-center">
+    <div class="key key-spacebar">
+        <img width="189" src="/images/spacebar.png">
+        <div>Activate <a target="_blank" href="https://old.reddit.com/r/TagPro/wiki/gameplay#wiki_power-ups">Rolling Bomb</a></div>
+    </div>
+    <div class="key"></div>
+    <div class="key">
+        <button type="button" class="btn btn-default" data-toggle="modal" data-target="#remapModal">Change<br>Keyboard<br>Controls</button>
+    </div>
+</div>                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div id="home-news" class="news block">
+                        <h2 class="header-title">News</h2>
+                        <ul>
+                            <li class="news-item" data-timestamp="1790777722">
+                                <a href="https://www.reddit.com/r/TagPro/comments/1wu63bp/tagpro_future_group_update_39_ux_cleanup_mars/" target="_blank">TagPro Future Group - Update #39 - UX Cleanup, mars ball fixes, preset group links, reducing lagout issues, and a new plan for TagPro development!</a><br>
+                                <span class="news-item-new">NEW!</span>
+                                <span class="news-item-detail">posted <span title="Wed Sep 30 2026 14:15:22 GMT+0000 (Coordinated Universal Time)" data-titledate>1 day, 14 hours ago</span></span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- start userscript home middle -->
+            <div id="userscript-home" class="hidden">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-xs-12 userscript-template hidden">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- end userscript home middle -->
+
+            <div class="row">
+                <div class="col-sm-6 col-md-6">
+                    <ul class="tab-list">
+                        <li class="" data-target="#livestream"><a>Livestreams</a></li>
+                        <li class="active" data-target="#tutorial"><a>Tutorials</a></li>
+                    </ul>
+                    <div class="video-content">
+                        <div id="livestream" class="video ">
+                            <div>
+                                There aren't any TagPro streams right now.
+                            </div>
+                        </div>
+                        <div id="tutorial" class="video active">
+                            <div class="row stream-ui-container">
+                                <div class="col-sm-12 col-md-12">
+                                    <div class="left-select-btn-container">
+                                        <button class="left video-select-btn">&lt;</button>
+                                    </div>
+                                    <div class="video-selector tutorial-selector">
+                                        <div class="width-3752"></div>
+                                            <div class="video-item tutorial-item" data-url="https://www.youtube.com/embed/eDrsWwGul70">How to Play TagPro in<br>4 Minutes</div>
+                                            <div class="video-item tutorial-item" data-url="https://www.youtube.com/embed/0m7e17HTN-Q">How to Play TagPro in<br>30 seconds</div>
+                                            <div class="video-item tutorial-item" data-url="https://www.youtube.com/embed/zx-8wwX4VkI">TAG Talks - Contain 101</div>
+                                            <div class="video-item tutorial-item" data-url="https://www.youtube.com/embed/W2giMXNiZEE">TAG Talks - Grabbing Without Grabbing</div>
+                                            <div class="video-item tutorial-item" data-url="https://www.youtube.com/embed/x7Xlk5aiAvM">TAG Talks - Offending Defenders (OD)</div>
+                                            <div class="video-item tutorial-item" data-url="https://www.youtube.com/embed/o4hGdrZPJzg">How to Play TagPro in<br>5 seconds</div>
+                                        <div class="width-3752"></div>
+                                    </div>
+                                    <div class="right-select-btn-container">
+                                        <button class="right video-select-btn">&gt;</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="video-container selected-tutorial-container hidden">
+                                <iframe
+                                    src=""
+                                    width="100%"
+                                    height="100%"
+                                    allowfullscreen="true"
+                                ></iframe>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-sm-6 col-md-6">
+                        <div id="home-donations" class="donations block ">
+                            <h2 class="header-title">Weekly Donation Goal</h2>
+
+                        <a href="/donate">
+                        <div class="donation-bar blue" >
+                            <div class="progress-container" style="width: 0%;">
+                                <div class="progress">
+                                    <span class="message">yiss!</span>
+                                </div>
+                            </div>
+                        </div>
+                        </a>
+
+                        <div class="row">
+                            <div class="col-xs-6 callout">
+                                <div>74 Hours Left</div>
+                                <a class="btn btn-primary" href="/donate">Donate</a>
+                            </div>
+                            <div class="col-xs-6">
+                                <div class="donor-flair-list">
+                                    <ul>
+                                        <li><span class="flair special-supporter1"></span>Level 1 Donor</li>
+                                        <li><span class="flair special-supporter2"></span>Level 2 Donor</li>
+                                        <li><span class="flair special-supporter3"></span>Level 3 Donor</li>
+                                        <li><span class="flair special-supporter4"></span>Level 4 Donor</li>
+                                        <li><span class="flair special-supporter5"></span>Level 5 Donor</li>
+                                        <li><span class="flair special-supporter6"></span>Level 6 Donor</li>
+                                        <li><span class="flair special-supporter7"></span>Level 7 Donor</li>
+                                        <li><span class="flair special-supporter8"></span>Level 8 Donor</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<input id="gameCount" type="hidden" value="0">
+
+<audio id="silence" preload="auto">
+    <source src="/sounds/silence.mp3" type="audio/mp3">
+    <source src="/sounds/silence.m4a" type="audio/m4a">
+    <source src="/sounds/silence.ogg" type="audio/ogg">
+</audio>
+
+<!-- Modal -->
+<div class="modal fade" id="remapModal" tabindex="-1" role="dialog" aria-labelledby="remapModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="btn btn-default close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="remapModalLabel">Key Remapping</h4>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-sm-4 text-center">
+                        <small>Remap Configuration:</small>
+                    </div>
+                    <div class="col-sm-8">
+                        <select class="form-control" id="remapConfig">
+                            <option value="primary">Primary</option>
+                            <option value="secondary">Secondary</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="text-center"><small>Both the primary and secondary key bindings can be used while playing.</small></p>
+                <hr>
+
+                <div id="remapContainer">
+                    <p class="remap-instructions remapping">Click a Button</p>
+                    <div class="remap-keys-container">
+                        <table>
+                            <tbody>
+                                <tr>
+                                    <td colspan="2">
+                                    </td>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="3">
+                                        <div class="remap-key-background space"></div>
+                                        <div class="remap-key space">
+                                            <p class="control-text control-name">Space</p>
+                                            <p class="control-text control-text-small control-direction">Activate Rolling Bomb</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <table id="keyRemapTable">
+                            <tbody>
+                                <tr>
+                                    <td></td>
+                                    <td>
+                                        <div class="remap-key-background"></div>
+                                        <div class="remap-key up">
+                                            <p class="control-text control-name">Up</p>
+                                            <p class="control-text control-direction">⯅</p>
+                                        </div>
+                                    </td>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="remap-key-background"></div>
+                                        <div class="remap-key left">
+                                            <p class="control-text control-name">Left</p>
+                                            <p class="control-text control-direction">⯇</p>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="remap-key-background"></div>
+                                        <div class="remap-key down">
+                                            <p class="control-text control-name">Down</p>
+                                            <p class="control-text control-direction">⯆</p>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="remap-key-background"></div>
+                                        <div class="remap-key right">
+                                            <p class="control-text control-name">Right</p>
+                                            <p class="control-text control-direction">⯈</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <table>
+                            <tbody>
+                                <tr>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="remap-key-background"></div>
+                                        <div class="remap-key mark">
+                                            <p class="control-text control-name">Slash</p>
+                                            <p class="control-text control-direction">📷</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <p class="status-message"></p>
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="saveRemapBtn">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Modal -->
+<div class="modal fade" id="newReleaseModal" role="dialog" aria-labelledby="newReleaseModalLabel">
+    <input type="hidden" id="currentRelease" value="https://www.reddit.com/r/TagPro/comments/1wu63bp/tagpro_future_group_update_39_ux_cleanup_mars/">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="btn btn-default close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="newReleaseModalLabel">New Release Announcement</h4>
+            </div>
+            <div class="modal-body text-center">
+                <p>
+                    <b>TagPro has been updated!</b><br>
+                    Here's a brief summary of the changes in this release:
+                </p>
+                <div class="row">
+                    <div class="col-md-10 col-md-offset-1">
+                        <div class="msg msg-release-notes">
+                            <h4>New features/improvements</h4>
+<ul>
+    <li>Group preset creation links</li>
+    <li>Lag-out improvement for reconnecting players</li>
+    <li>Mars ball behavior cleanup</li>
+    <li>Many misc. UI improvements</li>
+</ul>
+<h4>Bug Fixes</h4>
+<ul>
+    <li>Rolling bomb momentum fix</li>
+</ul>
+<p>Click the links below for full detailed release notes</p>
+                        </div>
+                    </div>
+                </div>
+                <p>
+                    <a href="https://www.reddit.com/r/TagPro/comments/1wu63bp/tagpro_future_group_update_39_ux_cleanup_mars/" target="_blank" rel="noopener noreferrer">View the full release notes</a><br>
+                    <a href="https://www.reddit.com/r/TagPro/search/?sort=new&restrict_sr=on&q=flair%3ARelease" target="_blank" rel="noopener noreferrer">See all past release notes</a>
+                </p>
+                <p>
+                    <i>This summary of the latest release is always available under Feedback &gt; View recent changes</i>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <p class="status-message"></p>
+                <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+        <!-- start userscript site-wide bottom -->
+        <div id="userscript-bottom" class="hidden">
+            <div class="container">
+                <div class="row">
+                    <div class="col-xs-12 userscript-template hidden">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- end userscript site-wide bottom -->
+
+        <footer class="footer">
+            <div class="container">
+                <div class="row">
+                    <div class="col-md-3 col-sm-3">
+                        <div class="visible-xs text-center">
+                            <img src="/images/KoalaBeast.png">
+                            <div class="copyright">
+                                &copy; <span class="js-copyright-date">2016</span>
+                                Koalabeast Games
+                            </div>
+                        </div>
+                        <div class="hidden-xs">
+                            <img src="/images/KoalaBeast.png">
+                            <div class="copyright">
+                                &copy; <span class="js-copyright-date">2016</span>
+                                Koalabeast Games
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="col-md-9 col-sm-9 col-xs-12">
+                        <div class="row">
+                            <div class="col-sm-4 col-xs-12">
+                                <h3 class="header-title">TagPro</h3>
+                                <ul>
+                                    <li><a href="mailto:tagpro@koalabeast.com">Support</a></li>
+                                    <li><a href="https://docs.google.com/document/d/1n90H8CXwr_yNVWsxrcbPDZl2qhUd9JN9FWX-0qw0Qew/edit?usp=sharing" target="_blank">Code of Conduct</a></li>
+                                    <li><a href="https://docs.google.com/document/d/1yPGNGaHY5JNh1UGVmtMGz8cDZalgGoOMCNgjnKThpPo/edit?usp=sharing" target="_blank">Privacy Policy</a></li>
+                                </ul>
+                            </div>
+                            <div class="col-sm-4 col-xs-12">
+                                <h3 class="header-title">Community</h3>
+                                <ul>
+                                    <li><a href="https://www.reddit.com/r/tagpro" target="_blank">Subreddit</a></li>
+                                    <li><a href="https://discord.gg/hhW3MDzrt3" target="_blank">Discord</a></li>
+                                    <li><a href="https://www.reddit.com/r/tagpro/wiki/index" target="_blank">Wiki</a></li>
+                                </ul>
+                            </div>
+                            <div class="col-sm-4 col-xs-12">
+                                <h3 class="header-title">Social Media</h3>
+                                <ul>
+                                    <li><a href="https://twitter.com/play_tagpro" target="_blank">Twitter</a></li>
+                                    <li><a href="https://www.tiktok.com/@tagpro.gg" target="_blank">TikTok</a></li>
+                                    <li><a href="https://www.youtube.com/user/KoalaBeastGames" target="_blank">YouTube</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </footer>
+
+        
+
+            <script src="/R-62bb0909b74c-z/compact/redirect.js"></script>
+
+        <script>
+            !function (w, d) {
+                if (w.rdt) return;
+                var p = (w.rdt = function () { p.sendEvent ? p.sendEvent.apply(p, arguments) : p.callQueue.push(arguments) });
+                p.callQueue = [];
+                var t = d.createElement("script");
+                t.src = "https://www.redditstatic.com/ads/pixel.js";
+                t.async = !0;
+                var s = d.getElementsByTagName("script")[0];
+                s.parentNode.insertBefore(t, s);
+            }(window, document);
+            rdt("init", "t2_vrwbckj1", { "optOut": false, "useDecimalCurrencyValues": true, "email": "", "externalId": "" });
+            rdt("track", "PageVisit");
+        </script>
+    </body>
+</html>

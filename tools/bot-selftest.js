@@ -1,0 +1,36 @@
+// Creates a test group, becomes leader, adds bots, launches a game as spectator and reports what happens.
+const { io } = require('socket.io-client');
+const { spawn } = require('child_process');
+const base = 'http://localhost:3000';
+let cookie = '';
+const get = async (p, o = {}) => { const r = await fetch(base + p, { redirect: 'manual', ...o, headers: { cookie, ...(o.headers || {}) } }); for (const c of r.headers.getSetCookie?.() || []) cookie = c.split(';')[0]; return r; };
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+(async () => {
+  await get('/');
+  const loc = (await get('/groups/create', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: 'name=Selftest&private=on' })).headers.get('location');
+  const gid = loc.split('/').pop();
+  const g = io(base + '/groups/' + gid, { transports: ['websocket'], extraHeaders: { cookie } });
+  let me; g.on('you', (id) => (me = id));
+  await new Promise((r) => g.on('loaded', r));
+  const bots = spawn('node', [__dirname + '/bots.js', gid, '4'], { stdio: 'inherit' });
+  await wait(4000);
+  g.emit('team', { id: me, team: 3 });
+  g.emit('setting', { name: 'time', value: '1' });
+  await wait(500);
+  g.emit('groupPlay');
+  await new Promise((r) => g.on('play', r));
+  await get('/games/find');
+  const j = io(base + '/games/find', { transports: ['websocket'], extraHeaders: { cookie } });
+  j.on('ready', () => j.emit('JoinerSelections', {}));
+  await new Promise((r) => j.on('FoundWorld', r)); j.disconnect();
+  const sock = (await (await get('/game')).text()).match(/gameSocket = location.origin \+ "([^"]+)"/)[1];
+  const s = io(base + sock, { transports: ['websocket'], extraHeaders: { cookie } });
+  const log = []; const names = {};
+  s.on('p', (d) => { for (const u of d.u || d) { if (u.name) names[u.id] = u.name + '(' + (u.team === 1 ? 'R' : 'B') + ')'; for (const k of ['s-grabs', 's-captures', 's-tags', 's-pops']) if (k in u && u[k]) log.push(`${names[u.id]} ${k}=${u[k]}`); } });
+  s.on('score', (sc) => log.push('score ' + JSON.stringify(sc)));
+  s.on('end', (e) => log.push('end ' + JSON.stringify(e)));
+  s.on('time', (t) => log.push('time state ' + t.state));
+  await wait(85000);
+  console.log(log.join('\n'));
+  bots.kill(); process.exit(0);
+})();

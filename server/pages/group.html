@@ -1,0 +1,2460 @@
+<!doctype html> <!-- eslint-disable-line vue/no-parsing-error -->
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <title>TagPro Group</title>
+
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <meta property="og:title" content="TagPro Group">
+        <meta property="og:image" content="/images/thumbnail.png">
+
+        <link rel="apple-touch-icon" href="/images/thumbnail.png">
+        <link rel="shortcut icon" href="/favicon.ico">
+
+        <link rel="stylesheet" href="/R-62bb0909b74c-z/stylesheets/bootstrap.css">
+        <link rel="stylesheet" href="/R-62bb0909b74c-z/stylesheets/bootstrap-datepicker3.standalone.css">
+        <link rel="stylesheet" href="/R-62bb0909b74c-z/stylesheets/bootstrap-select.css">
+        <link rel="stylesheet" href="/R-62bb0909b74c-z/stylesheets/style.css">
+        <link rel="stylesheet" href="/R-62bb0909b74c-z/stylesheets/font-awesome.css">
+
+        <script src="/R-62bb0909b74c-z/compact/global-group.js"></script>
+            <script type="text/javascript" src="/socket.io/socket.io.min.js"></script>
+
+
+        <script>
+            tagproConfig.serverPort = location.port || 80;
+            tagproConfig.serverHost = location.hostname + (tagproConfig.serverPort != 80 ? ':' + tagproConfig.serverPort : '');
+            tagproConfig.cookieHost = location.hostname;
+        </script>
+            <input id="groupId" type="hidden" value="{{GROUP_ID}}">
+    </head>
+    <body class="body-with-footer" id="">
+
+        <div id="header" class="header">
+            <div class="container header-main">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="header-top">
+                            <div class="row">
+                                <div class="col-sm-9 col-md-7 col-lg-6">
+                                    <h1 id="logo" class="logo">
+                                            <a href="/"><img src="/images/logo.png" alt="TagPro"></a>
+                                    </h1>
+
+                                        <div class="server-stats">
+                                            <div>Stats</div>
+                                            <div>{{STATS_PLAYERS}} players in {{STATS_GAMES}} games
+                                            </div>
+                                            <div>{{STATS_ONLINE}} total users online</div>
+                                        </div>
+                                </div>
+                                <div class="col-sm-3 col-md-5 col-lg-6">
+                                    <div class="flair-log hidden-sm" id="flair-log">
+                                    </div>
+
+
+                                    <div class="userbar pull-right">
+                                            <a id="login-btn" class="btn btn-secondary" href="/login">Log In / Sign Up</a>
+                                            <a id="settings-btn" class="btn btn-default" href="/settings">Settings</a>
+                                    </div>
+
+                                    <div class="clearfix"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                        <div id="site-nav" class="nav">
+                            <button class="mobile-menu-toggle" onclick="this.blur();">
+                            <svg width="32" height="32" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1664 1344v128q0 26-19 45t-45 19h-1408q-26 0-45-19t-19-45v-128q0-26 19-45t45-19h1408q26 0 45 19t19 45zm0-512v128q0 26-19 45t-45 19h-1408q-26 0-45-19t-19-45v-128q0-26 19-45t45-19h1408q26 0 45 19t19 45zm0-512v128q0 26-19 45t-45 19h-1408q-26 0-45-19t-19-45v-128q0-26 19-45t45-19h1408q26 0 45 19t19 45z"/></svg>
+                            </button>
+                            <div class="visible-xs clearfix"></div>
+                            <ul>
+                                <li id="nav-tagpro" class=""><a href="/">TagPro</a></li>
+                                <li id="nav-groups" class="active-tab"><a href="/groups">Groups<span class="group-indicator groupsAvailable bounce">&#x25cf;</span></a></li>
+                                <li id="nav-leaderboards" class=""><a href="/leaders">Leaders</a></li>
+                                <li id="nav-maps" class=""><a href="/maps">Maps</a></li>
+                                <li id="nav-playersearch" class=""><a href="/playersearch">Player Search</a></li>
+                                <li id="nav-competitive" class=""><a href="/competitive">Competitive</a></li>
+                                <li id="nav-replays" class=""><a href="/replays">Replays</a></li>
+                                <li id="nav-feedback" class=""><a href="/feedback">Feedback<span id="feedback-indicator" style="display: none;" class="group-indicator bounce">&#x25cf;</span></a></li>
+
+                                    <li class="nav-mobile"><a href="/login">Log In / Sign Up</a></li>
+                                    <li class="nav-mobile"><a href="/settings">Settings</a></li>
+                            </ul>
+                        </div>
+            </div>
+        </div>
+
+        <!-- start userscript site-wide top -->
+        <div id="userscript-top" class="hidden">
+            <div class="container">
+                <div class="row">
+                    <div class="col-xs-12 userscript-template hidden">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- end userscript site-wide top -->
+
+        <div class="group" id="loadingMessage" style="display: none;">
+    <div id="message">Please wait...</div>
+</div>
+<div class="modal fade" id="groupPresetModal" tabindex="-1" role="dialog" aria-labelledby="groupPresetModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="btn btn-default close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="groupPresetModalLabel">Group Preset</h4>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <input type="text" class="form-control with-copy-helper" id="groupPresetField">
+                    <span data-copyhelper="groupPresetField"></span>
+                    <div style="margin-top: 5px;">
+                        <button id="groupPresetLoad" class="btn btn-secondary btn-tiny">Load</button>
+                        <button id="groupPresetGenerate" class="btn btn-secondary btn-tiny">Generate Code</button>
+                        <button id="groupPresetGenerateLink" class="btn btn-secondary btn-tiny">Generate Link</button>
+                    </div>
+                </div>
+                <p>
+                    A Group Preset is a way to export and import all of a group's settings.
+                </p>
+                <p>
+                    From this group's current settings, click Generate Code for a copy-and-paste
+                    string, or Generate Link for a shareable link. Opening the link creates a new
+                    group with those settings, or applies them to your current group if you're its
+                    leader.
+                </p>
+                <p>
+                    To load a Group Preset if you're the group leader, paste the code (or a link)
+                    in the field above and click Load (this will override all of the group's
+                    current settings).
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="fmIdModal" tabindex="-1" role="dialog" aria-labelledby="fmIdModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="btn btn-default close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="fmIdModalLabel">Enter Fortunate Maps ID</h4>
+            </div>
+            <div class="modal-body">
+                <p style="margin-top: 0;">Enter the map ID from <a target="_blank" href="https://fortunatemaps.herokuapp.com/">Fortunate Maps</a>:</p>
+                <div class="form-group">
+                    <input type="text" class="form-control" id="fmId"
+                        data-validate="validate,trim,noenter" data-validate-rules='{"numeric": true}'
+                        data-error-messages='{"numeric": "Please enter a numeric ID."}'>
+                    <div style="margin-top: 5px;">
+                        <button id="fmIdLoad" class="btn btn-secondary btn-tiny">Load</button>
+                        <div id="fmIdSpinner" class="spinner" style="display: none;">
+                            <div class="spinner-item"></div>
+                            <div class="spinner-item"></div>
+                            <div class="spinner-item"></div>
+                            <div class="spinner-item"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="uploadModal" tabindex="-1" role="dialog" aria-labelledby="uploadModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="btn btn-default close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="uploadModalLabel">Upload Map Files</h4>
+            </div>
+            <div class="modal-body">
+                <p style="margin-top: 0;">Select or drag &amp; drop the map files to upload:</p>
+                <form class="form" id="uploadForm" action="/groups/testmap" method="post" enctype="multipart/form-data">
+                    <div class="group dropContainer" data-target="layout">
+                        <table class="table">
+                            <thead>
+                                <th>Layout File (png)</th>
+                            </thead>
+                            <tbody>
+                                <tr><td><input type="file" name="layout" accept=".png"></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="group dropContainer" data-target="logic">
+                        <table class="table">
+                            <thead>
+                                <th>Logic File (json)</th>
+                            </thead>
+                            <tbody>
+                                <tr><td><input type="file" name="logic" accept=".json"></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
+                <div id="uploadButtonAndTip">
+                    <button id="uploadButton" class="btn btn-secondary btn-tiny">Upload</button>
+                    <p style="margin-top: 0;"><small>Pro tip: you can select both files from your computer's Explorer or Finder window and drop them anywhere on this page!</small></p>
+                </div>
+                <div id="uploadSpinner" class="spinner" style="display: none;">
+                    <div class="spinner-item"></div>
+                    <div class="spinner-item"></div>
+                    <div class="spinner-item"></div>
+                    <div class="spinner-item"></div>
+                </div>
+        </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="loading" class="group">
+    <div class="row">
+        <div class="col-xs-12">
+            <div class="spinner text-center">
+                <div class="spinner-item"></div>
+                <div class="spinner-item"></div>
+                <div class="spinner-item"></div>
+                <div class="spinner-item"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="group" class="container group hide js-public-game js-private-group ">
+    <div class="row">
+        <div class="col-xs-12">
+            <div class="header-title group-header-title">
+                <div class="pull-left group-name">
+                    <input class="js-socket-setting" value="{{GROUP_NAME}}" name="groupName" id="groupNameInput" maxlength="32" minLength="1" required disabled
+                        data-validate="validate,trim" data-validate-rules='{"required": true, "noSpecialChars": true}'
+                        data-error-messages='{"required": "Group name is required", "noSpecialChars": "Group name has invalid characters."}'>
+                </div>
+                <div class="pull-right group-exit">
+                    <button id="groupTakeover" class="btn btn-default btn-tiny">Take Ownership</button>
+                    <button id="groupPreset" class="btn btn-secondary btn-tiny">Group Preset</button>
+                    <button id="shareGroup" class="btn btn-primary btn-tiny">Share Group</button>
+                    <a href="/groups/leave" class="btn btn-primary btn-tiny">Leave Group</a>
+                </div>
+            </div>
+            <div class="pull-left player-settings">
+                <button id="swapTeams-btn" class="btn btn-default player-setting player-swap js-socket-btn" data-event="swapTeams" onclick="this.blur();">
+                    <svg viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1792 1184v192q0 13-9.5 22.5t-22.5 9.5h-1376v192q0 13-9.5 22.5t-22.5 9.5q-12 0-24-10l-319-320q-9-9-9-22 0-14 9-23l320-320q9-9 23-9 13 0 22.5 9.5t9.5 22.5v192h1376q13 0 22.5 9.5t9.5 22.5zm0-544q0 14-9 23l-320 320q-9 9-23 9-13 0-22.5-9.5t-9.5-22.5v-192h-1376q-13 0-22.5-9.5t-9.5-22.5v-192q0-13 9.5-22.5t22.5-9.5h1376v-192q0-14 9-23t23-9q12 0 24 10l319 319q9 9 9 23z"/></svg>
+                    Swap Teams
+                </button>
+                <button id="randomTeams-btn" class="btn btn-default player-setting player-randomize js-socket-btn" data-event="randomTeams" onclick="this.blur();">
+                    <svg viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M666 481q-60 92-137 273-22-45-37-72.5t-40.5-63.5-51-56.5-63-35-81.5-14.5h-224q-14 0-23-9t-9-23v-192q0-14 9-23t23-9h224q250 0 410 225zm1126 799q0 14-9 23l-320 320q-9 9-23 9-13 0-22.5-9.5t-9.5-22.5v-192q-32 0-85 .5t-81 1-73-1-71-5-64-10.5-63-18.5-58-28.5-59-40-55-53.5-56-69.5q59-93 136-273 22 45 37 72.5t40.5 63.5 51 56.5 63 35 81.5 14.5h256v-192q0-14 9-23t23-9q12 0 24 10l319 319q9 9 9 23zm0-896q0 14-9 23l-320 320q-9 9-23 9-13 0-22.5-9.5t-9.5-22.5v-192h-256q-48 0-87 15t-69 45-51 61.5-45 77.5q-32 62-78 171-29 66-49.5 111t-54 105-64 100-74 83-90 68.5-106.5 42-128 16.5h-224q-14 0-23-9t-9-23v-192q0-14 9-23t23-9h224q48 0 87-15t69-45 51-61.5 45-77.5q32-62 78-171 29-66 49.5-111t54-105 64-100 74-83 90-68.5 106.5-42 128-16.5h256v-192q0-14 9-23t23-9q12 0 24 10l319 319q9 9 9 23z"/></svg>
+                    Randomize Teams
+                </button>
+                <button id="pub-btn" class="btn btn-default player-setting switch-to-pub js-socket-btn" data-event="pub" onclick="this.blur();">
+                    Play Public Games
+                </button>
+                <button id="pug-btn" class="btn btn-default player-setting switch-to-pug js-socket-btn" data-event="pug" onclick="this.blur();">
+                    Play Private Games
+                </button>
+            </div>
+            <div class="pull-right group-settings">
+                    <label class="btn btn-default group-analytics group-setting">
+                        <input type="checkbox" class="js-socket-setting" name="analytics" disabled="true" checked>
+                        Save Analytics
+                    </label>
+                <label class="btn btn-default group-assignment group-setting">
+                    <input type="checkbox" class="js-socket-setting" name="selfAssignment" disabled="true" checked>
+                    Self-Assignment
+                </label>
+                <label class="btn btn-default group-privacy group-setting">
+                    <input type="checkbox" class="js-socket-setting" name="discoverable" disabled="true" >
+                    Public Group
+                </label>
+            </div>
+            <div class="clearfix"></div>
+        </div>
+    </div>
+    <div class="row">
+
+        <!-- start player list area -->
+        <div class="col-md-7 ">
+            <div class="row">
+
+                <div id="pub-players" class="col-md-12 public-game">
+                    <div class="player-group">
+                        <div class="player-group-header">
+                            <div class="team-name">
+                                Playing Public Games
+                            </div>
+                        </div>
+
+                        <ul class="player-list" data-team="0">
+                        </ul>
+
+                        <div class="group-user-options leader-options">
+                            <ul>
+                                <li>Actions</li>
+                                <li data-action="leader">Make Leader</li>
+                                <li data-action="kick">Kick Player</li>
+                                <li data-action="personalMute">Apply Mute</li>
+                                <li data-action="cancel">Cancel</li>
+                            </ul>
+                        </div>
+                        <div class="group-user-options player-options">
+                            <ul>
+                                <li>Actions</li>
+                                <li data-action="personalMute">Apply Mute</li>
+                                <li data-action="cancel">Cancel</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="pub-waiting" class="col-md-12 public-game">
+                    <div class="player-group">
+                        <div class="player-group-header">
+                            <div class="team-name">
+                                Waiting
+                            </div>
+                        </div>
+
+                        <ul class="player-list" data-team="4">
+                        </ul>
+
+                        <div class="group-user-options leader-options">
+                            <ul>
+                                <li>Actions</li>
+                                <li data-action="leader">Make Leader</li>
+                                <li data-action="kick">Kick Player</li>
+                                <li data-action="personalMute">Apply Mute</li>
+                                <li data-action="cancel">Cancel</li>
+                            </ul>
+                        </div>
+                        <div class="group-user-options player-options">
+                            <ul>
+                                <li>Actions</li>
+                                <li data-action="personalMute">Apply Mute</li>
+                                <li data-action="cancel">Cancel</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="red-team" class="col-md-6 private-game">
+                    <div class="player-group small">
+                        <div class="player-group-header">
+                            <div class="team-name">
+                                <input class="js-socket-setting" type="text" value="Red" disabled="true" name="redTeamName" maxlength="12"
+                                    data-color-scheme="white" data-validate="validate,trim" data-validate-rules='{"required": true, "noSpecialChars": true}'
+                                    data-error-messages='{"required": "Team name is required", "noSpecialChars": "Team name has invalid characters."}'>
+                            </div>
+                            <div class="team-score pull-right">
+                                <div class="team-score-value js-socket-setting" name="redTeamScore">0</div>
+                               <div class="team-score-buttons">
+                                   <svg class="up-score" data-name="redTeamScore" data-value="1" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1408 1216q0 26-19 45t-45 19h-896q-26 0-45-19t-19-45 19-45l448-448q19-19 45-19t45 19l448 448q19 19 19 45z"/></svg>
+                                   <svg class="down-score" data-name="redTeamScore" data-value="-1" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1408 704q0 26-19 45l-448 448q-19 19-45 19t-45-19l-448-448q-19-19-19-45t19-45 45-19h896q26 0 45 19t19 45z"/></svg>
+                               </div>
+                            </div>
+                            <div class="clearfix"></div>
+                        </div>
+
+                        <ul class="player-list" data-team="1">
+                        </ul>
+
+                        <div class="group-user-options leader-options">
+                            <ul>
+                                <li>Actions</li>
+                                <li data-action="leader">Make Leader</li>
+                                <li data-action="kick">Kick Player</li>
+                                <li data-action="personalMute">Apply Mute</li>
+                                <li data-action="cancel">Cancel</li>
+                            </ul>
+                        </div>
+                        <div class="group-user-options player-options">
+                            <ul>
+                                <li>Actions</li>
+                                <li data-action="personalMute">Apply Mute</li>
+                                <li data-action="cancel">Cancel</li>
+                            </ul>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div id="blue-team" class="col-md-6 private-game">
+                    <div class="player-group small">
+                        <div class="player-group-header">
+                            <div class="team-name">
+                                <input class="js-socket-setting" type="text" value="Blue" disabled="true" name="blueTeamName" maxlength="12"
+                                    data-color-scheme="white" data-validate="validate,trim" data-validate-rules='{"required": true, "noSpecialChars": true}'
+                                    data-error-messages='{"required": "Team name is required", "noSpecialChars": "Team name has invalid characters."}'>
+                            </div>
+                            <div class="team-score pull-right">
+                                <div class="team-score-value js-socket-setting" name="blueTeamScore">0</div>
+                               <div class="team-score-buttons">
+                                   <svg class="up-score" data-name="blueTeamScore" data-value="1" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1408 1216q0 26-19 45t-45 19h-896q-26 0-45-19t-19-45 19-45l448-448q19-19 45-19t45 19l448 448q19 19 19 45z"/></svg>
+                                   <svg class="down-score" data-name="blueTeamScore" data-value="-1" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1408 704q0 26-19 45l-448 448q-19 19-45 19t-45-19l-448-448q-19-19-19-45t19-45 45-19h896q26 0 45 19t19 45z"/></svg>
+                               </div>
+                            </div>
+                            <div class="clearfix"></div>
+                        </div>
+
+                        <ul class="player-list" data-team="2">
+                        </ul>
+
+                        <div class="group-user-options leader-options">
+                            <ul>
+                                <li>Actions</li>
+                                <li data-action="leader">Make Leader</li>
+                                <li data-action="kick">Kick Player</li>
+                                <li data-action="personalMute">Apply Mute</li>
+                                <li data-action="cancel">Cancel</li>
+                            </ul>
+                        </div>
+                        <div class="group-user-options player-options">
+                            <ul>
+                                <li>Actions</li>
+                                <li data-action="personalMute">Apply Mute</li>
+                                <li data-action="cancel">Cancel</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="spectators" class="col-md-12 private-game">
+                    <div class="player-group">
+                        <div class="player-group-header">
+                            <div class="team-name">
+                                Spectators
+                            </div>
+                        </div>
+
+                        <ul class="player-list" data-team="3">
+                        </ul>
+
+                        <div class="group-user-options leader-options">
+                            <ul>
+                                <li>Actions</li>
+                                <li data-action="leader">Make Leader</li>
+                                <li data-action="kick">Kick Player</li>
+                                <li data-action="personalMute">Apply Mute</li>
+                                <li data-action="cancel">Cancel</li>
+                            </ul>
+                        </div>
+                        <div class="group-user-options player-options">
+                            <ul>
+                                <li>Actions</li>
+                                <li data-action="personalMute">Apply Mute</li>
+                                <li data-action="cancel">Cancel</li>
+                            </ul>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div id="waiting" class="col-md-12 private-game">
+                    <div class="player-group">
+                        <div class="player-group-header">
+                            <div class="team-name">
+                                Waiting
+                            </div>
+                        </div>
+
+                        <ul class="player-list" data-team="4">
+                        </ul>
+
+                        <div class="group-user-options leader-options">
+                            <ul>
+                                <li>Actions</li>
+                                <li data-action="leader">Make Leader</li>
+                                <li data-action="kick">Kick Player</li>
+                                <li data-action="personalMute">Apply Mute</li>
+                                <li data-action="cancel">Cancel</li>
+                            </ul>
+                        </div>
+                        <div class="group-user-options player-options">
+                            <ul>
+                                <li>Actions</li>
+                                <li data-action="personalMute">Apply Mute</li>
+                                <li data-action="cancel">Cancel</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- end player list area -->
+
+        <div class="col-md-5">
+            <div class="row">
+                <div class="col-md-12">
+                    <div id="group-chat" class="chat">
+                        <div class="chat-log nonGame-chat-log"></div>
+                        <button id="jump-to-bottom" class="btn btn-tiny">New Message ⬇</button>
+                        <div class="chat-input">
+                            <input class="js-chat-input" type="text" placeholder="Chat with your group" maxlength="120">
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-12">
+                    <div id="private-settings" class="private-settings">
+                        <div class="settings-map">
+
+                            <div class="row">
+                                <div class="col-sm-4">
+                                    <img class="responsive map-preview" src="" style="display: none;" data-static="">
+                                    <div class="random">
+                                        ?
+                                    </div>
+                                    <div class="upload" style="display: none;">
+                                        <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                                    </div>
+                                    <img id="test-preview" src="" style="width: 1px; height: 1px; visibility: hidden;">
+                                </div>
+
+                                <div class="col-sm-8 js-non-leader">
+                                    <div class="js-display-setting" name="mode">
+                                        <div class="js-setting-value">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-sm-8 js-non-leader">
+                                    <div class="js-display-setting" name="map">
+                                        <div class="js-setting-value">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-sm-8 js-non-leader">
+                                    <div class="js-display-setting" name="laps" style="display: none;">
+                                        <div class="js-setting-value">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-sm-8 js-non-leader">
+                                    <div class="js-display-setting" name="time">
+                                        <div class="js-setting-value">
+                                        </div>
+                                    </div>
+
+                                    <div class="js-display-setting" name="overtime">
+                                        <div class="js-setting-value">
+                                        </div>
+                                    </div>
+
+                                    <div class="js-display-setting" name="caps">
+                                        <div class="js-setting-value">
+                                        </div>
+                                    </div>
+
+                                    <div class="js-display-setting" name="mercyRule">
+                                        <div class="js-setting-value">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-sm-8 js-leader-only">
+                                    <select class="form-control js-socket-setting selectpicker" name="mode">
+                                            <option value="classic">Classic</option>
+                                            <option value="eggball">Eggball</option>
+                                            <option value="iceHockey">Ice Hockey</option>
+                                            <option value="gravity">Gravity</option>
+                                            <option value="racing">Racing</option>
+                                    </select>
+
+                                    <select class="form-control js-socket-setting selectpicker" name="map" data-live-search="true" data-live-search-placeholder="Search">
+                                        <option value="random" selected>Random</option>
+                                        <option value="random_ctf">Random CTF</option>
+                                        <option value="random_nf">Random NF</option>
+                                        <optgroup label="External">
+                                            <option value="fm_id/">Fortunate Maps (enter ID)</option>
+                                            <option value="upload/">Upload</option>
+                                        </optgroup>
+                                        <optgroup label="Rotation Maps">
+                                            <option value="A Flaccid Type Map" class="maptype-ctf">A Flaccid Type Map</option>
+                                            <option value="Afterlife" class="maptype-ctf">Afterlife</option>
+                                            <option value="Almond" class="maptype-nf">Almond</option>
+                                            <option value="Arti" class="maptype-nf">Arti</option>
+                                            <option value="Arti NS" class="maptype-nf">Arti NS</option>
+                                            <option value="Asida" class="maptype-ctf">Asida</option>
+                                            <option value="Audacity 2" class="maptype-ctf">Audacity 2</option>
+                                            <option value="Basenji" class="maptype-ctf">Basenji</option>
+                                            <option value="Camp Dog" class="maptype-ctf">Camp Dog</option>
+                                            <option value="Carrera NFC" class="maptype-nf">Carrera NFC</option>
+                                            <option value="Centenaria" class="maptype-ctf">Centenaria</option>
+                                            <option value="Cloudy" class="maptype-nf">Cloudy</option>
+                                            <option value="Combine" class="maptype-ctf">Combine</option>
+                                            <option value="Derelict" class="maptype-ctf">Derelict</option>
+                                            <option value="Driveshaft" class="maptype-ctf">Driveshaft</option>
+                                            <option value="GASBOP TagPro Map" class="maptype-nf">GASBOP TagPro Map</option>
+                                            <option value="Galapagos 2" class="maptype-ctf">Galapagos 2</option>
+                                            <option value="Gold Rush NFC" class="maptype-nf">Gold Rush NFC</option>
+                                            <option value="Gumbo" class="maptype-nf">Gumbo</option>
+                                            <option value="Gumbo NFC" class="maptype-nf">Gumbo NFC</option>
+                                            <option value="Kardashev 3" class="maptype-ctf">Kardashev 3</option>
+                                            <option value="Lockhart [MM23 South Winner]" class="maptype-nf">Lockhart [MM23 South Winner]</option>
+                                            <option value="Melodramatic Fanatic" class="maptype-nf">Melodramatic Fanatic</option>
+                                            <option value="Milano 2" class="maptype-ctf">Milano 2</option>
+                                            <option value="Miso" class="maptype-ctf">Miso</option>
+                                            <option value="Moon Base 2024" class="maptype-ctf">Moon Base 2024</option>
+                                            <option value="OTI Jardim" class="maptype-ctf">OTI Jardim</option>
+                                            <option value="Oncilla" class="maptype-ctf">Oncilla</option>
+                                            <option value="Plasma 2026" class="maptype-nf">Plasma 2026</option>
+                                            <option value="Poppy [MM26 Champion]" class="maptype-ctf">Poppy [MM26 Champion]</option>
+                                            <option value="Potted Plant" class="maptype-nf">Potted Plant</option>
+                                            <option value="Pound Cake" class="maptype-nf">Pound Cake</option>
+                                            <option value="Professor Oak" class="maptype-ctf">Professor Oak</option>
+                                            <option value="REDLINE" class="maptype-nf">REDLINE</option>
+                                            <option value="Recursive" class="maptype-ctf">Recursive</option>
+                                            <option value="Sardonica" class="maptype-ctf">Sardonica</option>
+                                            <option value="Shake" class="maptype-ctf">Shake</option>
+                                            <option value="Thicket 2" class="maptype-ctf">Thicket 2</option>
+                                            <option value="Tiny Dancer [MM26]" class="maptype-ctf">Tiny Dancer [MM26]</option>
+                                            <option value="Untitled Princess Carolyn Project" class="maptype-ctf">Untitled Princess Carolyn Project</option>
+                                            <option value="Wamble" class="maptype-nf">Wamble</option>
+                                            <option value="Wamble NFC" class="maptype-nf">Wamble NFC</option>
+                                            <option value="Whiplash" class="maptype-nf">Whiplash</option>
+                                            <option value="Whiplash NS" class="maptype-nf">Whiplash NS</option>
+                                            <option value="Willow 2" class="maptype-ctf">Willow 2</option>
+                                            <option value="Wombo Combo 2026" class="maptype-nf">Wombo Combo 2026</option>
+                                            <option value="wildflower" class="maptype-nf">wildflower</option>
+                                        </optgroup>
+                                        <optgroup label="Trial Maps">
+                                            <option value="Harlequin" class="maptype-nf">Harlequin</option>
+                                            <option value="House Party" class="maptype-ctf">House Party</option>
+                                            <option value="Korok" class="maptype-ctf">Korok</option>
+                                            <option value="Pitch" class="maptype-ctf">Pitch</option>
+                                            <option value="Riverside" class="maptype-ctf">Riverside</option>
+                                            <option value="Spool" class="maptype-ctf">Spool</option>
+                                        </optgroup>
+                                        <optgroup label="Classic Rotation">
+                                            <option value="Carrera" class="maptype-nf">Carrera</option>
+                                            <option value="Curb" class="maptype-ctf">Curb</option>
+                                            <option value="Hockey" class="maptype-nf">Hockey</option>
+                                            <option value="Long Island" class="maptype-ctf">Long Island</option>
+                                        </optgroup>
+                                        <optgroup label="Retired Maps">
+                                            <option value="2020" class="maptype-ctf">2020</option>
+                                            <option value="45" class="maptype-ctf">45</option>
+                                            <option value="5g" class="maptype-ctf">5g</option>
+                                            <option value="A Snack-type Map" class="maptype-ctf">A Snack-type Map</option>
+                                            <option value="Aerodent" class="maptype-ctf">Aerodent</option>
+                                            <option value="Almond 2023" class="maptype-nf">Almond 2023</option>
+                                            <option value="Angry Pig" class="maptype-ctf">Angry Pig</option>
+                                            <option value="Apparition" class="maptype-ctf">Apparition</option>
+                                            <option value="Apparition 2023" class="maptype-ctf">Apparition 2023</option>
+                                            <option value="Arena" class="maptype-ctf">Arena</option>
+                                            <option value="Artichoke" class="maptype-ctf">Artichoke</option>
+                                            <option value="Asido" class="maptype-ctf">Asido</option>
+                                            <option value="Atomic" class="maptype-ctf">Atomic</option>
+                                            <option value="Audacity" class="maptype-ctf">Audacity</option>
+                                            <option value="Axel" class="maptype-ctf">Axel</option>
+                                            <option value="Axis" class="maptype-ctf">Axis</option>
+                                            <option value="BBL PIZZYspartan" class="maptype-ctf">BBL PIZZYspartan</option>
+                                            <option value="Backdoor" class="maptype-ctf">Backdoor</option>
+                                            <option value="Baffle" class="maptype-ctf">Baffle</option>
+                                            <option value="Battery" class="maptype-ctf">Battery</option>
+                                            <option value="Battlestar" class="maptype-ctf">Battlestar</option>
+                                            <option value="Beagle [MM25]" class="maptype-nf">Beagle [MM25]</option>
+                                            <option value="Big Vird" class="maptype-ctf">Big Vird</option>
+                                            <option value="Bigmouth" class="maptype-ctf">Bigmouth</option>
+                                            <option value="Bingo [MM23 1st Runner-Up]" class="maptype-ctf">Bingo [MM23 1st Runner-Up]</option>
+                                            <option value="Birch" class="maptype-ctf">Birch</option>
+                                            <option value="Birdhouse" class="maptype-nf">Birdhouse</option>
+                                            <option value="Birdhouse NS" class="maptype-nf">Birdhouse NS</option>
+                                            <option value="Blast Off" class="maptype-ctf">Blast Off</option>
+                                            <option value="Blobfish" class="maptype-ctf">Blobfish</option>
+                                            <option value="Block Party 0.9 2021 (MLTP)" class="maptype-ctf">Block Party 0.9 2021 (MLTP)</option>
+                                            <option value="Blockade" class="maptype-ctf">Blockade</option>
+                                            <option value="Blooper" class="maptype-ctf">Blooper</option>
+                                            <option value="Bombing Run" class="maptype-ctf">Bombing Run</option>
+                                            <option value="Boombox" class="maptype-ctf">Boombox</option>
+                                            <option value="Boostsv2.1" class="maptype-ctf">Boostsv2.1</option>
+                                            <option value="Bounce" class="maptype-ctf">Bounce</option>
+                                            <option value="Box Turtle" class="maptype-nf">Box Turtle</option>
+                                            <option value="Box Turtle NS" class="maptype-nf">Box Turtle NS</option>
+                                            <option value="Bronze (Copper Remix)" class="maptype-ctf">Bronze (Copper Remix)</option>
+                                            <option value="Brute" class="maptype-ctf">Brute</option>
+                                            <option value="Bulldog" class="maptype-nf">Bulldog</option>
+                                            <option value="Bulldog 2023" class="maptype-nf">Bulldog 2023</option>
+                                            <option value="CASH [MM24 Big Winner]" class="maptype-ctf">CASH [MM24 Big Winner]</option>
+                                            <option value="CFB" class="maptype-ctf">CFB</option>
+                                            <option value="Cabin" class="maptype-ctf">Cabin</option>
+                                            <option value="Cactus" class="maptype-ctf">Cactus</option>
+                                            <option value="Callsign" class="maptype-2nf">Callsign</option>
+                                            <option value="Campari [MM24 Winner]" class="maptype-ctf">Campari [MM24 Winner]</option>
+                                            <option value="Cappelletti" class="maptype-ctf">Cappelletti</option>
+                                            <option value="Capri" class="maptype-ctf">Capri</option>
+                                            <option value="Cat Scratch [MM25 Champion]" class="maptype-ctf">Cat Scratch [MM25 Champion]</option>
+                                            <option value="Catch-22" class="maptype-ctf">Catch-22</option>
+                                            <option value="Cedar" class="maptype-ctf">Cedar</option>
+                                            <option value="Center Flag" class="maptype-nf">Center Flag</option>
+                                            <option value="Chaste" class="maptype-ctf">Chaste</option>
+                                            <option value="Chloroplast Girl" class="maptype-ctf">Chloroplast Girl</option>
+                                            <option value="Choke" class="maptype-ctf">Choke</option>
+                                            <option value="Chomp" class="maptype-ctf">Chomp</option>
+                                            <option value="Chopping Block" class="maptype-nf">Chopping Block</option>
+                                            <option value="Chunk" class="maptype-ctf">Chunk</option>
+                                            <option value="Citadel" class="maptype-ctf">Citadel</option>
+                                            <option value="Citizen" class="maptype-ctf">Citizen</option>
+                                            <option value="Cloud" class="maptype-nf">Cloud</option>
+                                            <option value="Clutch" class="maptype-ctf">Clutch</option>
+                                            <option value="Cold and Eaten" class="maptype-ctf">Cold and Eaten</option>
+                                            <option value="Colors" class="maptype-ctf">Colors</option>
+                                            <option value="Combo Wombo" class="maptype-nf">Combo Wombo</option>
+                                            <option value="Command Center" class="maptype-nf">Command Center</option>
+                                            <option value="Conniption" class="maptype-ctf">Conniption</option>
+                                            <option value="Constriction" class="maptype-ctf">Constriction</option>
+                                            <option value="Convoy" class="maptype-nf">Convoy</option>
+                                            <option value="Cool S" class="maptype-ctf">Cool S</option>
+                                            <option value="Corduroy" class="maptype-ctf">Corduroy</option>
+                                            <option value="Corner Store" class="maptype-ctf">Corner Store</option>
+                                            <option value="Corral" class="maptype-ctf">Corral</option>
+                                            <option value="Corrosive" class="maptype-ctf">Corrosive</option>
+                                            <option value="Cosmic" class="maptype-nf">Cosmic</option>
+                                            <option value="Crawfish Boil" class="maptype-ctf">Crawfish Boil</option>
+                                            <option value="DZ4" class="maptype-ctf">DZ4</option>
+                                            <option value="Danger Zone 3" class="maptype-ctf">Danger Zone 3</option>
+                                            <option value="Deadlift" class="maptype-ctf">Deadlift</option>
+                                            <option value="Dealer" class="maptype-ctf">Dealer</option>
+                                            <option value="Decisis" class="maptype-ctf">Decisis</option>
+                                            <option value="Del" class="maptype-ctf">Del</option>
+                                            <option value="Dori" class="maptype-nf">Dori</option>
+                                            <option value="Double Gubbles" class="maptype-2nf">Double Gubbles</option>
+                                            <option value="Draft" class="maptype-ctf">Draft</option>
+                                            <option value="Duchy" class="maptype-ctf">Duchy</option>
+                                            <option value="Dueling Dragons [MM26]" class="maptype-nf">Dueling Dragons [MM26]</option>
+                                            <option value="Dumbell" class="maptype-ctf">Dumbell</option>
+                                            <option value="EMERALD" class="maptype-ctf">EMERALD</option>
+                                            <option value="Eclipse [MM24 Winner]" class="maptype-nf">Eclipse [MM24 Winner]</option>
+                                            <option value="El Moustachio" class="maptype-ctf">El Moustachio</option>
+                                            <option value="End of Beginning" class="maptype-ctf">End of Beginning</option>
+                                            <option value="Epoxy" class="maptype-ctf">Epoxy</option>
+                                            <option value="Event Horizon" class="maptype-ctf">Event Horizon</option>
+                                            <option value="Event Horizon 2" class="maptype-ctf">Event Horizon 2</option>
+                                            <option value="FILO" class="maptype-ctf">FILO</option>
+                                            <option value="Fiend" class="maptype-ctf">Fiend</option>
+                                            <option value="Figure 8" class="maptype-ctf">Figure 8</option>
+                                            <option value="Flame" class="maptype-ctf">Flame</option>
+                                            <option value="Floral Mappe" class="maptype-ctf">Floral Mappe</option>
+                                            <option value="Flume" class="maptype-ctf">Flume</option>
+                                            <option value="Foozball" class="maptype-ctf">Foozball</option>
+                                            <option value="Fortuna" class="maptype-ctf">Fortuna</option>
+                                            <option value="Fossel" class="maptype-nf">Fossel</option>
+                                            <option value="Frontdoor" class="maptype-ctf">Frontdoor</option>
+                                            <option value="GFY" class="maptype-ctf">GFY</option>
+                                            <option value="Galapagos" class="maptype-ctf">Galapagos</option>
+                                            <option value="GamePad" class="maptype-ctf">GamePad</option>
+                                            <option value="Gamesphere" class="maptype-ctf">Gamesphere</option>
+                                            <option value="Ganz Toll" class="maptype-ctf">Ganz Toll</option>
+                                            <option value="GateKeeper" class="maptype-ctf">GateKeeper</option>
+                                            <option value="Geo Edit" class="maptype-ctf">Geo Edit</option>
+                                            <option value="GeoKoala" class="maptype-ctf">GeoKoala</option>
+                                            <option value="Glory Hole" class="maptype-ctf">Glory Hole</option>
+                                            <option value="Goat" class="maptype-ctf">Goat</option>
+                                            <option value="Gold Rush" class="maptype-nf">Gold Rush</option>
+                                            <option value="Goldie" class="maptype-ctf">Goldie</option>
+                                            <option value="Grail of Speed" class="maptype-ctf">Grail of Speed</option>
+                                            <option value="Graphite" class="maptype-ctf">Graphite</option>
+                                            <option value="Greenhouse" class="maptype-ctf">Greenhouse</option>
+                                            <option value="Grenadine" class="maptype-ctf">Grenadine</option>
+                                            <option value="Haste" class="maptype-ctf">Haste</option>
+                                            <option value="Hellier [MM25]" class="maptype-nf">Hellier [MM25]</option>
+                                            <option value="Hexane" class="maptype-nf">Hexane</option>
+                                            <option value="Hobgoblin" class="maptype-ctf">Hobgoblin</option>
+                                            <option value="Hornswoggle" class="maptype-ctf">Hornswoggle</option>
+                                            <option value="Horoscope" class="maptype-ctf">Horoscope</option>
+                                            <option value="Hotspot" class="maptype-ctf">Hotspot</option>
+                                            <option value="Hourglass" class="maptype-ctf">Hourglass</option>
+                                            <option value="Hub" class="maptype-ctf">Hub</option>
+                                            <option value="Hurricane" class="maptype-ctf">Hurricane</option>
+                                            <option value="Hyper Reactor" class="maptype-ctf">Hyper Reactor</option>
+                                            <option value="Hyperdrive" class="maptype-ctf">Hyperdrive</option>
+                                            <option value="Hypertrain Deluxe" class="maptype-nf">Hypertrain Deluxe</option>
+                                            <option value="Hypocrite" class="maptype-ctf">Hypocrite</option>
+                                            <option value="IRON" class="maptype-ctf">IRON</option>
+                                            <option value="Jagged" class="maptype-ctf">Jagged</option>
+                                            <option value="Jardim" class="maptype-ctf">Jardim</option>
+                                            <option value="Joji" class="maptype-ctf">Joji</option>
+                                            <option value="Juketown" class="maptype-2nf">Juketown</option>
+                                            <option value="Kardashev 2" class="maptype-ctf">Kardashev 2</option>
+                                            <option value="Kepler" class="maptype-ctf">Kepler</option>
+                                            <option value="Kite" class="maptype-nf">Kite</option>
+                                            <option value="Kleptomania" class="maptype-ctf">Kleptomania</option>
+                                            <option value="Lemmiwinks" class="maptype-ctf">Lemmiwinks</option>
+                                            <option value="Lemon" class="maptype-ctf">Lemon</option>
+                                            <option value="Leningrad" class="maptype-2nf">Leningrad</option>
+                                            <option value="Lights" class="maptype-ctf">Lights</option>
+                                            <option value="Lilac" class="maptype-ctf">Lilac</option>
+                                            <option value="Lime" class="maptype-ctf">Lime</option>
+                                            <option value="Lold" class="maptype-ctf">Lold</option>
+                                            <option value="Lucy" class="maptype-ctf">Lucy</option>
+                                            <option value="Mancappin Project" class="maptype-ctf">Mancappin Project</option>
+                                            <option value="Map Damon" class="maptype-ctf">Map Damon</option>
+                                            <option value="Mapache Chief" class="maptype-ctf">Mapache Chief</option>
+                                            <option value="Marauder" class="maptype-ctf">Marauder</option>
+                                            <option value="Market" class="maptype-ctf">Market</option>
+                                            <option value="Marrow" class="maptype-ctf">Marrow</option>
+                                            <option value="Mars Ball Explorer" class="maptype-ctf">Mars Ball Explorer</option>
+                                            <option value="Mars Game Mode" class="maptype-ctf">Mars Game Mode</option>
+                                            <option value="Mephisto" class="maptype-ctf">Mephisto</option>
+                                            <option value="Micro" class="maptype-ctf">Micro</option>
+                                            <option value="Mighty" class="maptype-nf">Mighty</option>
+                                            <option value="Milano" class="maptype-ctf">Milano</option>
+                                            <option value="Mild High" class="maptype-ctf">Mild High</option>
+                                            <option value="Mission" class="maptype-ctf">Mission</option>
+                                            <option value="Moai" class="maptype-ctf">Moai</option>
+                                            <option value="Mode 7" class="maptype-ctf">Mode 7</option>
+                                            <option value="Monarch" class="maptype-ctf">Monarch</option>
+                                            <option value="Moon Base" class="maptype-ctf">Moon Base</option>
+                                            <option value="Mzungu" class="maptype-ctf">Mzungu</option>
+                                            <option value="Neon" class="maptype-ctf">Neon</option>
+                                            <option value="Neptune" class="maptype-ctf">Neptune</option>
+                                            <option value="Neunundneunzig Luftballons" class="maptype-nf">Neunundneunzig Luftballons</option>
+                                            <option value="Nirvana" class="maptype-ctf">Nirvana</option>
+                                            <option value="Nomad" class="maptype-ctf">Nomad</option>
+                                            <option value="OTI MERALD" class="maptype-ctf">OTI MERALD</option>
+                                            <option value="Oak" class="maptype-ctf">Oak</option>
+                                            <option value="Odell" class="maptype-ctf">Odell</option>
+                                            <option value="Oval" class="maptype-ctf">Oval</option>
+                                            <option value="PRush" class="maptype-ctf">PRush</option>
+                                            <option value="Paper Crane" class="maptype-ctf">Paper Crane</option>
+                                            <option value="Pariah" class="maptype-ctf">Pariah</option>
+                                            <option value="Petunia" class="maptype-ctf">Petunia</option>
+                                            <option value="Phenochilus" class="maptype-ctf">Phenochilus</option>
+                                            <option value="Pilot" class="maptype-ctf">Pilot</option>
+                                            <option value="Plasma" class="maptype-nf">Plasma</option>
+                                            <option value="Platypus" class="maptype-ctf">Platypus</option>
+                                            <option value="Poisson" class="maptype-ctf">Poisson</option>
+                                            <option value="Pokeball" class="maptype-ctf">Pokeball</option>
+                                            <option value="Polka" class="maptype-ctf">Polka</option>
+                                            <option value="Prime" class="maptype-ctf">Prime</option>
+                                            <option value="Pseudosopher" class="maptype-ctf">Pseudosopher</option>
+                                            <option value="Pukebox" class="maptype-ctf">Pukebox</option>
+                                            <option value="Pukebox 2" class="maptype-ctf">Pukebox 2</option>
+                                            <option value="Push It" class="maptype-ctf">Push It</option>
+                                            <option value="Qio" class="maptype-ctf">Qio</option>
+                                            <option value="RHINO" class="maptype-ctf">RHINO</option>
+                                            <option value="Rat Utopia [MM23 Grand Champion]" class="maptype-ctf">Rat Utopia [MM23 Grand Champion]</option>
+                                            <option value="Reaper" class="maptype-ctf">Reaper</option>
+                                            <option value="Reflex2" class="maptype-ctf">Reflex2</option>
+                                            <option value="Renegade" class="maptype-ctf">Renegade</option>
+                                            <option value="Ricochet" class="maptype-nf">Ricochet</option>
+                                            <option value="Rift" class="maptype-ctf">Rift</option>
+                                            <option value="Rink" class="maptype-ctf">Rink</option>
+                                            <option value="RocketBalls" class="maptype-nf">RocketBalls</option>
+                                            <option value="Rosary" class="maptype-ctf">Rosary</option>
+                                            <option value="Rush" class="maptype-ctf">Rush</option>
+                                            <option value="SNES v2" class="maptype-ctf">SNES v2</option>
+                                            <option value="Saigon" class="maptype-ctf">Saigon</option>
+                                            <option value="Scorpio" class="maptype-ctf">Scorpio</option>
+                                            <option value="Sediment" class="maptype-ctf">Sediment</option>
+                                            <option value="September" class="maptype-ctf">September</option>
+                                            <option value="Serengeti" class="maptype-ctf">Serengeti</option>
+                                            <option value="Shine" class="maptype-nf">Shine</option>
+                                            <option value="Shock Wave" class="maptype-ctf">Shock Wave</option>
+                                            <option value="Shortcut" class="maptype-ctf">Shortcut</option>
+                                            <option value="Sicilian" class="maptype-ctf">Sicilian</option>
+                                            <option value="Simplicity" class="maptype-ctf">Simplicity</option>
+                                            <option value="Simulation" class="maptype-ctf">Simulation</option>
+                                            <option value="Sky Dweller" class="maptype-nf">Sky Dweller</option>
+                                            <option value="Sky Dweller 2026" class="maptype-nf">Sky Dweller 2026</option>
+                                            <option value="Sky Dweller NFC" class="maptype-nf">Sky Dweller NFC</option>
+                                            <option value="Smirk" class="maptype-ctf">Smirk</option>
+                                            <option value="Solstice" class="maptype-ctf">Solstice</option>
+                                            <option value="Some Ring" class="maptype-ctf">Some Ring</option>
+                                            <option value="Speedway" class="maptype-ctf">Speedway</option>
+                                            <option value="Spiders" class="maptype-ctf">Spiders</option>
+                                            <option value="Stampede" class="maptype-ctf">Stampede</option>
+                                            <option value="Star" class="maptype-ctf">Star</option>
+                                            <option value="Stare" class="maptype-ctf">Stare</option>
+                                            <option value="Straight Cache Homie" class="maptype-ctf">Straight Cache Homie</option>
+                                            <option value="Sugar Free Hill" class="maptype-ctf">Sugar Free Hill</option>
+                                            <option value="Sugar Hill" class="maptype-ctf">Sugar Hill</option>
+                                            <option value="SuperDuperStamp" class="maptype-ctf">SuperDuperStamp</option>
+                                            <option value="Swan Song" class="maptype-ctf">Swan Song</option>
+                                            <option value="Swift" class="maptype-ctf">Swift</option>
+                                            <option value="Swoop" class="maptype-ctf">Swoop</option>
+                                            <option value="Teach Me About Dying" class="maptype-ctf">Teach Me About Dying</option>
+                                            <option value="Tehuitzingo" class="maptype-ctf">Tehuitzingo</option>
+                                            <option value="Tesseract [MM26]" class="maptype-ctf">Tesseract [MM26]</option>
+                                            <option value="Tetanic" class="maptype-ctf">Tetanic</option>
+                                            <option value="Thank You Momofuku Ando" class="maptype-ctf">Thank You Momofuku Ando</option>
+                                            <option value="The Holy See" class="maptype-ctf">The Holy See</option>
+                                            <option value="Thicket" class="maptype-ctf">Thicket</option>
+                                            <option value="Thinking With Portals" class="maptype-ctf">Thinking With Portals</option>
+                                            <option value="Tint" class="maptype-ctf">Tint</option>
+                                            <option value="Toe Tag" class="maptype-ctf">Toe Tag</option>
+                                            <option value="Tombolo" class="maptype-ctf">Tombolo</option>
+                                            <option value="Transilio" class="maptype-ctf">Transilio</option>
+                                            <option value="Trebuchet" class="maptype-ctf">Trebuchet</option>
+                                            <option value="Treppenwitz" class="maptype-ctf">Treppenwitz</option>
+                                            <option value="Ultradrive" class="maptype-ctf">Ultradrive</option>
+                                            <option value="Ultralight" class="maptype-ctf">Ultralight</option>
+                                            <option value="Vagabond" class="maptype-ctf">Vagabond</option>
+                                            <option value="Vardo" class="maptype-ctf">Vardo</option>
+                                            <option value="Vee" class="maptype-ctf">Vee</option>
+                                            <option value="Veldt" class="maptype-ctf">Veldt</option>
+                                            <option value="Velocity" class="maptype-ctf">Velocity</option>
+                                            <option value="Vicarious" class="maptype-ctf">Vicarious</option>
+                                            <option value="Volt" class="maptype-nf">Volt</option>
+                                            <option value="Volt NS" class="maptype-nf">Volt NS</option>
+                                            <option value="Waltz [MM25]" class="maptype-ctf">Waltz [MM25]</option>
+                                            <option value="Wellington" class="maptype-ctf">Wellington</option>
+                                            <option value="Wet Dream" class="maptype-ctf">Wet Dream</option>
+                                            <option value="Whiplash NFC" class="maptype-nf">Whiplash NFC</option>
+                                            <option value="Whirlwind 2" class="maptype-ctf">Whirlwind 2</option>
+                                            <option value="Whisper" class="maptype-ctf">Whisper</option>
+                                            <option value="Willow" class="maptype-ctf">Willow</option>
+                                            <option value="Wok" class="maptype-ctf">Wok</option>
+                                            <option value="Wombo Combo" class="maptype-nf">Wombo Combo</option>
+                                            <option value="Wormwood" class="maptype-nf">Wormwood</option>
+                                            <option value="Wormy" class="maptype-ctf">Wormy</option>
+                                            <option value="Zillion" class="maptype-ctf">Zillion</option>
+                                            <option value="beebeebooooo" class="maptype-nf">beebeebooooo</option>
+                                            <option value="cAMP" class="maptype-ctf">cAMP</option>
+                                            <option value="fishnet carousel" class="maptype-nf">fishnet carousel</option>
+                                            <option value="hoppa" class="maptype-ctf">hoppa</option>
+                                            <option value="hopscotch" class="maptype-ctf">hopscotch</option>
+                                            <option value="how neat is that" class="maptype-nf">how neat is that</option>
+                                            <option value="mona" class="maptype-ctf">mona</option>
+                                            <option value="solo steppin" class="maptype-ctf">solo steppin</option>
+                                            <option value="tequila redbull" class="maptype-ctf">tequila redbull</option>
+                                            <option value="xenomorph" class="maptype-ctf">xenomorph</option>
+                                            <option value="yiss 3.2" class="maptype-ctf">yiss 3.2</option>
+                                        </optgroup>
+                                        <optgroup label="Private Group Maps">
+                                            <option value="00101010" class="maptype-nf">00101010</option>
+                                            <option value="Arboretum" class="maptype-ctf">Arboretum</option>
+                                            <option value="Audacity 1.5" class="maptype-ctf">Audacity 1.5</option>
+                                            <option value="Basketball 2" class="maptype-nf">Basketball 2</option>
+                                            <option value="Bench Press" class="maptype-ctf">Bench Press</option>
+                                            <option value="Big Bad Wolf" class="maptype-ctf">Big Bad Wolf</option>
+                                            <option value="Birdhouse Mirrored" class="maptype-nf">Birdhouse Mirrored</option>
+                                            <option value="Box Turtle Mirrored" class="maptype-nf">Box Turtle Mirrored</option>
+                                            <option value="Buffalo" class="maptype-ctf">Buffalo</option>
+                                            <option value="Bulldog Mirrored" class="maptype-nf">Bulldog Mirrored</option>
+                                            <option value="Cache" class="maptype-ctf">Cache</option>
+                                            <option value="Caravan" class="maptype-ctf">Caravan</option>
+                                            <option value="Carrera Mirrored" class="maptype-nf">Carrera Mirrored</option>
+                                            <option value="Catch-22 Mirrored" class="maptype-ctf">Catch-22 Mirrored</option>
+                                            <option value="Catch-22 NLTP Edition" class="maptype-ctf">Catch-22 NLTP Edition</option>
+                                            <option value="Catch-24" class="maptype-ctf">Catch-24</option>
+                                            <option value="Citizen Mirrored" class="maptype-ctf">Citizen Mirrored</option>
+                                            <option value="Clash" class="maptype-ctf">Clash</option>
+                                            <option value="Classico" class="maptype-ctf">Classico</option>
+                                            <option value="Cloud Mirrored" class="maptype-nf">Cloud Mirrored</option>
+                                            <option value="Constriction Mirrored" class="maptype-ctf">Constriction Mirrored</option>
+                                            <option value="Contain Masters" class="maptype-ctf">Contain Masters</option>
+                                            <option value="Diamond Faces" class="maptype-ctf">Diamond Faces</option>
+                                            <option value="EMERALD Mirrored" class="maptype-ctf">EMERALD Mirrored</option>
+                                            <option value="El Roi" class="maptype-ctf">El Roi</option>
+                                            <option value="Gumbo Mirrored" class="maptype-nf">Gumbo Mirrored</option>
+                                            <option value="Illusive" class="maptype-ctf">Illusive</option>
+                                            <option value="Jimmy&#x27;s Dungeon" class="maptype-nf">Jimmy&#x27;s Dungeon</option>
+                                            <option value="Joji Mirrored" class="maptype-ctf">Joji Mirrored</option>
+                                            <option value="Jukebox 2" class="maptype-ctf">Jukebox 2</option>
+                                            <option value="Kite Mirrored" class="maptype-nf">Kite Mirrored</option>
+                                            <option value="Lemon Mirrored" class="maptype-ctf">Lemon Mirrored</option>
+                                            <option value="Marauder Mirrored" class="maptype-ctf">Marauder Mirrored</option>
+                                            <option value="Neon Mirrored" class="maptype-ctf">Neon Mirrored</option>
+                                            <option value="Newtonian" class="maptype-ctf">Newtonian</option>
+                                            <option value="Nuke" class="maptype-ctf">Nuke</option>
+                                            <option value="Oak 2" class="maptype-ctf">Oak 2</option>
+                                            <option value="Open Field Masters" class="maptype-nf">Open Field Masters</option>
+                                            <option value="Penalties" class="maptype-nf">Penalties</option>
+                                            <option value="Pepper" class="maptype-ctf">Pepper</option>
+                                            <option value="Pilot 2" class="maptype-ctf">Pilot 2</option>
+                                            <option value="Pilot 3" class="maptype-ctf">Pilot 3</option>
+                                            <option value="Pilot Mirrored" class="maptype-ctf">Pilot Mirrored</option>
+                                            <option value="Pine" class="maptype-ctf">Pine</option>
+                                            <option value="Plasma Mirrored" class="maptype-nf">Plasma Mirrored</option>
+                                            <option value="Plasma NFC" class="maptype-nf">Plasma NFC</option>
+                                            <option value="Pretzel" class="maptype-ctf">Pretzel</option>
+                                            <option value="Pretzel 2" class="maptype-ctf">Pretzel 2</option>
+                                            <option value="Ricochet Mirrored" class="maptype-nf">Ricochet Mirrored</option>
+                                            <option value="Sarlacc" class="maptype-ctf">Sarlacc</option>
+                                            <option value="Scorpio Mirrored" class="maptype-ctf">Scorpio Mirrored</option>
+                                            <option value="Simulation Mirrored" class="maptype-ctf">Simulation Mirrored</option>
+                                            <option value="Sky Dweller Mirrored" class="maptype-nf">Sky Dweller Mirrored</option>
+                                            <option value="Sky Dweller NS" class="maptype-nf">Sky Dweller NS</option>
+                                            <option value="Snipers3" class="maptype-ctf">Snipers3</option>
+                                            <option value="Sugar Hill Mirrored" class="maptype-ctf">Sugar Hill Mirrored</option>
+                                            <option value="SumoDome" class="maptype-ctf">SumoDome</option>
+                                            <option value="Tehuitzingo Mirrored" class="maptype-ctf">Tehuitzingo Mirrored</option>
+                                            <option value="Tetanic 3.1 4x4" class="maptype-ctf">Tetanic 3.1 4x4</option>
+                                            <option value="Tetanic Mirrored" class="maptype-ctf">Tetanic Mirrored</option>
+                                            <option value="Ticonderoga" class="maptype-nf">Ticonderoga</option>
+                                            <option value="Toe Tag Mirrored" class="maptype-ctf">Toe Tag Mirrored</option>
+                                            <option value="TransiliOLTP 2021" class="maptype-ctf">TransiliOLTP 2021</option>
+                                            <option value="Transilio 2024" class="maptype-ctf">Transilio 2024</option>
+                                            <option value="Transilio Mirrored" class="maptype-ctf">Transilio Mirrored</option>
+                                            <option value="Treppenwitz Mirrored" class="maptype-ctf">Treppenwitz Mirrored</option>
+                                            <option value="Twister" class="maptype-ctf">Twister</option>
+                                            <option value="UKRAINE" class="maptype-ctf">UKRAINE</option>
+                                            <option value="Ultralight Mirrored" class="maptype-ctf">Ultralight Mirrored</option>
+                                            <option value="Vardo Mirrored" class="maptype-ctf">Vardo Mirrored</option>
+                                            <option value="Vicarious Mirrored" class="maptype-ctf">Vicarious Mirrored</option>
+                                            <option value="Volt Mirrored" class="maptype-nf">Volt Mirrored</option>
+                                            <option value="Wamble Mirrored" class="maptype-nf">Wamble Mirrored</option>
+                                            <option value="Waterbed [MM23 West Winner]" class="maptype-ctf">Waterbed [MM23 West Winner]</option>
+                                            <option value="Whiplash Mirrored" class="maptype-nf">Whiplash Mirrored</option>
+                                            <option value="Wombo Combo Mirrored" class="maptype-nf">Wombo Combo Mirrored</option>
+                                            <option value="Wombo Combo NFC" class="maptype-nf">Wombo Combo NFC</option>
+                                            <option value="Yore" class="maptype-ctf">Yore</option>
+                                            <option value="Zirconium" class="maptype-ctf">Zirconium</option>
+                                            <option value="crucible" class="maptype-ctf">crucible</option>
+                                            <option value="eggball" class="maptype-ctf">eggball</option>
+                                            <option value="grillz of prawn" class="maptype-ctf">grillz of prawn</option>
+                                            <option value="Ballball 2: Electric Ballgaloo" class="maptype-ctf">Ballball 2: Electric Ballgaloo</option>
+                                            <option value="Basketball [Half-court]" class="maptype-nf">Basketball [Half-court]</option>
+                                            <option value="Boost Hub" class="maptype-">Boost Hub</option>
+                                            <option value="Duel" class="maptype-nf">Duel</option>
+                                            <option value="Mars Board" class="maptype-ctf">Mars Board</option>
+                                            <option value="SNES Rainbow Road" class="maptype-">SNES Rainbow Road</option>
+                                            <option value="Shift" class="maptype-">Shift</option>
+                                            <option value="Skee-ball" class="maptype-">Skee-ball</option>
+                                            <option value="Spinout Raceway 2" class="maptype-">Spinout Raceway 2</option>
+                                            <option value="Zoom (Gravity Race)" class="maptype-">Zoom (Gravity Race)</option>
+                                        </optgroup>
+                                        <optgroup label="Racing Maps">
+                                            <option value="4 Way Craze v5.0" class="maptype-racing">4 Way Craze v5.0</option>
+                                            <option value="Arc Turn-Spike 2" class="maptype-racing">Arc Turn-Spike 2</option>
+                                            <option value="Ball-e Bridge" class="maptype-racing">Ball-e Bridge</option>
+                                            <option value="Bomb Voyage" class="maptype-racing">Bomb Voyage</option>
+                                            <option value="Chord Progression" class="maptype-racing">Chord Progression</option>
+                                            <option value="Colosseum Romanorum" class="maptype-racing">Colosseum Romanorum</option>
+                                            <option value="End of the Road" class="maptype-racing">End of the Road</option>
+                                            <option value="Fist Fight" class="maptype-racing">Fist Fight</option>
+                                            <option value="Long Distance Runaround" class="maptype-racing">Long Distance Runaround</option>
+                                            <option value="Lucky Strike" class="maptype-racing">Lucky Strike</option>
+                                            <option value="Mars Mission" class="maptype-racing">Mars Mission</option>
+                                            <option value="SNES Rainbow Road" class="maptype-racing">SNES Rainbow Road</option>
+                                            <option value="Serpent Swerve" class="maptype-racing">Serpent Swerve</option>
+                                            <option value="Spike Clover" class="maptype-racing">Spike Clover</option>
+                                            <option value="Trial &amp; Error" class="maptype-racing">Trial &amp; Error</option>
+                                            <option value="Walk of Life" class="maptype-racing">Walk of Life</option>
+                                            <option value="Walking on the Moon" class="maptype-racing">Walking on the Moon</option>
+                                            <option value="Wonky Whirlpool 2" class="maptype-racing">Wonky Whirlpool 2</option>
+                                            <option value="[RCX] Spinout Raceway 2" class="maptype-racing">[RCX] Spinout Raceway 2</option>
+                                            <option value="[RCX] Stairway to Heaven X" class="maptype-racing">[RCX] Stairway to Heaven X</option>
+                                        </optgroup>
+                                    </select>
+
+                                    <select class="form-control js-socket-setting selectpicker" name="laps">
+                                        <option value="1">1 Lap</option>
+                                            <option value="2">2 Laps</option>
+                                            <option value="3">3 Laps</option>
+                                            <option value="4">4 Laps</option>
+                                            <option value="5">5 Laps</option>
+                                            <option value="6">6 Laps</option>
+                                            <option value="7">7 Laps</option>
+                                            <option value="8">8 Laps</option>
+                                            <option value="9">9 Laps</option>
+                                            <option value="10">10 Laps</option>
+                                        <option value="15">15 Laps</option>
+                                        <option value="20">20 Laps</option>
+                                    </select>
+
+                                    <select class="form-control js-socket-setting selectpicker" name="time">
+                                        <option value="0">0 Minutes</option>
+                                        <option value="1">1 Minute</option>
+                                        <option value="2">2 Minutes</option>
+                                        <option value="3">3 Minutes</option>
+                                        <option value="4">4 Minutes</option>
+                                        <option value="5">5 Minutes</option>
+                                        <option value="6">6 Minutes</option>
+                                        <option value="7">7 Minutes</option>
+                                        <option value="8">8 Minutes</option>
+                                        <option value="9">9 Minutes</option>
+                                        <option value="10">10 Minutes</option>
+                                        <option value="11">11 Minutes</option>
+                                        <option value="12">12 Minutes</option>
+                                        <option value="13">13 Minutes</option>
+                                        <option value="14">14 Minutes</option>
+                                        <option value="15">15 Minutes</option>
+                                        <option value="16">16 Minutes</option>
+                                        <option value="17">17 Minutes</option>
+                                        <option value="18">18 Minutes</option>
+                                        <option value="19">19 Minutes</option>
+                                        <option value="20">20 Minutes</option>
+                                    </select>
+
+                                    <select class="form-control js-socket-setting selectpicker" name="overtime">
+                                        <option value="true">Overtime</option>
+                                        <option value="false">No Overtime</option>
+                                    </select>
+
+                                    <select class="form-control js-socket-setting selectpicker" name="caps">
+                                        <option value="0">No Capture Limit</option>
+                                        <option value="1">1 Capture Limit</option>
+                                        <option value="2">2 Capture Limit</option>
+                                        <option value="3">3 Capture Limit</option>
+                                        <option value="4">4 Capture Limit</option>
+                                        <option value="5">5 Capture Limit</option>
+                                        <option value="6">6 Capture Limit</option>
+                                        <option value="7">7 Capture Limit</option>
+                                        <option value="8">8 Capture Limit</option>
+                                        <option value="9">9 Capture Limit</option>
+                                        <option value="10">10 Capture Limit</option>
+                                    </select>
+
+                                    <select class="form-control js-socket-setting selectpicker" name="mercyRule">
+                                        <option value="0">No Mercy Rule</option>
+                                            <option value="1">+1 Capture Mercy</option>
+                                            <option value="2">+2 Capture Mercy</option>
+                                            <option value="3">+3 Capture Mercy</option>
+                                            <option value="4">+4 Capture Mercy</option>
+                                            <option value="5">+5 Capture Mercy</option>
+                                            <option value="6">+6 Capture Mercy</option>
+                                            <option value="7">+7 Capture Mercy</option>
+                                            <option value="8">+8 Capture Mercy</option>
+                                            <option value="9">+9 Capture Mercy</option>
+                                            <option value="10">+10 Capture Mercy</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-sm-12 region-settings">
+                                    <hr>
+                                    <button class="btn btn-primary btn-tiny pull-right js-toggle-server-select js-leader-only">Server Select</button>
+                                    <h3>Regions</h3>
+
+                                    <div class="row js-leader-only">
+                                        <div class="col-sm-6">
+                                            <label class="">
+                                                <input class="js-region-setting" type="checkbox" value="US East">
+                                                US East
+                                            </label>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <label class="">
+                                                <input class="js-region-setting" type="checkbox" value="US Central">
+                                                US Central
+                                            </label>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <label class="">
+                                                <input class="js-region-setting" type="checkbox" value="US West">
+                                                US West
+                                            </label>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <label class="">
+                                                <input class="js-region-setting" type="checkbox" value="Europe">
+                                                Europe
+                                            </label>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <label class="">
+                                                <input class="js-region-setting" type="checkbox" value="Oceanic">
+                                                Oceanic
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="row js-non-leader">
+                                        <div class="col-sm-6">
+                                            <label class="">
+                                                <input class="js-region-setting" disabled type="checkbox" value="US East">
+                                                US East
+                                            </label>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <label class="">
+                                                <input class="js-region-setting" disabled type="checkbox" value="US Central">
+                                                US Central
+                                            </label>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <label class="">
+                                                <input class="js-region-setting" disabled type="checkbox" value="US West">
+                                                US West
+                                            </label>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <label class="">
+                                                <input class="js-region-setting" disabled type="checkbox" value="Europe">
+                                                Europe
+                                            </label>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <label class="">
+                                                <input class="js-region-setting" disabled type="checkbox" value="Oceanic">
+                                                Oceanic
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-sm-12 server-settings" style="display: none;">
+                                    <hr>
+                                    <button class="btn btn-primary btn-tiny pull-right js-toggle-server-select js-leader-only">Region Select</button>
+                                    <h3>Servers</h3>
+
+                                    <div class="row js-leader-only js-server-options">
+                                        <select name="server" class="form-control js-socket-setting selectpicker">
+                                        </select>
+                                    </div>
+
+                                    <div class="row js-non-leader js-socket-server">
+                                    </div>
+                                </div>
+
+                                <div class="col-sm-12 js-leader-only customize-settings">
+                                    <hr>
+                                    <h3 style="float: left;">Custom Settings</h3>
+
+                                    <select class="form-control js-customize selectpicker">
+                                        <option value="">Choose...</option>
+                                        <option value="accel">Acceleration</option>
+                                        <option value="topspeed">Top Speed</option>
+                                        <option value="bounce">Bounciness</option>
+                                        <option value="playerRespawnTime">Player Respawn</option>
+                                        <option value="speedPadRespawnTime">Boost Respawn</option>
+                                        <option value="dynamiteRespawnTime">Bomb Respawn</option>
+                                        <option value="powerupRespawnTime">Power-up Respawn</option>
+                                        <option value="powerupDelay">Delay Power-ups for 1 Respawn Cycle</option>
+                                        <option value="potatoTime">Potato Timer</option>
+                                        <option value="noScript">User Scripts</option>
+                                        <option value="respawnWarnings">Respawn Warnings</option>
+                                        <option value="pupIndicators">Next Pup Indicators</option>
+                                        <option value="overtimeRespawnIncrement">OT Respawn Increment</option>
+                                        <option value="overtimeJukeJuice">OT Bonus Juke Juices</option>
+                                        <option value="rollingBombBehavior">Rolling Bomb Behavior</option>
+                                        <option value="powerupJukeJuice">Powerup: Juke Juice</option>
+                                        <option value="powerupTagPro">Powerup: TagPro</option>
+                                        <option value="powerupRollingBomb">Powerup: Rolling Bomb</option>
+                                        <option value="eggballLosingTeamStarts">Eggball: Losing team starts</option>
+                                        <option value="combinejjrb">Powerup: Combine Juke Juice and Rolling Bomb</option>
+                                        <option value="jumpLimit">Jump Limit</option>
+                                        <option value="speedLimit">Jumps Restricted by Speed</option>
+                                        <option value="isPlayerJumpResetEnabled">Jumps Reset by Landing on Player</option>
+                                        <option value="mapTestingMode">Map Testing Mode</option>
+                                        <option value="lastPossession">Last Possession Clutch Time</option>
+                                        <option value="ghostMode">Ghost Mode</option>
+                                        <option value="poosts">Pop and Portal Boosts (Poosts)</option>
+                                        <option value="gravityWellForce">Gravity Well Force</option>
+                                        <option value="experimental">*Experimental Settings</option>
+                                    </select>
+
+                                    <div class="form-group">
+                                    <select class="form-control js-socket-setting selectpicker" name="accel">
+                                        <option value="0.1">10%</option>
+                                        <option value="0.2">20%</option>
+                                        <option value="0.3">30%</option>
+                                        <option value="0.4">40%</option>
+                                        <option value="0.5">50%</option>
+                                        <option value="0.6">60%</option>
+                                        <option value="0.7">70%</option>
+                                        <option value="0.8">80%</option>
+                                        <option value="0.9">90%</option>
+                                        <option value="1">100% (Default)</option>
+                                        <option value="1.1">110%</option>
+                                        <option value="1.2">120%</option>
+                                        <option value="1.3">130%</option>
+                                        <option value="1.4">140%</option>
+                                        <option value="1.5">150%</option>
+                                        <option value="1.6">160%</option>
+                                        <option value="1.7">170%</option>
+                                        <option value="1.8">180%</option>
+                                        <option value="1.9">190%</option>
+                                        <option value="2">200%</option>
+                                        <option value="2.1">210%</option>
+                                        <option value="2.2">220%</option>
+                                        <option value="2.3">230%</option>
+                                        <option value="2.4">240%</option>
+                                        <option value="2.5">250%</option>
+                                        <option value="2.6">260%</option>
+                                        <option value="2.7">270%</option>
+                                        <option value="2.8">280%</option>
+                                        <option value="2.9">290%</option>
+                                        <option value="3">300%</option>
+                                    </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                    <select class="form-control js-socket-setting selectpicker" name="topspeed">
+                                        <option value="0.1">10%</option>
+                                        <option value="0.2">20%</option>
+                                        <option value="0.3">30%</option>
+                                        <option value="0.4">40%</option>
+                                        <option value="0.5">50%</option>
+                                        <option value="0.6">60%</option>
+                                        <option value="0.7">70%</option>
+                                        <option value="0.8">80%</option>
+                                        <option value="0.9">90%</option>
+                                        <option value="1">100% (Default)</option>
+                                        <option value="1.1">110%</option>
+                                        <option value="1.2">120%</option>
+                                        <option value="1.3">130%</option>
+                                        <option value="1.4">140%</option>
+                                        <option value="1.5">150%</option>
+                                        <option value="1.6">160%</option>
+                                        <option value="1.7">170%</option>
+                                        <option value="1.8">180%</option>
+                                        <option value="1.9">190%</option>
+                                        <option value="2">200%</option>
+                                        <option value="2.1">210%</option>
+                                        <option value="2.2">220%</option>
+                                        <option value="2.3">230%</option>
+                                        <option value="2.4">240%</option>
+                                        <option value="2.5">250%</option>
+                                        <option value="2.6">260%</option>
+                                        <option value="2.7">270%</option>
+                                        <option value="2.8">280%</option>
+                                        <option value="2.9">290%</option>
+                                        <option value="3">300%</option>
+                                    </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                    <select class="form-control js-socket-setting selectpicker" name="bounce">
+                                        <option value="0.1">10%</option>
+                                        <option value="0.2">20%</option>
+                                        <option value="0.3">30%</option>
+                                        <option value="0.4">40%</option>
+                                        <option value="0.5">50%</option>
+                                        <option value="0.6">60%</option>
+                                        <option value="0.7">70%</option>
+                                        <option value="0.8">80%</option>
+                                        <option value="0.9">90%</option>
+                                        <option value="1">100% (Default)</option>
+                                        <option value="1.1">110%</option>
+                                        <option value="1.2">120%</option>
+                                        <option value="1.3">130%</option>
+                                        <option value="1.4">140%</option>
+                                        <option value="1.5">150%</option>
+                                        <option value="1.6">160%</option>
+                                        <option value="1.7">170%</option>
+                                        <option value="1.8">180%</option>
+                                        <option value="1.9">190%</option>
+                                        <option value="2">200%</option>
+                                        <option value="2.1">210%</option>
+                                        <option value="2.2">220%</option>
+                                        <option value="2.3">230%</option>
+                                        <option value="2.4">240%</option>
+                                        <option value="2.5">250%</option>
+                                        <option value="2.6">260%</option>
+                                        <option value="2.7">270%</option>
+                                        <option value="2.8">280%</option>
+                                        <option value="2.9">290%</option>
+                                        <option value="3">300%</option>
+                                    </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                    <select class="form-control js-socket-setting selectpicker" name="playerRespawnTime">
+                                        <option value="0">Instant</option>
+                                        <option value="1000">1 Second</option>
+                                        <option value="1500">1.5 Seconds</option>
+                                        <option value="2000">2 Seconds</option>
+                                        <option value="3000">3 Seconds (Default)</option>
+                                        <option value="5000">5 Seconds</option>
+                                        <option value="7000">7 Seconds</option>
+                                        <option value="10000">10 Seconds</option>
+                                        <option value="15000">15 Seconds</option>
+                                        <option value="20000">20 Seconds</option>
+                                        <option value="30000">30 Seconds</option>
+                                        <option value="45000">45 Seconds</option>
+                                        <option value="60000">1 Minute</option>
+                                        <option value="90000">1.5 Minutes</option>
+                                        <option value="120000">2 Minutes</option>
+                                        <option value="180000">3 Minutes</option>
+                                        <option value="300000">5 Minutes</option>
+                                        <option value="420000">7 Minutes</option>
+                                        <option value="600000">10 Minutes</option>
+                                        <option value="900000">15 Minutes</option>
+                                        <option value="3600000">Never</option>
+                                    </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                    <select class="form-control js-socket-setting selectpicker" name="speedPadRespawnTime">
+                                        <option value="0">Instant</option>
+                                        <option value="1000">1 Second</option>
+                                        <option value="1500">1.5 Seconds</option>
+                                        <option value="2000">2 Seconds</option>
+                                        <option value="3000">3 Seconds</option>
+                                        <option value="5000">5 Seconds</option>
+                                        <option value="7000">7 Seconds</option>
+                                        <option value="10000">10 Seconds (Default)</option>
+                                        <option value="15000">15 Seconds</option>
+                                        <option value="20000">20 Seconds</option>
+                                        <option value="30000">30 Seconds</option>
+                                        <option value="45000">45 Seconds</option>
+                                        <option value="60000">1 Minute</option>
+                                        <option value="90000">1.5 Minutes</option>
+                                        <option value="120000">2 Minutes</option>
+                                        <option value="180000">3 Minutes</option>
+                                        <option value="300000">5 Minutes</option>
+                                        <option value="420000">7 Minutes</option>
+                                        <option value="600000">10 Minutes</option>
+                                        <option value="900000">15 Minutes</option>
+                                        <option value="3600000">Never</option>
+                                    </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                    <select class="form-control js-socket-setting selectpicker" name="dynamiteRespawnTime">
+                                        <option value="0">Instant</option>
+                                        <option value="1000">1 Second</option>
+                                        <option value="1500">1.5 Seconds</option>
+                                        <option value="2000">2 Seconds</option>
+                                        <option value="3000">3 Seconds</option>
+                                        <option value="5000">5 Seconds</option>
+                                        <option value="7000">7 Seconds</option>
+                                        <option value="10000">10 Seconds</option>
+                                        <option value="15000">15 Seconds</option>
+                                        <option value="20000">20 Seconds</option>
+                                        <option value="30000">30 Seconds (Default)</option>
+                                        <option value="45000">45 Seconds</option>
+                                        <option value="60000">1 Minute</option>
+                                        <option value="90000">1.5 Minutes</option>
+                                        <option value="120000">2 Minutes</option>
+                                        <option value="180000">3 Minutes</option>
+                                        <option value="300000">5 Minutes</option>
+                                        <option value="420000">7 Minutes</option>
+                                        <option value="600000">10 Minutes</option>
+                                        <option value="900000">15 Minutes</option>
+                                        <option value="3600000">Never</option>
+                                    </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                    <select class="form-control js-socket-setting selectpicker" name="powerupRespawnTime">
+                                        <option value="0">Instant</option>
+                                        <option value="1000">1 Second</option>
+                                        <option value="1500">1.5 Seconds</option>
+                                        <option value="2000">2 Seconds</option>
+                                        <option value="3000">3 Seconds</option>
+                                        <option value="5000">5 Seconds</option>
+                                        <option value="7000">7 Seconds</option>
+                                        <option value="10000">10 Seconds</option>
+                                        <option value="15000">15 Seconds</option>
+                                        <option value="20000">20 Seconds</option>
+                                        <option value="30000">30 Seconds</option>
+                                        <option value="45000">45 Seconds</option>
+                                        <option value="60000">1 Minute (Default)</option>
+                                        <option value="90000">1.5 Minutes</option>
+                                        <option value="120000">2 Minutes</option>
+                                        <option value="180000">3 Minutes</option>
+                                        <option value="300000">5 Minutes</option>
+                                        <option value="420000">7 Minutes</option>
+                                        <option value="600000">10 Minutes</option>
+                                        <option value="900000">15 Minutes</option>
+                                        <option value="3600000">Never</option>
+                                    </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="checkbox">
+                                            <label>
+                                                <input type="checkbox" class="js-socket-setting" name="powerupDelay">
+                                                Enabled
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="checkbox" name="experimental">
+                                            <label>
+                                                <input type="checkbox" class="js-socket-setting" name="kissingFCs">
+                                                Enabled - Kissing Flag Carriers
+                                            </label>
+                                            <br/>
+                                            <label>
+                                                <input type="checkbox" class="js-socket-setting" name="kissingTPs">
+                                                Enabled - Kissing TagPros
+                                            </label>
+                                            <br/>
+                                            <label>
+                                                <input type="checkbox" class="js-socket-setting" name="spacebarDetonateAll">
+                                                Enabled - Spacebar detonates all powerups
+                                            </label>
+                                            <br/>
+                                            <label>
+                                                <input type="checkbox" class="js-socket-setting" name="jukeJuiceBoost">
+                                                Enabled - Juke Juice Spacebar Boost
+                                            </label>
+                                            <br/>
+                                            <label>Juke Juice Boost Power</label>
+                                            <select class="form-control js-socket-setting selectpicker" name="jukeJuiceBoostPower">
+                                                <option value="0">0%</option>
+                                                <option value="5">5%</option>
+                                                <option value="10">10%</option>
+                                                <option value="15">15%</option>
+                                                <option value="20">20%</option>
+                                                <option value="25">25%</option>
+                                                <option value="30">30%</option>
+                                                <option value="35">35%</option>
+                                                <option value="40">40%</option>
+                                                <option value="45">45%</option>
+                                                <option value="50">50%</option>
+                                                <option value="55">55%</option>
+                                                <option value="60">60%</option>
+                                                <option value="65">65%</option>
+                                                <option value="70">70%</option>
+                                                <option value="75">75%</option>
+                                                <option value="80">80%</option>
+                                                <option value="85">85%</option>
+                                                <option value="90">90%</option>
+                                                <option value="95">95%</option>
+                                                <option value="100">100%</option>
+                                            </select>
+                                            <label>Rolling Bomb Force</label>
+                                            <select class="form-control js-socket-setting selectpicker" name="rollingBombForceMultipler">
+                                                    <option value="0.5">50%</option>
+                                                    <option value="0.6">60%</option>
+                                                    <option value="0.7">70%</option>
+                                                    <option value="0.8">80%</option>
+                                                    <option value="0.9">90%</option>
+                                                    <option value="1">100% (Default)</option>
+                                                    <option value="1.1">110%</option>
+                                                    <option value="1.2">120%</option>
+                                                    <option value="1.3">130%</option>
+                                                    <option value="1.4">140%</option>
+                                                    <option value="1.5">150%</option>
+                                                    <option value="1.6">160%</option>
+                                                    <option value="1.7">170%</option>
+                                                    <option value="1.8">180%</option>
+                                                    <option value="1.9">190%</option>
+                                                    <option value="2">200%</option>
+                                                    <option value="2.1">210%</option>
+                                                    <option value="2.2">220%</option>
+                                                    <option value="2.3">230%</option>
+                                                    <option value="2.4">240%</option>
+                                                    <option value="2.5">250%</option>
+                                                    <option value="2.6">260%</option>
+                                                    <option value="2.7">270%</option>
+                                                    <option value="2.8">280%</option>
+                                                    <option value="2.9">290%</option>
+                                                    <option value="3">300%</option>
+                                            </select>
+                                            <label>Rolling Bomb Distance</label>
+                                            <select class="form-control js-socket-setting selectpicker" name="rollingBombDistanceMultipler">
+                                                    <option value="0.5">50%</option>
+                                                    <option value="0.6">60%</option>
+                                                    <option value="0.7">70%</option>
+                                                    <option value="0.8">80%</option>
+                                                    <option value="0.9">90%</option>
+                                                    <option value="1">100% (Default)</option>
+                                                    <option value="1.1">110%</option>
+                                                    <option value="1.2">120%</option>
+                                                    <option value="1.3">130%</option>
+                                                    <option value="1.4">140%</option>
+                                                    <option value="1.5">150%</option>
+                                                    <option value="1.6">160%</option>
+                                                    <option value="1.7">170%</option>
+                                                    <option value="1.8">180%</option>
+                                                    <option value="1.9">190%</option>
+                                                    <option value="2">200%</option>
+                                                    <option value="2.1">210%</option>
+                                                    <option value="2.2">220%</option>
+                                                    <option value="2.3">230%</option>
+                                                    <option value="2.4">240%</option>
+                                                    <option value="2.5">250%</option>
+                                                    <option value="2.6">260%</option>
+                                                    <option value="2.7">270%</option>
+                                                    <option value="2.8">280%</option>
+                                                    <option value="2.9">290%</option>
+                                                    <option value="3">300%</option>
+                                            </select>
+                                            <label>TagPro Max Tags</label>
+                                            <select class="form-control js-socket-setting selectpicker" name="tagproMaxTags">
+                                                <option value="0">Unlimited</option>
+                                                <option value="1">1 Tag</option>
+                                                <option value="2">2 Tags</option>
+                                                <option value="3">3 Tags</option>
+                                                <option value="4">4 Tags</option>
+                                                <option value="5">5 Tags</option>
+                                            </select>
+                                            <label>NF Handoff Behavior</label>
+                                            <select class="form-control js-socket-setting selectpicker" name="stickyBallFix">
+                                                <option value="none">Instant handoff, infinite sticky ball (Current)</option>
+                                                <option value="existingContact">Instant handoff, sticky ball for:</option>
+                                                <option value="full">No handoff for:</option>
+                                            </select>
+                                            <div class="js-sticky-ball-timeout">
+                                                <select class="form-control js-socket-setting selectpicker" name="stickyBallTimeout">
+                                                    <option value="250">.25s</option>
+                                                    <option value="500">.5s</option>
+                                                    <option value="750">.75s</option>
+                                                    <option value="1000">1s</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                    <select class="form-control js-socket-setting selectpicker" name="potatoTime">
+                                        <option value="0">Disabled (Default)</option>
+                                        <option value="5000">5 Seconds</option>
+                                        <option value="10000">10 Seconds</option>
+                                        <option value="15000">15 Seconds</option>
+                                        <option value="20000">20 Seconds</option>
+                                        <option value="25000">25 Seconds</option>
+                                        <option value="30000">30 Seconds</option>
+                                        <option value="35000">35 Seconds</option>
+                                        <option value="40000">40 Seconds</option>
+                                        <option value="45000">45 Seconds</option>
+                                        <option value="50000">50 Seconds</option>
+                                        <option value="55000">55 Seconds</option>
+                                        <option value="60000">60 Seconds</option>
+                                        <option value="65000">65 Seconds</option>
+                                        <option value="70000">70 Seconds</option>
+                                        <option value="75000">75 Seconds</option>
+                                        <option value="80000">80 Seconds</option>
+                                        <option value="85000">85 Seconds</option>
+                                        <option value="90000">90 Seconds</option>
+                                        <option value="95000">95 Seconds</option>
+                                        <option value="100000">100 Seconds</option>
+                                        <option value="105000">105 Seconds</option>
+                                        <option value="110000">110 Seconds</option>
+                                        <option value="115000">115 Seconds</option>
+                                        <option value="120000">120 Seconds</option>
+                                        <option value="125000">125 Seconds</option>
+                                        <option value="130000">130 Seconds</option>
+                                        <option value="135000">135 Seconds</option>
+                                        <option value="140000">140 Seconds</option>
+                                        <option value="145000">145 Seconds</option>
+                                        <option value="150000">150 Seconds</option>
+                                        <option value="155000">155 Seconds</option>
+                                        <option value="160000">160 Seconds</option>
+                                        <option value="165000">165 Seconds</option>
+                                        <option value="170000">170 Seconds</option>
+                                        <option value="175000">175 Seconds</option>
+                                    </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <select class="form-control js-socket-setting selectpicker" name="noScript">
+                                            <option value="false">Allow</option>
+                                            <option value="true">Disable</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <select class="form-control js-socket-setting selectpicker" name="respawnWarnings">
+                                            <option value="true">Allow</option>
+                                            <option value="false">Disable</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="checkbox">
+                                            <label>
+                                                <input type="checkbox" class="js-socket-setting" name="pupIndicators">
+                                                Enabled
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <select class="form-control js-socket-setting selectpicker" name="overtimeRespawnIncrement">
+                                            <option value="0">Disabled</option>
+                                            <option value="1000">1 Second</option>
+                                            <option value="2000">2 Seconds</option>
+                                            <option value="3000">3 Seconds (Default)</option>
+                                            <option value="4000">4 Seconds</option>
+                                            <option value="5000">5 Seconds</option>
+                                            <option value="6000">6 Seconds</option>
+                                            <option value="7000">7 Seconds</option>
+                                            <option value="8000">8 Seconds</option>
+                                            <option value="9000">9 Seconds</option>
+                                            <option value="10000">10 Seconds</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="checkbox">
+                                            <label>
+                                                <input type="checkbox" class="js-socket-setting" name="overtimeJukeJuice">
+                                                Enabled
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <select class="form-control js-socket-setting selectpicker" name="rollingBombBehavior">
+                                            <option value="default">Default</option>
+                                            <option value="classic">Classic</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="checkbox">
+                                            <label>
+                                                <input type="checkbox" class="js-socket-setting" name="powerupJukeJuice">
+                                                Enabled
+                                            </label>
+                                            <br/>
+                                            <br/>
+                                            <label> Active Duration </label>
+                                            <select class="form-control js-socket-setting selectpicker" name="powerupJukeJuiceDuration">
+                                                <option value="0">Instant</option>
+                                                <option value="1000">1 Second</option>
+                                                <option value="2000">2 Seconds</option>
+                                                <option value="3000">3 Seconds</option>
+                                                <option value="5000">5 Seconds</option>
+                                                <option value="7000">7 Seconds</option>
+                                                <option value="10000">10 Seconds</option>
+                                                <option value="12000">12 Seconds</option>
+                                                <option value="15000">15 Seconds</option>
+                                                <option value="18000">18 Seconds</option>
+                                                <option value="20000">20 Seconds (Default)</option>
+                                                <option value="30000">30 Seconds</option>
+                                                <option value="45000">45 Seconds</option>
+                                                <option value="60000">1 Minute</option>
+                                                <option value="90000">1.5 Minutes</option>
+                                                <option value="120000">2 Minutes</option>
+                                                <option value="180000">3 Minutes</option>
+                                                <option value="300000">5 Minutes</option>
+                                                <option value="420000">7 Minutes</option>
+                                                <option value="600000">10 Minutes</option>
+                                                <option value="900000">15 Minutes</option>
+                                                <option value="3600000">Indefinite</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="checkbox">
+                                            <label>
+                                                <input type="checkbox" class="js-socket-setting" name="powerupTagPro">
+                                                Enabled
+                                            </label>
+                                            <br/>
+                                            <br/>
+                                            <label> Active Duration </label>
+                                            <select class="form-control js-socket-setting selectpicker" name="powerupTagproDuration">
+                                                <option value="0">Instant</option>
+                                                <option value="1000">1 Second</option>
+                                                <option value="2000">2 Seconds</option>
+                                                <option value="3000">3 Seconds</option>
+                                                <option value="5000">5 Seconds</option>
+                                                <option value="7000">7 Seconds</option>
+                                                <option value="10000">10 Seconds</option>
+                                                <option value="12000">12 Seconds</option>
+                                                <option value="15000">15 Seconds</option>
+                                                <option value="18000">18 Seconds</option>
+                                                <option value="20000">20 Seconds (Default)</option>
+                                                <option value="30000">30 Seconds</option>
+                                                <option value="45000">45 Seconds</option>
+                                                <option value="60000">1 Minute</option>
+                                                <option value="90000">1.5 Minutes</option>
+                                                <option value="120000">2 Minutes</option>
+                                                <option value="180000">3 Minutes</option>
+                                                <option value="300000">5 Minutes</option>
+                                                <option value="420000">7 Minutes</option>
+                                                <option value="600000">10 Minutes</option>
+                                                <option value="900000">15 Minutes</option>
+                                                <option value="3600000">Indefinite</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="checkbox">
+                                            <label>
+                                                <input type="checkbox" class="js-socket-setting" name="powerupRollingBomb">
+                                                Enabled
+                                            </label>
+                                            <br/>
+                                            <br/>
+                                            <label> Active Duration </label>
+                                            <select class="form-control js-socket-setting selectpicker" name="powerupRollingBombDuration">
+                                                <option value=0>Instant</option>
+                                                <option value="1000">1 Second</option>
+                                                <option value="2000">2 Seconds</option>
+                                                <option value="3000">3 Seconds</option>
+                                                <option value="5000">5 Seconds</option>
+                                                <option value="7000">7 Seconds</option>
+                                                <option value="10000">10 Seconds</option>
+                                                <option value="12000">12 Seconds</option>
+                                                <option value="15000">15 Seconds</option>
+                                                <option value="18000">18 Seconds</option>
+                                                <option value="20000">20 Seconds (Default)</option>
+                                                <option value="30000">30 Seconds</option>
+                                                <option value="45000">45 Seconds</option>
+                                                <option value="60000">1 Minute</option>
+                                                <option value="90000">1.5 Minutes</option>
+                                                <option value="120000">2 Minutes</option>
+                                                <option value="180000">3 Minutes</option>
+                                                <option value="300000">5 Minutes</option>
+                                                <option value="420000">7 Minutes</option>
+                                                <option value="600000">10 Minutes</option>
+                                                <option value="900000">15 Minutes</option>
+                                                <option value="3600000">Indefinite</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="checkbox">
+                                            <label>
+                                                <input type="checkbox" class="js-socket-setting" name="eggballLosingTeamStarts">
+                                                Enabled
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="checkbox">
+                                            <label>
+                                                <input type="checkbox" class="js-socket-setting" name="combinejjrb">
+                                                Enabled
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="checkbox">
+                                            <label>
+                                                <input type="checkbox" class="js-socket-setting" name="gravity">
+                                                Enabled
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <select class="form-control js-socket-setting selectpicker" name="jumpLimit">
+                                            <option value="0">0 Jump</option>
+                                            <option value="1">1 Jump</option>
+                                            <option value="2">2 Jumps (Default)</option>
+                                            <option value="3">3 Jumps</option>
+                                            <option value="4">4 Jumps</option>
+                                            <option value="5">5 Jumps</option>
+                                            <option value="51">Unlimited Jumps</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="checkbox">
+                                            <label>
+                                                <input type="checkbox" class="js-socket-setting" name="speedLimit">
+                                                Enabled
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="checkbox">
+                                            <label>
+                                                <input type="checkbox" class="js-socket-setting" name="isPlayerJumpResetEnabled">
+                                                Enabled
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="checkbox">
+                                            <label>
+                                                <input type="checkbox" class="js-socket-setting" name="mapTestingMode">
+                                                Enabled
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <select class="form-control js-socket-setting selectpicker" name="lastPossession">
+                                            <option value="disabled">Disabled (Default)</option>
+                                            <option value="always">Enabled Always</option>
+                                            <option value="tied">Enabled Tied Only</option>
+                                            <option value="winnable">Enabled Winnable Only</option>
+                                            <option value="tiedOrWinnable">Enabled Tied or Winnable</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <select class="form-control js-socket-setting selectpicker" name="ghostMode">
+                                            <option value="disabled">Disabled (Default)</option>
+                                            <option value="noPlayerCollisions">No Player Collisions</option>
+                                            <option value="noTeamCollisions">No Team Collisions</option>
+                                            <option value="noEnemyCollisions">No Enemy Collisions</option>
+                                            <option value="noMarsBallCollisions">No Mars Ball Collisions</option>
+                                            <option value="noPlayerOrMarsCollisions">No Player or Mars Ball Collisions</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="checkbox">
+                                            <label>
+                                                <input type="checkbox" class="js-socket-setting" name="poosts">
+                                                Enabled
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <select class="form-control js-socket-setting selectpicker" name="gravityWellForce">
+                                                    <option value="-3">
+                                                        -300%
+                                                    </option>
+                                                    <option value="-2.75">
+                                                        -275%
+                                                    </option>
+                                                    <option value="-2.5">
+                                                        -250%
+                                                    </option>
+                                                    <option value="-2.25">
+                                                        -225%
+                                                    </option>
+                                                    <option value="-2">
+                                                        -200%
+                                                    </option>
+                                                    <option value="-1.75">
+                                                        -175%
+                                                    </option>
+                                                    <option value="-1.5">
+                                                        -150%
+                                                    </option>
+                                                    <option value="-1.25">
+                                                        -125%
+                                                    </option>
+                                                    <option value="-1">
+                                                        -100%
+                                                    </option>
+                                                    <option value="-0.75">
+                                                        -75%
+                                                    </option>
+                                                    <option value="-0.5">
+                                                        -50%
+                                                    </option>
+                                                    <option value="-0.25">
+                                                        -25%
+                                                    </option>
+                                                    <option value="0.25">
+                                                        25%
+                                                    </option>
+                                                    <option value="0.5">
+                                                        50%
+                                                    </option>
+                                                    <option value="0.75">
+                                                        75%
+                                                    </option>
+                                                    <option value="1">
+                                                        100% (Default)
+                                                    </option>
+                                                    <option value="1.25">
+                                                        125%
+                                                    </option>
+                                                    <option value="1.5">
+                                                        150%
+                                                    </option>
+                                                    <option value="1.75">
+                                                        175%
+                                                    </option>
+                                                    <option value="2">
+                                                        200%
+                                                    </option>
+                                                    <option value="2.25">
+                                                        225%
+                                                    </option>
+                                                    <option value="2.5">
+                                                        250%
+                                                    </option>
+                                                    <option value="2.75">
+                                                        275%
+                                                    </option>
+                                                    <option value="3">
+                                                        300%
+                                                    </option>
+                                        </select>
+                                    </div>
+
+                                </div>
+
+                                <div class="col-md-12 extra-settings">
+                                    <hr>
+
+                                    <div class="row">
+
+                                        <div class="col-md-12 js-display-setting" name="accel" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Acceleration</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="topspeed" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Top Speed</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="bounce" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Bounciness</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="playerRespawnTime" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Player Respawn</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="speedPadRespawnTime" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Boost Respawn</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="dynamiteRespawnTime" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Bomb Respawn</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="powerupRespawnTime" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Power-up Respawn</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="powerupDelay" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Delay Power-ups for 1 Respawn Cycle</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="kissingFCs" parentSettingName="experimental">
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Kissing Flag Carriers</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="kissingTPs" parentSettingName="experimental">
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Kissing TagPros</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="spacebarDetonateAll" parentSettingName="experimental">
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Spacebar detonates all powerups</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="jukeJuiceBoost" parentSettingName="experimental">
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Juke Juice Spacebar Boost</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="jukeJuiceBoostPower" parentSettingName="experimental">
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Juke Juice Boost Power</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="rollingBombForceMultipler" parentSettingName="experimental">
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Rolling Bomb Force</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="rollingBombDistanceMultipler" parentSettingName="experimental">
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Rolling Bomb Distance</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="tagproMaxTags" parentSettingName="experimental">
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">TagPro Max Tags</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="stickyBallFix" parentSettingName="experimental">
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">NF Sticky Ball Fix</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="stickyBallTimeout" parentSettingName="experimental">
+                                            <div class="extra-setting">
+                                                <span>&emsp;&ensp;</span>
+                                                <span class="js-setting-label">NF Sticky Ball Timeout</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="potatoTime" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Potato Timer</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="noScript" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">User Scripts</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="respawnWarnings" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Respawn Warnings</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="pupIndicators" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Next Pup Indicators</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="overtimeRespawnIncrement" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">OT Respawn Increment</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="overtimeJukeJuice" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">OT Bonus Juke Juices</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="rollingBombBehavior" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Rolling Bomb Behavior</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="powerupJukeJuice" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Powerup: Juke Juice</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="powerupJukeJuiceDuration" parentSettingName="powerupJukeJuice">
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Powerup: Juke Juice Duration</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="powerupTagPro" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Powerup: TagPro</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="powerupTagproDuration" parentSettingName="powerupTagPro">
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Powerup: Tagpro Duration</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="powerupRollingBomb" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Powerup: Rolling Bomb</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="powerupRollingBombDuration" parentSettingName="powerupRollingBomb">
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Powerup: Rolling Bomb Duration</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="eggballLosingTeamStarts" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Eggball: Losing team starts</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-12 js-display-setting" name="combinejjrb" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Powerup: Combine Juke Juice and Rolling Bomb</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="jumpLimit" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Jump Limit</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="speedLimit" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Jumps Restricted by Speed</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="isPlayerJumpResetEnabled" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Jumps Reset by Landing on Player</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="mapTestingMode" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Map Testing Mode</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="lastPossession" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Last Possession Clutch Time</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="ghostMode" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Ghost Mode</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="poosts" >
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Pop and Portal Boosts (Poosts)</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="gravityWellForce">
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Gravity Well Force</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="actions text-right">
+                            <button id="launch-private-btn" class="btn btn-primary js-socket-btn start-game" data-event="groupPlay" onclick="this.blur();" >Launch Game</button>
+                            <button id="end-game-btn" class="btn btn-primary js-socket-btn end-game" data-event="endGame" onclick="this.blur();" >End Game</button>
+                            <button id="join-game-btn" class="btn btn-primary join-game" onclick="this.blur();" >Join Game</button>
+                        </div>
+                    </div>
+
+                    <div class="public-settings">
+                        <hr>
+                        <div class="actions text-right">
+                            <button id="launch-public-btn" class="btn btn-primary js-socket-btn start-game" data-event="groupPlay">Launch Game</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <input type="hidden" id="groupId" value="{{GROUP_ID}}">
+    <input type="hidden" id="launch" value="">
+</div>
+
+        <!-- start userscript site-wide bottom -->
+        <div id="userscript-bottom" class="hidden">
+            <div class="container">
+                <div class="row">
+                    <div class="col-xs-12 userscript-template hidden">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- end userscript site-wide bottom -->
+
+        <footer class="footer">
+            <div class="container">
+                <div class="row">
+                    <div class="col-md-3 col-sm-3">
+                        <div class="visible-xs text-center">
+                            <img src="/images/KoalaBeast.png">
+                            <div class="copyright">
+                                &copy; <span class="js-copyright-date">2016</span>
+                                Koalabeast Games
+                            </div>
+                        </div>
+                        <div class="hidden-xs">
+                            <img src="/images/KoalaBeast.png">
+                            <div class="copyright">
+                                &copy; <span class="js-copyright-date">2016</span>
+                                Koalabeast Games
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="col-md-9 col-sm-9 col-xs-12">
+                        <div class="row">
+                            <div class="col-sm-4 col-xs-12">
+                                <h3 class="header-title">TagPro</h3>
+                                <ul>
+                                    <li><a href="mailto:tagpro@koalabeast.com">Support</a></li>
+                                    <li><a href="https://docs.google.com/document/d/1n90H8CXwr_yNVWsxrcbPDZl2qhUd9JN9FWX-0qw0Qew/edit?usp=sharing" target="_blank">Code of Conduct</a></li>
+                                    <li><a href="https://docs.google.com/document/d/1yPGNGaHY5JNh1UGVmtMGz8cDZalgGoOMCNgjnKThpPo/edit?usp=sharing" target="_blank">Privacy Policy</a></li>
+                                </ul>
+                            </div>
+                            <div class="col-sm-4 col-xs-12">
+                                <h3 class="header-title">Community</h3>
+                                <ul>
+                                    <li><a href="https://www.reddit.com/r/tagpro" target="_blank">Subreddit</a></li>
+                                    <li><a href="https://discord.gg/hhW3MDzrt3" target="_blank">Discord</a></li>
+                                    <li><a href="https://www.reddit.com/r/tagpro/wiki/index" target="_blank">Wiki</a></li>
+                                </ul>
+                            </div>
+                            <div class="col-sm-4 col-xs-12">
+                                <h3 class="header-title">Social Media</h3>
+                                <ul>
+                                    <li><a href="https://twitter.com/play_tagpro" target="_blank">Twitter</a></li>
+                                    <li><a href="https://www.tiktok.com/@tagpro.gg" target="_blank">TikTok</a></li>
+                                    <li><a href="https://www.youtube.com/user/KoalaBeastGames" target="_blank">YouTube</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </footer>
+
+        
+
+
+        <script>
+            !function (w, d) {
+                if (w.rdt) return;
+                var p = (w.rdt = function () { p.sendEvent ? p.sendEvent.apply(p, arguments) : p.callQueue.push(arguments) });
+                p.callQueue = [];
+                var t = d.createElement("script");
+                t.src = "https://www.redditstatic.com/ads/pixel.js";
+                t.async = !0;
+                var s = d.getElementsByTagName("script")[0];
+                s.parentNode.insertBefore(t, s);
+            }(window, document);
+            rdt("init", "t2_vrwbckj1", { "optOut": false, "useDecimalCurrencyValues": true, "email": "", "externalId": "" });
+            rdt("track", "PageVisit");
+        </script>
+    </body>
+</html>

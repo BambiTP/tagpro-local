@@ -1,0 +1,13 @@
+node_modules/
+tools/node_modules/
+# research material (big, and not needed to run)
+ref/
+BamBall/
+TagproOpen/
+bambi/
+# music is downloaded on the server by deploy/fetch-music.sh
+public/sounds/music/
+maps/upload-*
+bin/
+*.log
+server.pid
