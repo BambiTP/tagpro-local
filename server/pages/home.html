@@ -136,10 +136,20 @@
                     <div class="play-now block">
                         <div class="row">
                             <div class="col-md-12 text-center">
-                                <a id="play-now" class="btn btn-primary" href="/games/select">
+                                <a id="play-now" class="btn btn-primary" href="/games/find">
                                     Play Now<br>
                                     <span class="sub-text">No login required</span>
                                 </a>
+                                <div id="queue-status" style="margin-top:10px;font-size:15px;"></div>
+                                <script>
+                                (function poll() {
+                                    fetch('/queue/status').then(function (r) { return r.json(); }).then(function (q) {
+                                        document.getElementById('queue-status').innerHTML =
+                                            '<b>' + q.queued + ' / ' + q.needed + '</b> players in queue' +
+                                            '<br><span style="opacity:.75">' + q.playing + ' playing in ' + q.games + (q.games === 1 ? ' game' : ' games') + '</span>';
+                                    }).catch(function () {}).then(function () { setTimeout(poll, 2000); });
+                                })();
+                                </script>
                                 <br>
                                 <a href="https://www.youtube.com/watch?v=eDrsWwGul70" target="_blank">How to Play</a>
                                 <span id="nosound" class="hide">

@@ -15,15 +15,20 @@ const load = (f) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } cat
 const accounts = load(ACCOUNTS); // lower(username) -> account
 const logins = load(LOGINS);     // tpid -> lower(username)
 let saveTimer = null;
+function flush() {
+  clearTimeout(saveTimer); saveTimer = null;
+  for (const [f, d] of [[ACCOUNTS, accounts], [LOGINS, logins]]) {
+    fs.writeFileSync(f + '.tmp', JSON.stringify(d));
+    fs.renameSync(f + '.tmp', f);
+  }
+}
 function save() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    for (const [f, d] of [[ACCOUNTS, accounts], [LOGINS, logins]]) {
-      fs.writeFileSync(f + '.tmp', JSON.stringify(d));
-      fs.renameSync(f + '.tmp', f);
-    }
-  }, 200);
+  saveTimer = setTimeout(flush, 200);
 }
+// don't lose a pending write when the server stops (deploys restart it with SIGTERM)
+process.on('exit', () => { if (saveTimer) flush(); });
+for (const sig of ['SIGTERM', 'SIGINT']) process.once(sig, () => process.exit(0));
 
 const flairByKey = Object.fromEntries(flairs.map((f) => [f.key, f]));
 const PRINTABLE = /^[\x20-\x7E]+$/;
@@ -77,7 +82,7 @@ function apply(session) {
   session.auth = true;
   session.name = a.displayName;
   session.flair = a.flair ? flairByKey[a.flair] || null : null;
-  session.degree = 0;
+  session.degree = degreeFor((a.stats && a.stats.wins) || 0);
   return session;
 }
 
@@ -98,4 +103,41 @@ function setFlair(session, key) {
   return { success: true };
 }
 
-module.exports = { register, login, bind, unbind, apply, setDisplayName, setFlair, flairs, flairByKey };
+// ---- public game stats + degrees (gentle curve: degrees 1-5 need 1 win each, 6-10 need 2 each, ...)
+const STAT_KEYS = ['tags', 'pops', 'grabs', 'drops', 'hold', 'captures', 'prevent', 'returns', 'support', 'powerups'];
+function winsForDegree(d) { let w = 0; for (let l = 1; l <= d; l++) w += Math.ceil(l / 5); return w; }
+function degreeFor(wins) { let d = 0; while (d < 360 && winsForDegree(d + 1) <= wins) d++; return d; }
+function emptyStats() { const s = { games: 0, wins: 0, losses: 0, ties: 0, timePlayed: 0, score: 0 }; for (const k of STAT_KEYS) s[k] = 0; return s; }
+
+// result: { won, tied, timePlayed (ms), score, tags, pops, ... }; returns { degree, degreeUp }
+function recordGame(accountId, result) {
+  const a = byId(accountId);
+  if (!a) return null;
+  const st = a.stats || (a.stats = emptyStats());
+  const before = degreeFor(st.wins);
+  st.games++;
+  if (result.tied) st.ties++; else if (result.won) st.wins++; else st.losses++;
+  st.timePlayed += result.timePlayed || 0;
+  st.score += result.score || 0;
+  for (const k of STAT_KEYS) st[k] += result[k] || 0;
+  save();
+  const after = degreeFor(st.wins);
+  return { degree: after, degreeUp: after > before };
+}
+
+function setTextures(session, body) {
+  if (!session.account) return;
+  const pack = {};
+  for (const k of ['name', 'tiles', 'speedpad', 'speedpadRed', 'speedpadBlue', 'portal', 'portalRed', 'portalBlue', 'splats']) if (typeof body[k] === 'string') pack[k] = body[k].slice(0, 300);
+  session.account.textures = pack; save();
+}
+
+function search(q) {
+  q = String(q || '').trim().toLowerCase();
+  if (!q) return [];
+  return Object.values(accounts).filter((a) => a.id && (a.username.toLowerCase().includes(q) || a.displayName.toLowerCase().includes(q)))
+    .slice(0, 50).map((a) => ({ ...a, flairObj: a.flair ? flairByKey[a.flair] : null }));
+}
+function byId(id) { return Object.values(accounts).find((a) => a.id === id) || null; }
+
+module.exports = { recordGame, degreeFor, winsForDegree, emptyStats, STAT_KEYS, setTextures, search, byId, register, login, bind, unbind, apply, setDisplayName, setFlair, flairs, flairByKey };

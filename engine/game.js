@@ -166,7 +166,7 @@ class GameRoom {
 
   chooseTeam(pref) {
     const r = this.playerCount(1), b = this.playerCount(2);
-    if ((pref === 1 || pref === 2) && this.isPrivate) return pref;
+    if ((pref === 1 || pref === 2) && (this.isPrivate || this.fixedTeams)) return pref;
     if (pref === 1 && r <= b) return 1;
     if (pref === 2 && b <= r) return 2;
     return r <= b ? 1 : 2;
@@ -264,6 +264,7 @@ class GameRoom {
       portalCooldownUntil: { value: 0, writable: true },
       client: { value: null, writable: true },
       tagproTags: { value: 0, writable: true },
+      accountId: { value: (session.account && session.account.id) || null, writable: true },
     });
     p.body = this.createBody(p);
     return p;
@@ -346,7 +347,8 @@ class GameRoom {
       }
       case 'p': if (d && d.id != null) this.send(client, 'pr', d.id); break;
       case 'spectate': case 'modSpectate': break;
-      case 'mapRating': case 'preferredServer': case 'tips': case 'touch': case 'pings': break;
+      case 'mapRating': if (this.onMapRating) this.onMapRating(client.session, this.mapName, d); break;
+      case 'preferredServer': case 'tips': case 'touch': case 'pings': break;
       case 'mark': if (p) this.broadcast('mark', p.id); break;
       case 'resetMap': if (p && this.settings.mapTestingMode) this.resetMap(); break;
       default: break;

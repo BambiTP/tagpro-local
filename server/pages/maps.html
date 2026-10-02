@@ -1,0 +1,705 @@
+<!doctype html> <!-- eslint-disable-line vue/no-parsing-error -->
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <title>TagPro Maps</title>
+
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <meta property="og:title" content="TagPro Maps">
+        <meta property="og:image" content="/images/thumbnail.png">
+
+        <link rel="apple-touch-icon" href="/images/thumbnail.png">
+        <link rel="shortcut icon" href="/favicon.ico">
+
+        <link rel="stylesheet" href="/R-965af4e7a4b8-z/stylesheets/bootstrap.css">
+        <link rel="stylesheet" href="/R-965af4e7a4b8-z/stylesheets/bootstrap-datepicker3.standalone.css">
+        <link rel="stylesheet" href="/R-965af4e7a4b8-z/stylesheets/bootstrap-select.css">
+        <link rel="stylesheet" href="/R-965af4e7a4b8-z/stylesheets/style.css">
+        <link rel="stylesheet" href="/R-965af4e7a4b8-z/stylesheets/font-awesome.css">
+
+        <script src="/R-965af4e7a4b8-z/compact/global-maps-index.js"></script>
+        <script type="text/javascript" src="/socket.io/socket.io.min.js"></script>
+
+
+        <script>
+            tagproConfig.serverPort = location.port || 80;
+            tagproConfig.serverHost = location.hostname + (tagproConfig.serverPort != 80 ? ':' + tagproConfig.serverPort : '');
+            tagproConfig.cookieHost = location.hostname;
+        </script>
+    </head>
+    <body class="body-with-footer" id="73218c3018844b2f77042c8cac92826160f2f5be9c563da1c3e2a7e5b1103130">
+
+        <div id="header" class="header">
+            <div class="container header-main">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="header-top">
+                            <div class="row">
+                                <div class="col-sm-9 col-md-7 col-lg-6">
+                                    <h1 id="logo" class="logo">
+                                            <a href="/"><img src="/images/logo.png" alt="TagPro"></a>
+                                    </h1>
+
+                                        <div class="server-stats">
+                                            <div>Stats</div>
+                                            <div>2 players in 1 game
+                                            </div>
+                                            <div>{{STATS_ONLINE}} total users online</div>
+                                        </div>
+                                </div>
+                                <div class="col-sm-3 col-md-5 col-lg-6">
+                                    <div class="flair-log hidden-sm" id="flair-log">
+                                    </div>
+
+
+                                    <div class="userbar pull-right">
+                                            <a id="login-btn" class="btn btn-secondary" href="/login">Log In / Sign Up</a>
+                                            <a id="settings-btn" class="btn btn-default" href="/settings">Settings</a>
+                                    </div>
+
+                                    <div class="clearfix"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                        <div id="site-nav" class="nav">
+                            <button class="mobile-menu-toggle" onclick="this.blur();">
+                            <svg width="32" height="32" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1664 1344v128q0 26-19 45t-45 19h-1408q-26 0-45-19t-19-45v-128q0-26 19-45t45-19h1408q26 0 45 19t19 45zm0-512v128q0 26-19 45t-45 19h-1408q-26 0-45-19t-19-45v-128q0-26 19-45t45-19h1408q26 0 45 19t19 45zm0-512v128q0 26-19 45t-45 19h-1408q-26 0-45-19t-19-45v-128q0-26 19-45t45-19h1408q26 0 45 19t19 45z"/></svg>
+                            </button>
+                            <div class="visible-xs clearfix"></div>
+                            <ul>
+                                <li id="nav-tagpro" class=""><a href="/">TagPro</a></li>
+                                <li id="nav-groups" class=""><a href="/groups">Groups<span class="group-indicator groupsAvailable bounce">&#x25cf;</span></a></li>
+                                <li id="nav-leaderboards" class=""><a href="/leaders">Leaders</a></li>
+                                <li id="nav-maps" class="active-tab"><a href="/maps">Maps</a></li>
+                                <li id="nav-playersearch" class=""><a href="/playersearch">Player Search</a></li>
+                                <li id="nav-competitive" class=""><a href="/competitive">Competitive</a></li>
+                                <li id="nav-replays" class=""><a href="/replays">Replays</a></li>
+                                <li id="nav-feedback" class=""><a href="/feedback">Feedback<span id="feedback-indicator" style="display: none;" class="group-indicator bounce">&#x25cf;</span></a></li>
+
+                                    <li class="nav-mobile"><a href="/login">Log In / Sign Up</a></li>
+                                    <li class="nav-mobile"><a href="/settings">Settings</a></li>
+                            </ul>
+                        </div>
+            </div>
+        </div>
+
+        <!-- start userscript site-wide top -->
+        <div id="userscript-top" class="hidden">
+            <div class="container">
+                <div class="row">
+                    <div class="col-xs-12 userscript-template hidden">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- end userscript site-wide top -->
+
+        <div class="container maps" id="maps-root">
+    <!-- ERROR VIEW -->
+    <div v-if="view==='failed'" class="col-sm-12" v-cloak>
+        <div class="msg msg-warning" v-if="status === 'errorGettingMapratings'">
+            There was an error fetching your ratings. Press "Reload" to refresh this page
+        </div>
+        <div class="msg msg-warning" v-if="status === 'errorGettingUserInfo'">
+            There was an error fetching your user info. Press "Reload" to refresh this page
+        </div>
+        <div class="msg msg-warning" v-if="status === 'errorRatingMap'" v-cloak>
+            There was an error rating "${maps.category.rotation[currentMapFocus].name}". Press "Reload" to refresh this page
+        </div>
+        <div class="msg msg-warning" v-if="status === 'errorFavouringMap'" v-cloak>
+            There was an error favouring "${maps.category.rotation[currentMapFocus].name}". Press "Reload" to refresh this page
+        </div>
+        <div class="msg msg-warning" v-if="status === 'errorDisfavouringMap'" v-cloak>
+            There was an error disfavouring "${maps.category.rotation[currentMapFocus].name}". Press "Reload" to refresh this page
+        </div>
+        <p />
+        <button class="btn btn-default" type="submit"
+            @click.stop.prevent="reloadPage()">Reload</button>
+    </div>
+    <!-- MAPS VIEW -->
+    <div v-if="view==='maps'" class="row">
+        <div class="col-md-12">
+            <h1 class="header-title">Maps</h1>
+
+            <ul class="tab-list">
+                <li class="active" data-category="rotation" @click="switchActivePane('rotation')"><a>Rotation</a></li>
+                <li data-category="trial"  @click="switchActivePane('trial')"><a>Trial</a></li>
+                <li data-category="classic"  @click="switchActivePane('classic')"><a>Classic</a></li>
+                <li data-category="retired"  @click="switchActivePane('retired')"><a>Retired</a></li>
+                <li data-category="creation"  @click="switchActivePane('creation')"><a>Create Maps</a></li>
+            </ul>
+
+            <div class="tab-content">
+                <div id="rotation" class="tab-pane active">
+                    <div class="row">
+    <div class="col-md-8">
+        <div class="graph">
+        </div>
+    </div>
+    <div class="col-md-4">
+    <hr class="visible-sm">
+    <div class="map-detail" style="display: none;">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="map-detail-header">
+                    <div class="map-nav">
+                        <button class="btn btn-default js-map-prev" onclick="this.blur();" >Prev</button>
+                        <button class="btn btn-default js-map-next" onclick="this.blur();" >Next</button>
+                    </div>
+                    <div class="name"></div>
+                    <div class="author"></div>
+                </div>
+                <div class="row">
+                    <table class="maps-selected-table">
+                        <tr class="map-stat">
+                            <td>Likes:</td>
+                            <td><span class="stat likes"></span></td>
+                            <td>Score:</td>
+                            <td><span class="stat percent"></span></td>
+                        </tr>
+                        <tr class="map-stat">
+                            <td>Neutral:</td>
+                            <td><span class="stat indifferents"></span></td>
+                            <td>Rated Plays:</td>
+                            <td><span class="stat plays"></span></td>
+                        </tr>
+                        <tr class="map-stat">
+                            <td>Dislikes:</td>
+                            <td><span class="stat dislikes"></span></td>
+                            <td>Votes:</td>
+                            <td><span class="stat votes"></span></td>
+                        </tr>
+                    </table>
+                </div>
+                <hr>
+            </div>
+            <div class="col-md-12">
+                <img class="preview img-responsive" src="" data-static="">
+            </div>
+        </div>
+    </div>
+</div>    <div class="col-md-12 maps-table">
+        <div v-for="(maps, rotationType) in rotationMaps" :key="rotationType">
+            <h3>${rotationType.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}</h3>
+            <hr>
+            <table class="table table-stripped" :id="`${rotationType}-table`" style="margin-bottom: 3em;">
+                <thead>
+                    <tr>
+                        <th>Map</th>
+                        <th class="text-right">Score</th>
+                        <th class="text-right"><i class="fa fa-users" data-tooltip="Is the map favored/disfavored by the community?"></i></th>
+                        <th class="text-center">Votes</th>
+                        <th class="text-right">Total</th>
+                        <th class="text-left">Ratio</th>
+                        <th class="text-left" v-if="loggedIn">My vote</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="map in maps" :key="map._id">
+                        <td>
+                            <a
+                                :id="'map-' + map._id"
+                                :class="`map-list-entry clickableText ${rotationType}`"
+                                v-on:click="selectMapFocus(map._id, 'rotation')"
+                            >
+                                ${map.name}
+                            </a>
+                        </td>
+                        <td class="text-right">${map.score ? map.score : 0}%</td>
+                        <td class="text-right">
+                            <i class="activeStar fa fa-star" v-if="map.communityFavoured" data-tooltip="This map is highly rated as a favorite by the community"></i>
+                            <i class="activeThumbsDown fa fa-thumbsdown" v-if="map.communityDisfavoured"  data-tooltip="This map is rated as a least favorite by the community"></i>
+                        </td>
+                        <td class="text-center"><span class="stat likes">${map.totalLikes}</span> |
+                        <span class="stat indifferents">${map.totalIndifferents}</span> |
+                        <span class="stat dislikes">${map.totalDislikes}</span></td>
+                        <td class="text-right">${map.totalUsers}</td>
+                        <td class="text-right">
+                            <span class="ratio-bar">
+                                <span class="likes" :title="map.averageLikes + ' Likes'" :style="'width: ' + map.averageLikes + '%;'"></span>
+                                <span class="indifferents" :title="map.averageIndifferents + ' % Neutral'" :style="'width: ' + map.averageIndifferents + '%;'"></span>
+                                <span class="dislikes" :title="map.averageDislikes + ' Dislikes'" :style="'width: ' + map.averageDislikes + '%;'"></span>
+                            </span>
+                        </td>
+                        <td>
+                            <select :id="'mapRating-' + map._id" class="form-control" v-on:change="mapRating(map._id)"
+                            :value="map.playerRating" v-if="loggedIn">
+                                <option value="" :hidden="map.playerRating!==''">(Select)</option>
+                                <option value="1">I like it</option>
+                                <option value="0">I'm Indifferent</option>
+                                <option value="-1">I dislike it</option>
+                            </select>
+                        </td>
+                        <td class="text-center maps-favoured-td" v-if="loggedIn">
+                            <div v-on:click="disfavourToggleMap(map._id)" style="display:inline;">
+                                <i :id="'disfavoured-' + map._id"
+                                v-bind:class="favouredProp(map._id, 'disfavoured', 'htmlclass')"
+                                v-bind:data-tooltip="favouredProp(map._id, 'disfavoured', 'tooltip')"
+                                ></i>
+                            </div>
+                            <div v-on:click="favourToggleMap(map._id)" style="display:inline;">
+                                <i :id="'favoured-' + map._id"
+                                v-bind:class="favouredProp(map._id, 'favoured', 'htmlclass')"
+                                v-bind:data-tooltip="favouredProp(map._id, 'favoured', 'tooltip')"
+                                ></i>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>                </div>
+                <div id="trial" class="tab-pane">
+                    <div class="row">
+    <div class="col-md-8">
+        <div class="graph">
+        </div>
+    </div>
+    <div class="col-md-4">
+    <hr class="visible-sm">
+    <div class="map-detail" style="display: none;">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="map-detail-header">
+                    <div class="map-nav">
+                        <button class="btn btn-default js-map-prev" onclick="this.blur();" >Prev</button>
+                        <button class="btn btn-default js-map-next" onclick="this.blur();" >Next</button>
+                    </div>
+                    <div class="name"></div>
+                    <div class="author"></div>
+                </div>
+                <div class="row">
+                    <table class="maps-selected-table">
+                        <tr class="map-stat">
+                            <td>Likes:</td>
+                            <td><span class="stat likes"></span></td>
+                            <td>Score:</td>
+                            <td><span class="stat percent"></span></td>
+                        </tr>
+                        <tr class="map-stat">
+                            <td>Neutral:</td>
+                            <td><span class="stat indifferents"></span></td>
+                            <td>Rated Plays:</td>
+                            <td><span class="stat plays"></span></td>
+                        </tr>
+                        <tr class="map-stat">
+                            <td>Dislikes:</td>
+                            <td><span class="stat dislikes"></span></td>
+                            <td>Votes:</td>
+                            <td><span class="stat votes"></span></td>
+                        </tr>
+                    </table>
+                </div>
+                <hr>
+            </div>
+            <div class="col-md-12">
+                <img class="preview img-responsive" src="" data-static="">
+            </div>
+        </div>
+    </div>
+</div>    <div class="col-md-12 maps-table">
+        <hr>
+        <table class="table table-stripped" id="trial-table">
+            <thead>
+                <tr>
+                    <th>Map</th>
+                    <th class="text-right">Score</th>
+                    <th class="text-right"><i class="fa fa-users" data-tooltip="Is the map favored/disfavored by the community?"></i></th>
+                    <th class="text-center">Votes</th>
+                    <th class="text-right">Total</th>
+                    <th class="text-left">Ratio</th>
+                    <th class="text-left" v-if="loggedIn">My vote</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <div>
+                <tr v-for="map in maps.category.trial" :key="map._id">
+                        <td><a :id="'map-' + map._id" class="map-list-entry clickableText trial" v-on:click="selectMapFocus(map._id, 'trial')">${map.name}</a></td>
+                        <td class="text-right">${map.score ? map.score : 0}%</td>
+                        <td class="text-right">
+                            <i class="activeStar fa fa-star" v-if="map.communityFavoured" data-tooltip="This map is highly rated as a favorite by the community"></i>
+                            <i class="activeThumbsDown fa fa-thumbsdown" v-if="map.communityDisfavoured"  data-tooltip="This map is rated as a least favorite by the community"></i>
+                        </td>
+                        <td class="text-center"><span class="stat likes">${map.totalLikes}</span> |
+                        <span class="stat indifferents">${map.totalIndifferents}</span> |
+                        <span class="stat dislikes">${map.totalDislikes}</span></td>
+                        <td class="text-right">${map.totalUsers}</td>
+                        <td class="text-right">
+                            <span class="ratio-bar">
+                                <span class="likes" :title="map.averageLikes + ' Likes'" :style="'width: ' + map.averageLikes + '%;'"></span>
+                                <span class="indifferents" :title="map.averageIndifferents + ' % Neutral'" :style="'width: ' + map.averageIndifferents + '%;'"></span>
+                                <span class="dislikes" :title="map.averageDislikes + ' Dislikes'" :style="'width: ' + map.averageDislikes + '%;'"></span></span>
+                        </td>
+                        <td>
+                            <select :id="'mapRating-' + map._id" class="form-control" v-on:change="mapRating(map._id)"
+                            :value="map.playerRating" v-if="loggedIn">
+                                <option value="" :hidden="map.playerRating!==''">(Select)</option>
+                                <option value="1">I like it</option>
+                                <option value="0">I'm Indifferent</option>
+                                <option value="-1">I dislike it</option>
+                            </select>
+                        </td>
+                        <td class="text-center maps-favoured-td"  v-if="loggedIn">
+                            <div v-on:click="disfavourToggleMap(map._id)" style="display:inline;">
+                                <i :id="'disfavoured-' + map._id"
+                                v-bind:class="favouredProp(map._id, 'disfavoured', 'htmlclass')"
+                                v-bind:data-tooltip="favouredProp(map._id, 'disfavoured', 'tooltip')"
+                                >
+                                </i>
+                            </div>
+                            <div v-on:click="favourToggleMap(map._id)" style="display:inline;">
+                                <i :id="'favoured-' + map._id"
+                                v-bind:class="favouredProp(map._id, 'favoured', 'htmlclass')"
+                                v-bind:data-tooltip="favouredProp(map._id, 'favoured', 'tooltip')"
+                                >
+                                </i>
+                            </div>
+                        </td>
+                    </tr>
+                </div>
+        </table>
+    </div>
+</div>                </div>
+                <div id="classic" class="tab-pane">
+                    <div class="row">
+    <div class="col-md-8">
+        <div class="graph">
+        </div>
+    </div>
+    <div class="col-md-4">
+    <hr class="visible-sm">
+    <div class="map-detail" style="display: none;">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="map-detail-header">
+                    <div class="map-nav">
+                        <button class="btn btn-default js-map-prev" onclick="this.blur();" >Prev</button>
+                        <button class="btn btn-default js-map-next" onclick="this.blur();" >Next</button>
+                    </div>
+                    <div class="name"></div>
+                    <div class="author"></div>
+                </div>
+                <div class="row">
+                    <table class="maps-selected-table">
+                        <tr class="map-stat">
+                            <td>Likes:</td>
+                            <td><span class="stat likes"></span></td>
+                            <td>Score:</td>
+                            <td><span class="stat percent"></span></td>
+                        </tr>
+                        <tr class="map-stat">
+                            <td>Neutral:</td>
+                            <td><span class="stat indifferents"></span></td>
+                            <td>Rated Plays:</td>
+                            <td><span class="stat plays"></span></td>
+                        </tr>
+                        <tr class="map-stat">
+                            <td>Dislikes:</td>
+                            <td><span class="stat dislikes"></span></td>
+                            <td>Votes:</td>
+                            <td><span class="stat votes"></span></td>
+                        </tr>
+                    </table>
+                </div>
+                <hr>
+            </div>
+            <div class="col-md-12">
+                <img class="preview img-responsive" src="" data-static="">
+            </div>
+        </div>
+    </div>
+</div>    <div class="col-md-12 maps-table">
+        <hr>
+        <table class="table table-stripped" id="classic-table">
+            <thead>
+                <tr>
+                    <th>Map</th>
+                    <th class="text-right">Score</th>
+                    <th class="text-right"><i class="fa fa-users" data-tooltip="Is the map favored/disfavored by the community?"></i></th>
+                    <th class="text-center">Votes</th>
+                    <th class="text-right">Total</th>
+                    <th class="text-left">Ratio</th>
+                    <th class="text-left" v-if="loggedIn">My vote</th>
+                </tr>
+            </thead>
+            <div>
+                <tr v-for="map in maps.category.classic" :key="map._id">
+                        <td><a :id="'map-' + map._id" class="map-list-entry clickableText classic" v-on:click="selectMapFocus(map._id, 'classic')">${map.name}</a></td>
+                        <td class="text-right">${map.score ? map.score : 0}%</td>
+                        <td class="text-right">
+                            <i class="activeStar fa fa-star" v-if="map.communityFavoured" data-tooltip="This map is highly rated as a favorite by the community"></i>
+                            <i class="activeThumbsDown fa fa-thumbsdown" v-if="map.communityDisfavoured"  data-tooltip="This map is rated as a least favorite by the community"></i>
+                        </td>
+                        <td class="text-center"><span class="stat likes">${map.totalLikes}</span> |
+                        <span class="stat indifferents">${map.totalIndifferents}</span> |
+                        <span class="stat dislikes">${map.totalDislikes}</span></td>
+                        <td class="text-right">${map.totalUsers}</td>
+                        <td class="text-right">
+                            <span class="ratio-bar">
+                                <span class="likes" :title="map.averageLikes + ' Likes'" :style="'width: ' + map.averageLikes + '%;'"></span>
+                                <span class="indifferents" :title="map.averageIndifferents + ' % Neutral'" :style="'width: ' + map.averageIndifferents + '%;'"></span>
+                                <span class="dislikes" :title="map.averageDislikes + ' Dislikes'" :style="'width: ' + map.averageDislikes + '%;'"></span></span>
+                        </td>
+                        <td>
+                            <select :id="'mapRating-' + map._id" class="form-control" v-on:change="mapRating(map._id)"
+                            :value="map.playerRating" v-if="loggedIn">
+                                <option value="" :hidden="map.playerRating!==''">(Select)</option>
+                                <option value="1">I like it</option>
+                                <option value="0">I'm Indifferent</option>
+                                <option value="-1">I dislike it</option>
+                            </select>
+                        </td>
+                    </tr>
+                </div>
+        </table>
+    </div>
+</div>                </div>
+                <div id="retired" class="tab-pane">
+                    <div class="row">
+    <div class="col-md-8">
+        <div class="graph">
+        </div>
+    </div>
+    <div class="col-md-4">
+    <hr class="visible-sm">
+    <div class="map-detail" style="display: none;">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="map-detail-header">
+                    <div class="map-nav">
+                        <button class="btn btn-default js-map-prev" onclick="this.blur();" >Prev</button>
+                        <button class="btn btn-default js-map-next" onclick="this.blur();" >Next</button>
+                    </div>
+                    <div class="name"></div>
+                    <div class="author"></div>
+                </div>
+                <div class="row">
+                    <table class="maps-selected-table">
+                        <tr class="map-stat">
+                            <td>Likes:</td>
+                            <td><span class="stat likes"></span></td>
+                            <td>Score:</td>
+                            <td><span class="stat percent"></span></td>
+                        </tr>
+                        <tr class="map-stat">
+                            <td>Neutral:</td>
+                            <td><span class="stat indifferents"></span></td>
+                            <td>Rated Plays:</td>
+                            <td><span class="stat plays"></span></td>
+                        </tr>
+                        <tr class="map-stat">
+                            <td>Dislikes:</td>
+                            <td><span class="stat dislikes"></span></td>
+                            <td>Votes:</td>
+                            <td><span class="stat votes"></span></td>
+                        </tr>
+                    </table>
+                </div>
+                <hr>
+            </div>
+            <div class="col-md-12">
+                <img class="preview img-responsive" src="" data-static="">
+            </div>
+        </div>
+    </div>
+</div>    <div class="col-md-12 maps-table">
+        <hr>
+        <table class="table table-stripped" id="retired-table">
+            <thead>
+                <tr>
+                    <th>Map</th>
+                    <th class="text-right">Score</th>
+                    <th class="text-right"><i class="fa fa-users" data-tooltip="Is the map favored/disfavored by the community?"></i></th>
+                    <th class="text-center">Votes</th>
+                    <th class="text-right">Total</th>
+                    <th class="text-left">Ratio</th>
+                    <th class="text-left" v-if="loggedIn">My vote</th>
+                </tr>
+            </thead>
+            <div>
+                <tr v-for="map in maps.category.retired" :key="map._id">
+                        <td><a :id="'map-' + map._id" class="map-list-entry clickableText retired" v-on:click="selectMapFocus(map._id, 'retired')">${map.name}</a></td>
+                        <td class="text-right">${map.score ? map.score : 0}%</td>
+                        <td class="text-right">
+                            <i class="activeStar fa fa-star" v-if="map.communityFavoured" data-tooltip="This map is highly rated as a favorite by the community"></i>
+                            <i class="activeThumbsDown fa fa-thumbsdown" v-if="map.communityDisfavoured"  data-tooltip="This map is rated as a least favorite by the community"></i>
+                        </td>
+                        <td class="text-center"><span class="stat likes">${map.totalLikes}</span> |
+                        <span class="stat indifferents">${map.totalIndifferents}</span> |
+                        <span class="stat dislikes">${map.totalDislikes}</span></td>
+                        <td class="text-right">${map.totalUsers}</td>
+                        <td class="text-right">
+                            <span class="ratio-bar">
+                                <span class="likes" :title="map.averageLikes + ' Likes'" :style="'width: ' + map.averageLikes + '%;'"></span>
+                                <span class="indifferents" :title="map.averageIndifferents + ' % Neutral'" :style="'width: ' + map.averageIndifferents + '%;'"></span>
+                                <span class="dislikes" :title="map.averageDislikes + ' Dislikes'" :style="'width: ' + map.averageDislikes + '%;'"></span></span>
+                        </td>
+                        <td>
+                            <select :id="'mapRating-' + map._id" class="form-control" v-on:change="mapRating(map._id)"
+                            :value="map.playerRating" v-if="loggedIn">
+                                <option value="" :hidden="map.playerRating!==''">(Select)</option>
+                                <option value="1">I like it</option>
+                                <option value="0">I'm Indifferent</option>
+                                <option value="-1">I dislike it</option>
+                            </select>
+                        </td>
+                    </tr>
+                </div>
+        </table>
+    </div>
+</div>                </div>
+                <div id="creation" class="tab-pane">
+                    <div class="row">
+    <div class="col-xs-12 col-sm-6">
+        <h3>Create Custom Maps</h3>
+        <p>
+            TagPro maps are made by our community. To make your own custom maps for TagPro you can use the community created <a href="https://fortunatemaps.herokuapp.com/editor" target="_blank">map editor</a>. There are tons of player-made maps available there.
+            <br><br>
+            <a href="https://www.reddit.com/r/TagPro/wiki/maps/creation" target="_blank">Check our wiki too</a>
+        </p>
+
+        <h3>Map Testing</h3>
+        <p>
+            Maps can be tested by creating a private group and enabling the Map Testing Mode option. If you launch a map directly from
+            <a href="https://fortunatemaps.herokuapp.com/" target="_blank">Fortunate Maps</a> or the <a href="https://fortunatemaps.herokuapp.com/editor" target="_blank">map editor</a>,
+            a Map Testing Mode group will automatically be created.
+        </p>
+        <p>
+            A Map Testing Mode group is similar to a regular private group but with the following special behaviors:
+        </p>
+        <ul class="bullet-list">
+            <li>The game defaults to 10 minutes long with no mercy rule and no analytics collected.</li>
+            <li>The AFK timer is relaxed.</li>
+            <li>Players can switch teams at any time.</li>
+            <li>Any player can press "r" at any time during the game to reset all map elements to their active state.</li>
+            <li>The game screen shows a special URL including a game id. You can share this link with a friend and they'll be joined directly into both the group and the game.</li>
+        </ul>
+    </div>
+    <div class="col-xs-12 col-sm-6">
+        <h3>Rotation Maps</h3>
+
+        <p>
+            To have your map added to the official public map rotation the
+            <a href="https://www.reddit.com/r/TagPro/wiki/maps/judging" target="_blank">Map Testing Committee</a>
+            must judge your map and accept it. Players who have maps added to rotation are awarded with the
+            <span class="flair " style="--flair-col: 5; --flair-row: 1;"></span> and
+            <span class="flair " style="--flair-col: 9; --flair-row: 0;"></span> flair.
+        </p>
+
+        <h3>Trial Maps</h3>
+        <p>
+            New maps can be submitted through the
+            <a href="https://www.reddit.com/r/TagPro/comments/139pom4/the_maptest_committee_bot_is_live_how_to_submit/" target="_blank">CreativeTPBot</a>
+            on the official <a href="https://discord.gg/hhW3MDzrt3" target="_blank">TagPro Discord</a>. If the Map Testing Committee approves the submission,
+            the map will enter Trial rotation and will spawn with half the frequency of Rotation maps.
+            Community votes will help decide if the map will enter regular rotation.
+        </p>
+
+        <h3>Classic Rotation Maps</h3>
+        <p>
+            Maps that have been taken out of rotation, can periodically be added to the "Classic rotation".
+            Maps in this category spawns half as much as rotation maps, and this category changes with every rotation.
+        </p>
+
+        <h3>Retired Maps</h3>
+        <p>
+            When a map is taken out of public rotation it joins the retired maps. Maps in this category are playable from private games.
+        </p>
+    </div>
+</div>                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+        <!-- start userscript site-wide bottom -->
+        <div id="userscript-bottom" class="hidden">
+            <div class="container">
+                <div class="row">
+                    <div class="col-xs-12 userscript-template hidden">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- end userscript site-wide bottom -->
+
+        <footer class="footer">
+            <div class="container">
+                <div class="row">
+                    <div class="col-md-3 col-sm-3">
+                        <div class="visible-xs text-center">
+                            <img src="/images/KoalaBeast.png">
+                            <div class="copyright">
+                                &copy; <span class="js-copyright-date">2016</span>
+                                Koalabeast Games
+                            </div>
+                        </div>
+                        <div class="hidden-xs">
+                            <img src="/images/KoalaBeast.png">
+                            <div class="copyright">
+                                &copy; <span class="js-copyright-date">2016</span>
+                                Koalabeast Games
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="col-md-9 col-sm-9 col-xs-12">
+                        <div class="row">
+                            <div class="col-sm-4 col-xs-12">
+                                <h3 class="header-title">TagPro</h3>
+                                <ul>
+                                    <li><a href="mailto:tagpro@koalabeast.com">Support</a></li>
+                                    <li><a href="https://docs.google.com/document/d/1n90H8CXwr_yNVWsxrcbPDZl2qhUd9JN9FWX-0qw0Qew/edit?usp=sharing" target="_blank">Code of Conduct</a></li>
+                                    <li><a href="https://docs.google.com/document/d/1yPGNGaHY5JNh1UGVmtMGz8cDZalgGoOMCNgjnKThpPo/edit?usp=sharing" target="_blank">Privacy Policy</a></li>
+                                </ul>
+                            </div>
+                            <div class="col-sm-4 col-xs-12">
+                                <h3 class="header-title">Community</h3>
+                                <ul>
+                                    <li><a href="https://www.reddit.com/r/tagpro" target="_blank">Subreddit</a></li>
+                                    <li><a href="https://discord.gg/hhW3MDzrt3" target="_blank">Discord</a></li>
+                                    <li><a href="https://www.reddit.com/r/tagpro/wiki/index" target="_blank">Wiki</a></li>
+                                </ul>
+                            </div>
+                            <div class="col-sm-4 col-xs-12">
+                                <h3 class="header-title">Social Media</h3>
+                                <ul>
+                                    <li><a href="https://twitter.com/play_tagpro" target="_blank">Twitter</a></li>
+                                    <li><a href="https://www.tiktok.com/@tagpro.gg" target="_blank">TikTok</a></li>
+                                    <li><a href="https://www.youtube.com/user/KoalaBeastGames" target="_blank">YouTube</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </footer>
+
+        
+
+            <script src="/R-965af4e7a4b8-z/compact/redirect.js"></script>
+
+        <script>
+            !function (w, d) {
+                if (w.rdt) return;
+                var p = (w.rdt = function () { p.sendEvent ? p.sendEvent.apply(p, arguments) : p.callQueue.push(arguments) });
+                p.callQueue = [];
+                var t = d.createElement("script");
+                t.src = "https://www.redditstatic.com/ads/pixel.js";
+                t.async = !0;
+                var s = d.getElementsByTagName("script")[0];
+                s.parentNode.insertBefore(t, s);
+            }(window, document);
+            rdt("init", "t2_vrwbckj1", { "optOut": false, "useDecimalCurrencyValues": true, "email": "", "externalId": "" });
+            rdt("track", "PageVisit");
+        </script>
+    </body>
+</html>

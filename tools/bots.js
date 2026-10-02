@@ -1,6 +1,7 @@
 // bots.js - simple TagPro bots that join a local group like real players (group socket ->
 // joiner -> game socket) and play CTF: grab, run home, chase enemy flag carriers, defend.
 //   node tools/bots.js <groupId> [count] [baseUrl]
+//   node tools/bots.js queue [count] [baseUrl]     (bots use Play Now / the public queue)
 const { io } = require('socket.io-client');
 
 const [groupId, countArg, baseArg] = process.argv.slice(2);
@@ -34,6 +35,7 @@ class Bot {
   async start() {
     await this.http('/');
     await this.http('/local/name', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: 'name=' + encodeURIComponent(this.name) });
+    if (groupId === 'queue') { this.queueMode = true; return this.findGame(); }
     await this.http('/groups/' + groupId);
     this.joinGroup();
   }
@@ -80,6 +82,7 @@ class Bot {
       this.playGame(m[1]);
     });
     j.on('SendToPage', () => { j.disconnect(); this.location = 'page'; });
+    j.on('Full', () => { if (!this.saidQueued) { this.saidQueued = true; this.log('in queue'); } });
   }
 
   playGame(path) {
@@ -108,7 +111,8 @@ class Bot {
     clearInterval(this.brain);
     this.game.removeAllListeners(); this.game.disconnect(); this.game = null;
     this.location = 'page';
-    this.group.emit('touch', 'page');
+    if (this.group) this.group.emit('touch', 'page');
+    if (this.queueMode) setTimeout(() => this.findGame(), 3000); // requeue after each game
   }
 
   findBases() {

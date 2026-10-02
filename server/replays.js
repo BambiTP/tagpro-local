@@ -125,4 +125,6 @@ function file(id) {
   return { path: f, name: `${g.mapName} - ${new Date(g.started).toISOString().slice(0, 16).replace('T', ' ')}` };
 }
 
-module.exports = { Recorder, list, file, keyToGameId, hexId, ensureId };
+function gamesFor(userId, n = 20) { return index.filter((g) => g.players.some((p) => p.userId === userId)).slice(0, n); }
+
+module.exports = { index: () => index, gamesFor, Recorder, list, file, keyToGameId, hexId, ensureId };

@@ -17,7 +17,7 @@ def common(h):
     h = re.sub(r"tagproConfig.cookieHost = '[^']*'", 'tagproConfig.cookieHost = location.hostname', h)
     h = re.sub(r'tagproConfig.serverPort = \d+', 'tagproConfig.serverPort = location.port || 80', h)
     h = h.replace('https://tagpro.koalabeast.com/', '/').replace('//static.koalabeast.com/', '/')
-    h = h.replace('/textures/musclescupgradients/', '/textures/classic/')
+    h = h.replace('data-static="static.koalabeast.com"', 'data-static=""')
     h = re.sub(r'(id="groupId"[^>]*value=")[a-z]{8}"|(value=")[a-z]{8}("[^>]*id="groupId")', lambda m: (m.group(1) or m.group(2)) + '{{GROUP_ID}}' + ('"' if m.group(1) else m.group(3)), h)
     h = re.sub(r'<div>\d+ players in \d+ games', '<div>{{STATS_PLAYERS}} players in {{STATS_GAMES}} games', h)
     h = re.sub(r'<div>\d+ total users online</div>', '<div>{{STATS_ONLINE}} total users online</div>', h)
@@ -51,8 +51,27 @@ def groups(h):
     (out / 'group-item.html').write_text(first)
     return h[:a] + '\n{{GROUPS_LIST}}\n                    ' + h[b:]
 page('groups-real.html', 'groups.html', groups)
-page('home-real.html', 'home.html')
+def home(h):
+    # Play Now goes straight to the matchmaking queue; live queue status under the button
+    h = h.replace('<a id="play-now" class="btn btn-primary" href="/games/select">', '<a id="play-now" class="btn btn-primary" href="/games/find">')
+    widget = '''
+                                <div id="queue-status" style="margin-top:10px;font-size:15px;"></div>
+                                <script>
+                                (function poll() {
+                                    fetch('/queue/status').then(function (r) { return r.json(); }).then(function (q) {
+                                        document.getElementById('queue-status').innerHTML =
+                                            '<b>' + q.queued + ' / ' + q.needed + '</b> players in queue' +
+                                            '<br><span style="opacity:.75">' + q.playing + ' playing in ' + q.games + (q.games === 1 ? ' game' : ' games') + '</span>';
+                                    }).catch(function () {}).then(function () { setTimeout(poll, 2000); });
+                                })();
+                                </script>'''
+    i = h.index('<span class="sub-text">No login required</span>')
+    i = h.index('</a>', i) + len('</a>')
+    return h[:i] + widget + h[i:]
+page('home-real.html', 'home.html', home)
 page('settings-real.html', 'settings.html')
+page('textures-real.html', 'textures.html')
+page('maps-real.html', 'maps.html')
 
 def replays_page(h):
     return h.replace('<input type="hidden" id="userId" value="">', '<input type="hidden" id="userId" value="{{USER_ID}}">')

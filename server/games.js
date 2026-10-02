@@ -3,11 +3,12 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { PNG } = require('pngjs');
-const { loadMap } = require('../engine/mapLoader');
+const { loadMap, trimPng } = require('../engine/mapLoader');
 const { GameRoom } = require('../engine/game');
 const sessions = require('./sessions');
 const groups = require('./groups');
 const replays = require('./replays');
+const queue = require('./queue');
 
 const MAPS_DIR = path.join(__dirname, '..', 'maps');
 const games = new Map();
@@ -25,7 +26,7 @@ function mapKeys() {
 }
 
 function readMap(key) {
-  const png = PNG.sync.read(fs.readFileSync(path.join(MAPS_DIR, key + '.png')));
+  const png = PNG.sync.read(trimPng(fs.readFileSync(path.join(MAPS_DIR, key + '.png'))));
   const json = JSON.parse(fs.readFileSync(path.join(MAPS_DIR, key + '.json'), 'utf8'));
   return loadMap(png, json);
 }
@@ -64,14 +65,33 @@ async function resolveMap(setting) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+// ---- public game stats (Play Now games only) ----
+function recordStats(room, winner) {
+  const accounts = require('./accounts');
+  for (const p of Object.values(room.players)) {
+    if (!p.accountId) continue;
+    const res = accounts.recordGame(p.accountId, {
+      won: (winner === 'red' && p.team === 1) || (winner === 'blue' && p.team === 2), tied: winner === 'tie',
+      timePlayed: room.now() - p.joinedAt, score: p.score,
+      tags: p['s-tags'], pops: p['s-pops'], grabs: p['s-grabs'], drops: p['s-drops'], hold: p['s-hold'],
+      captures: p['s-captures'], prevent: p['s-prevent'], returns: p['s-returns'], support: p['s-support'], powerups: p['s-powerups'],
+    });
+    if (res && res.degreeUp) {
+      p.degree = res.degree; room.queue(p, 'degree');
+      room.send(p.client, 'sound', { s: 'degreeup', v: 1 });
+    }
+  }
+}
+
 // ---- rooms ----
 function createGame({ mapKey, settings, isPrivate, groupId }) {
   const map = readMap(mapKey);
   const id = gameId();
   const room = new GameRoom({
     id, uuid: crypto.randomUUID(), map, mapName: map.info.name, settings, isPrivate, groupId,
-    onEnd: (r) => {
+    onEnd: (r, winner) => {
       setTimeout(() => r.recorder && r.recorder.finish(), 3000); // replay saved shortly after the end
+      if (r.countsForStats) recordStats(r, winner);
       const g = groupId && groups.groups.get(groupId);
       if (g && g.game.gameId === id) g.setGame(null);
     },
@@ -79,6 +99,7 @@ function createGame({ mapKey, settings, isPrivate, groupId }) {
       if (r.closed || r.ended) { games.delete(id); const g = groupId && groups.groups.get(groupId); if (g && g.game.gameId === id) g.setGame(null); }
     },
   });
+  room.onMapRating = (session, mapName, value) => require('./mapstats').rate(session, mapName, value);
   games.set(id, room);
   room.recorder = new replays.Recorder(room);
   room.addRecorder(room.recorder); // every game gets a replay
@@ -109,15 +130,6 @@ function endGame(id) {
   if (r && !r.ended) r.end(r.score.r > r.score.b ? 'red' : r.score.b > r.score.r ? 'blue' : 'tie', false);
 }
 
-// public matchmaking: fill an open public game or start a new one
-async function findPublicGame() {
-  for (const r of games.values()) {
-    if (r.isPrivate || r.groupId || r.ended || r.closed) continue;
-    if (r.playerCount() < r.settings.maxPlayersPerTeam * 2) return r;
-  }
-  return createGame({ mapKey: await resolveMap('random'), settings: {}, isPrivate: false, groupId: null });
-}
-
 // ---- joiner: /games/find ----
 function attachJoiner(io) {
   io.of('/games/find').on('connection', async (socket) => {
@@ -133,7 +145,7 @@ function attachJoiner(io) {
       let pg = session.pendingGame;
       if (!pg || !games.has(pg.id) || games.get(pg.id).ended) {
         if (g && g.game.gameId && games.has(g.game.gameId)) pg = session.pendingGame = { id: g.game.gameId, team: null, spectate: false };
-        else if (!g) { const r = await findPublicGame(); pg = session.pendingGame = { id: r.id, team: null, spectate: false }; }
+        else if (!g) { sent = true; socket.emit('serverStatsUpdated', queue.statsPacket()); return queue.join(session, socket); }
         else return socket.emit('SendToPage', { url: '/groups/' + g.id, reason: 'No game running for your group' });
       }
       sent = true;
@@ -157,5 +169,7 @@ function attachGames(io) {
     socket.on('disconnect', () => room.removeClient(client));
   });
 }
+
+queue.init({ createGame, resolveMap, games });
 
 module.exports = { games, createGame, launchGroupGame, endGame, attachJoiner, attachGames, resolveMap, fetchFortunateMap, mapKeys };

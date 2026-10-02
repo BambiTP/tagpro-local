@@ -30,6 +30,27 @@ function render(name, vars = {}) {
   return html;
 }
 
+// public-game stats (Play Now) + degree progress, shown on profiles
+function statsTable(account) {
+  const A = require('./accounts');
+  const st = Object.assign(A.emptyStats(), account.stats || {});
+  const deg = A.degreeFor(st.wins), next = A.winsForDegree(deg + 1);
+  const pct = (n, d) => (d ? Math.round((n / d) * 100) : 0) + '%';
+  const hms = (ms) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
+  const per = (n) => (st.games ? (n / st.games).toFixed(2) : '0.00');
+  const rows = [
+    ['Degree', `${deg}&deg;`, deg < 360 ? `${next - st.wins} more ${next - st.wins === 1 ? 'win' : 'wins'} to ${deg + 1}&deg;` : ''],
+    ['Games', st.games, ''], ['Wins', st.wins, pct(st.wins, st.games)], ['Losses', st.losses, ''], ['Ties', st.ties, ''],
+    ['Time Played', hms(st.timePlayed), ''],
+    ['Captures', st.captures, per(st.captures) + ' / game'], ['Grabs', st.grabs, per(st.grabs) + ' / game'],
+    ['Hold', hms(st.hold * 1000), ''], ['Tags', st.tags, per(st.tags) + ' / game'], ['Pops', st.pops, per(st.pops) + ' / game'],
+    ['Returns', st.returns, per(st.returns) + ' / game'], ['Prevent', hms(st.prevent * 1000), ''],
+    ['Support', st.support, ''], ['Powerups', st.powerups, per(st.powerups) + ' / game'],
+  ];
+  return `<h3>Public Game Stats</h3><p style="opacity:.7;margin-top:-6px">Play Now games</p>
+    <table class="table table-condensed"><tbody>${rows.map(([k, v, x]) => `<tr><td>${k}</td><td class="text-right"><b>${v}</b></td><td class="text-right" style="opacity:.7">${x}</td></tr>`).join('')}</tbody></table>`;
+}
+
 function loginCard(error, tab) {
   const field = (label, name, type, extra = '') => `
                             <div class="form-group">
@@ -80,6 +101,8 @@ function profileCard(account, flairs) {
                                 </div>
                             </div>
                         </form>
+                        <hr>
+                        ${statsTable(account)}
                         <hr>
                         <h2>Flair</h2>
                         <p>Click a flair to wear it.</p>
@@ -134,4 +157,4 @@ ${members.map((m) => `                                            <div class="gr
                         </div>`;
 }
 
-module.exports = { render, esc, groupItem, setStatsProvider, loginCard, profileCard };
+module.exports = { render, esc, groupItem, setStatsProvider, loginCard, profileCard, statsTable };

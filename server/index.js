@@ -10,6 +10,8 @@ const groups = require('./groups');
 const games = require('./games');
 const accounts = require('./accounts');
 const replays = require('./replays');
+const community = require('./community');
+const mapstats = require('./mapstats');
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0'; // the VPS service sets 127.0.0.1 so only Caddy is public
@@ -34,6 +36,26 @@ pages.setStatsProvider(() => {
 });
 
 const html = (res, s) => res.type('html').send(s);
+
+// ---- texture packs: the real picker stores the chosen pack (image URLs) in the "textures"
+// cookie; game/replay pages are rendered with those images. Default matches the real site.
+const PACKS = require(path.join(__dirname, '..', 'ref-data', 'texture-packs.json'));
+const DEFAULT_PACK = PACKS.find((p) => p.name === "Muscle's Cup Gradients") || PACKS[0];
+const ASSET_IDS = { tiles: 'tiles', splats: 'splats', speedpad: 'speedpad', speedpadRed: 'speedpadred', speedpadBlue: 'speedpadblue', portal: 'portal', portalRed: 'portalred', portalBlue: 'portalblue' };
+const okUrl = (u) => typeof u === 'string' && (/^\/textures\/[\w-]+\/[\w-]+\.png$/.test(u) || /^https:\/\/[^"'<>\s]+$/.test(u));
+function chosenPack(req) {
+  let pack = req.session.account && req.session.account.textures;
+  if (!pack) { try { pack = JSON.parse(sessions.parseCookies(req.headers.cookie).textures || 'null'); } catch (e) { pack = null; } }
+  return pack && typeof pack === 'object' ? pack : DEFAULT_PACK;
+}
+function withTextures(req, page) {
+  const pack = chosenPack(req);
+  for (const [key, id] of Object.entries(ASSET_IDS)) {
+    const url = okUrl(pack[key]) ? pack[key] : DEFAULT_PACK[key];
+    page = page.replace(new RegExp(`(<img id="${id}" src=")[^"]*(")`), `$1${pages.esc(url)}$2`);
+  }
+  return page;
+}
 // every page shows the logged-in name in the header
 const _render = pages.render;
 let currentReq = null;
@@ -80,6 +102,45 @@ app.get('/replays/gameFile', (req, res) => {
   res.type('text/plain').send(replays.ensureId(require('fs').readFileSync(f.path, 'utf8')));
 });
 
+// ---- feedback (login required to post) ----
+app.get('/feedback', (req, res) => html(res, card('TagPro Feedback', community.feedbackCard(req.session.account))));
+app.post('/feedback', (req, res) => {
+  if (!req.session.account) return res.redirect('/login');
+  const r = community.createThread(req.session.account, req.body.body);
+  if (r.error) return html(res, card('TagPro Feedback', community.feedbackCard(req.session.account, r.error)));
+  res.redirect('/feedback/' + r.thread.id);
+});
+app.get('/feedback/:id', (req, res) => {
+  const c = community.threadCard(req.params.id, req.session.account);
+  if (!c) return res.redirect('/feedback');
+  html(res, card('TagPro Feedback', c));
+});
+app.post('/feedback/:id/reply', (req, res) => {
+  if (!req.session.account) return res.redirect('/login');
+  const r = community.reply(req.session.account, req.params.id, req.body.body);
+  if (r.error) return html(res, card('TagPro Feedback', community.threadCard(req.params.id, req.session.account, r.error) || ''));
+  res.redirect('/feedback/' + req.params.id);
+});
+
+// ---- player search + public profiles ----
+app.get('/playersearch', (req, res) => html(res, card('TagPro Player Search', community.searchCard(req.query.q, accounts.search(req.query.q)))));
+app.get('/profile/:id', (req, res) => {
+  const a = accounts.byId(req.params.id);
+  if (!a) return res.redirect('/playersearch');
+  html(res, card('TagPro Profile', community.publicProfileCard(a, a.flair ? accounts.flairByKey[a.flair] : null, replays.gamesFor(a.id))));
+});
+
+// ---- maps page (real page; data from this server) ----
+app.get('/maps', (req, res) => html(res, pages.render('maps.html')));
+app.get('/maps.json', (req, res) => res.json(mapstats.allMapData()));
+
+// ---- texture pack picker ----
+app.get('/textures', (req, res) => html(res, pages.render('textures.html')));
+app.post('/textures', (req, res) => {
+  if (req.session.account) { require('./accounts').setTextures(req.session, req.body); }
+  res.json({ success: true });
+});
+
 // settings are browser cookies; the real page just posts for an acknowledgement
 app.get('/settings', (req, res) => html(res, pages.render('settings.html')));
 app.post('/settings', (req, res) => res.json({ success: true }));
@@ -121,7 +182,7 @@ app.post('/groups/testmap', upload.fields([{ name: 'layout' }, { name: 'logic' }
   if (!layout || !logic) return res.json({ success: false, error: 'You must upload both layout and logic files' });
   try {
     const json = JSON.parse(logic.buffer.toString('utf8'));
-    require('pngjs').PNG.sync.read(layout.buffer);
+    require('pngjs').PNG.sync.read(require('../engine/mapLoader').trimPng(layout.buffer));
     const key = 'upload-' + g.id + '-' + Date.now();
     require('fs').writeFileSync(path.join(__dirname, '..', 'maps', key + '.png'), layout.buffer);
     require('fs').writeFileSync(path.join(__dirname, '..', 'maps', key + '.json'), JSON.stringify(json));
@@ -134,17 +195,17 @@ app.get('/games/find', (req, res) => html(res, pages.render('find.html', { GROUP
 
 app.get('/game', (req, res, next) => {
   // /game?replay=<key>: the real game page in replay mode
-  if (req.query.replay) return html(res, pages.render('replay.html', { REPLAY_KEY: pages.esc(String(req.query.replay).slice(0, 80)) }));
+  if (req.query.replay) return html(res, withTextures(req, pages.render('replay.html', { REPLAY_KEY: pages.esc(String(req.query.replay).slice(0, 80)) })));
   next();
 });
 app.get('/game', (req, res) => {
   const pg = req.session.pendingGame;
   const room = pg && games.games.get(pg.id);
   if (!room || room.closed) return res.redirect('/');
-  html(res, pages.render('game.html', {
+  html(res, withTextures(req, pages.render('game.html', {
     GAME_SOCKET: '/game/' + room.id, GAME_SERVER: 'local', GAME_ID: room.id,
     GAME_SOCKET_LABEL: req.headers.host, GROUP_ID: room.groupId || 'null',
-  }));
+  })));
 });
 
 // flair feed (server-sent events); no accounts locally, so it just stays open
@@ -162,6 +223,9 @@ app.post('/local/name', (req, res) => {
   res.json({ name: req.session.name });
 });
 
+// public queue status for the homepage (Play Now)
+app.get('/queue/status', (req, res) => res.json(require('./queue').counts()));
+
 // music list (JSONP, like tagpro.koalabeast.com/music)
 app.get('/music', (req, res) => res.jsonp(music));
 
@@ -172,6 +236,7 @@ app.use(express.static(PUBLIC, { index: false, maxAge: '7d' }));
 
 groups.attach(io, { launchGroupGame: (g) => games.launchGroupGame(g).catch((e) => console.error('launch failed', e)), endGame: games.endGame });
 games.attachJoiner(io);
+mapstats.attach(io, replays.index);
 games.attachGames(io);
 
 server.listen(PORT, HOST, () => {

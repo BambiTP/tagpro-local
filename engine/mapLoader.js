@@ -79,7 +79,13 @@ function loadMap(image, json) {
   };
 }
 
-const api = { loadMap, COLOR_TO_TILE };
+// some map PNGs carry extra bytes after IEND; browsers ignore them but strict decoders throw
+function trimPng(buf) {
+  const i = buf.lastIndexOf ? buf.lastIndexOf('IEND') : -1;
+  return i > 0 && i + 8 < buf.length ? buf.slice(0, i + 8) : buf;
+}
+
+const api = { loadMap, trimPng, COLOR_TO_TILE };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.TPMapLoader = api;
 })();
