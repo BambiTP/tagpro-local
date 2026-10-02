@@ -1,7 +1,8 @@
 // queue.js - public matchmaking for "Play Now": players wait in the joiner until 8 are queued,
 // then a public game starts with 4 on each team. Uses the real joiner messages: "Full" with
 // `considering` shows "Looking for a game", serverStatsUpdated shows "playing | queued" counts.
-const GAME_SIZE = 8;
+const admin = require('./admin');
+const GAME_SIZE = () => admin.gameSize();
 
 const queue = []; // { session, socket }
 let gamesApi = null; // { createGame, resolveMap, games }
@@ -9,7 +10,7 @@ let gamesApi = null; // { createGame, resolveMap, games }
 function counts() {
   const live = [...gamesApi.games.values()].filter((r) => !r.closed && !r.ended);
   const playing = live.reduce((n, r) => n + r.playerCount(), 0);
-  return { queued: queue.length, needed: GAME_SIZE, playing, games: live.length };
+  return { queued: queue.length, needed: GAME_SIZE(), playing, games: live.length };
 }
 
 // the joiner page shows these next to every region checkbox as "<playing> | <queued>"
@@ -28,9 +29,10 @@ function broadcast() {
 }
 
 async function tryStart() {
-  while (queue.length >= GAME_SIZE) {
-    const batch = queue.splice(0, GAME_SIZE);
-    const room = gamesApi.createGame({ mapKey: await gamesApi.resolveMap('random'), settings: {}, isPrivate: false, groupId: null });
+  while (queue.length >= GAME_SIZE()) {
+    const batch = queue.splice(0, GAME_SIZE());
+    const mapKey = await gamesApi.resolveMap(admin.mapChoice(), admin.rotationPool());
+    const room = gamesApi.createGame({ mapKey, settings: admin.publicSettings(), isPrivate: false, groupId: null });
     room.fixedTeams = true;
     room.countsForStats = true; // Play Now games feed profile stats and degrees
     batch.forEach((q, i) => {

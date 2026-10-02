@@ -49,7 +49,7 @@ function rotationKeys() {
   return keys.length ? keys : all;
 }
 
-async function resolveMap(setting) {
+async function resolveMap(setting, pool) {
   const v = String(setting || 'random');
   if (v.startsWith('fm_id/')) return fetchFortunateMap(v.slice(6));
   if (v.startsWith('upload/') && mapKeys().includes(v.slice(7))) return v.slice(7);
@@ -61,8 +61,9 @@ async function resolveMap(setting) {
       try { const j = JSON.parse(fs.readFileSync(path.join(MAPS_DIR, k + '.json'), 'utf8')); if (j.info && j.info.name === v) return k; } catch (e) { /* skip */ }
     }
   }
-  const pool = rotationKeys();
-  return pool[Math.floor(Math.random() * pool.length)];
+  const keys = (pool && pool.filter((k) => all.includes(k))) || rotationKeys();
+  const list = keys.length ? keys : rotationKeys();
+  return list[Math.floor(Math.random() * list.length)];
 }
 
 // ---- public game stats (Play Now games only) ----

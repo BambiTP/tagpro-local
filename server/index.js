@@ -12,6 +12,7 @@ const accounts = require('./accounts');
 const replays = require('./replays');
 const community = require('./community');
 const mapstats = require('./mapstats');
+const admin = require('./admin');
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0'; // the VPS service sets 127.0.0.1 so only Caddy is public
@@ -23,7 +24,7 @@ const server = http.createServer(app);
 const io = new Server(server, { transports: ['websocket', 'polling'], cors: { origin: true, credentials: true } });
 
 app.use(require('compression')());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: true }));
 app.use(sessions.middleware);
 
 pages.setStatsProvider(() => {
@@ -128,6 +129,20 @@ app.get('/profile/:id', (req, res) => {
   const a = accounts.byId(req.params.id);
   if (!a) return res.redirect('/playersearch');
   html(res, card('TagPro Profile', community.publicProfileCard(a, a.flair ? accounts.flairByKey[a.flair] : null, replays.gamesFor(a.id))));
+});
+
+// ---- admin control panel (public game map/settings) ----
+app.get('/admin', (req, res) => {
+  if (!admin.isAdmin(req.session)) return req.session.account ? res.status(403).send('Not an admin') : res.redirect('/login');
+  html(res, card('TagPro Admin', admin.panel(req.query.saved ? 'Saved. The next public game uses these settings.' : '')));
+});
+app.post('/admin', (req, res) => {
+  if (!admin.isAdmin(req.session)) return res.status(403).send('Not an admin');
+  admin.update(req.body); res.redirect('/admin?saved=1');
+});
+app.post('/admin/reset', (req, res) => {
+  if (!admin.isAdmin(req.session)) return res.status(403).send('Not an admin');
+  admin.reset(); res.redirect('/admin?saved=1');
 });
 
 // ---- maps page (real page; data from this server) ----
