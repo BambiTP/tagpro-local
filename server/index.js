@@ -77,7 +77,7 @@ app.get('/replays/gameFile', (req, res) => {
   if (!f) { res.set('X-Replay-Error', 'Replay not found'); return res.status(404).send('Replay not found'); }
   res.set('X-Replay-Filename', f.name);
   if (!req.query.key) res.attachment(f.name.replace(/[^\w .-]/g, '_') + '.ndjson');
-  res.type('text/plain').sendFile(f.path);
+  res.type('text/plain').send(replays.ensureId(require('fs').readFileSync(f.path, 'utf8')));
 });
 
 // settings are browser cookies; the real page just posts for an acknowledgement

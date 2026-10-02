@@ -40,7 +40,13 @@ class Recorder {
   }
   emit(ev, data) {
     if (this.closed) return;
-    this.lines.push(JSON.stringify([Date.now() - this.t0, ev, data === undefined ? null : data]));
+    const t = Date.now() - this.t0;
+    this.lines.push(JSON.stringify([t, ev, data === undefined ? null : data]));
+    // like the real recorder: the replay follows the first player ("id"); the viewer needs it
+    if (!this.idSent && ev === 'p') {
+      const u = (Array.isArray(data) ? data : data && data.u || []).find((x) => x && x.id);
+      if (u) { this.idSent = true; this.lines.push(JSON.stringify([t, 'id', u.id])); }
+    }
   }
   disconnect() { this.finish(); }
 
@@ -100,6 +106,17 @@ function list(query, viewerUserId) {
   return { games, userId: forUser, name: null, reservedName: null };
 }
 
+// replays recorded before the recorder sent "id" can't load in the viewer (it waits 15s for one)
+function ensureId(text) {
+  if (/^\[\d+,"id",/m.test(text)) return text;
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^\[(\d+),"p",.*?"id":(\d+)/);
+    if (m) { lines.splice(i + 1, 0, `[${m[1]},"id",${m[2]}]`); break; }
+  }
+  return lines.join('\n');
+}
+
 function file(id) {
   if (!/^[0-9a-f]{24}$/.test(id || '')) return null;
   const g = index.find((x) => x.id === id);
@@ -108,4 +125,4 @@ function file(id) {
   return { path: f, name: `${g.mapName} - ${new Date(g.started).toISOString().slice(0, 16).replace('T', ' ')}` };
 }
 
-module.exports = { Recorder, list, file, keyToGameId, hexId };
+module.exports = { Recorder, list, file, keyToGameId, hexId, ensureId };

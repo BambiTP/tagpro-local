@@ -681,7 +681,7 @@ class GameRoom {
   tileInteractions(p) {
     const pos = p.body.GetPosition();
     const tiles = this.overlappingTiles(pos);
-    let onTeamTile = false;
+    let onTeamTile = false, stillOnArrival = false;
     const nowTouching = new Set();
     for (const o of tiles) {
       if (p.dead) return;
@@ -724,7 +724,9 @@ class GameRoom {
           break;
         }
         case T.PORTAL: case T.RED_PORTAL: case T.BLUE_PORTAL: {
-          if (typeof t === 'string' || !this.touches(o, 'portal')) break;
+          if (!this.touches(o, 'portal')) break;
+          if (key === p.arrivedOnPortal) { stillOnArrival = true; break; }
+          if (typeof t === 'string') break;
           if ((base === T.RED_PORTAL && p.team !== 1) || (base === T.BLUE_PORTAL && p.team !== 2)) break;
           this.teleport(p, o.x, o.y, base);
           break;
@@ -732,6 +734,8 @@ class GameRoom {
         default: break;
       }
     }
+    // the arrival portal re-arms once the ball has rolled off it
+    if (p.arrivedOnPortal && !stillOnArrival && p.teleportTick !== this.tick) p.arrivedOnPortal = null;
     // buttons: track which buttons this player holds
     for (const key of p.touching) if (!nowTouching.has(key)) this.releaseButton(key, p);
     for (const key of nowTouching) if (!p.touching.has(key)) this.pressButton(key, p);
@@ -772,7 +776,6 @@ class GameRoom {
   }
 
   teleport(p, x, y, base) {
-    if (this.now() < p.portalCooldownUntil) return;
     const key = x + ',' + y;
     const conf = this.map.portals[key];
     if (!conf || !conf.destination) return;
@@ -781,7 +784,8 @@ class GameRoom {
     const v = p.body.GetLinearVelocity();
     p.body.SetPosition(new V(d.x * PH.TILE, d.y * PH.TILE));
     p.body.SetLinearVelocity(new V(v.x, v.y));
-    p.portalCooldownUntil = this.now() + 200;
+    p.arrivedOnPortal = d.x + ',' + d.y;
+    p.teleportTick = this.tick;
     this.broadcast('sound', { s: 'teleport', v: 1 });
     // real server: flash + explosion at the destination, and directSet so clients snap instead of easing
     this.broadcast('bomb', { x: d.x * 40, y: d.y * 40, type: 3 });
