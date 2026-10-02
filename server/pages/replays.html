@@ -1,0 +1,490 @@
+<!doctype html> <!-- eslint-disable-line vue/no-parsing-error -->
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <title>TagPro Replays</title>
+
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <meta property="og:title" content="TagPro Replays">
+        <meta property="og:image" content="/images/thumbnail.png">
+
+        <link rel="apple-touch-icon" href="/images/thumbnail.png">
+        <link rel="shortcut icon" href="/favicon.ico">
+
+        <link rel="stylesheet" href="/R-965af4e7a4b8-z/stylesheets/bootstrap.css">
+        <link rel="stylesheet" href="/R-965af4e7a4b8-z/stylesheets/bootstrap-datepicker3.standalone.css">
+        <link rel="stylesheet" href="/R-965af4e7a4b8-z/stylesheets/bootstrap-select.css">
+        <link rel="stylesheet" href="/R-965af4e7a4b8-z/stylesheets/style.css">
+        <link rel="stylesheet" href="/R-965af4e7a4b8-z/stylesheets/font-awesome.css">
+
+        <script src="/R-965af4e7a4b8-z/compact/global-replays.js"></script>
+        
+
+        <script>
+            tagproConfig.serverPort = location.port || 80;
+            tagproConfig.serverHost = location.hostname + (tagproConfig.serverPort != 80 ? ':' + tagproConfig.serverPort : '');
+            tagproConfig.cookieHost = location.hostname;
+        </script>
+    </head>
+    <body class="body-with-footer" id="73218c3018844b2f77042c8cac92826160f2f5be9c563da1c3e2a7e5b1103130">
+
+        <div id="header" class="header">
+            <div class="container header-main">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="header-top">
+                            <div class="row">
+                                <div class="col-sm-9 col-md-7 col-lg-6">
+                                    <h1 id="logo" class="logo">
+                                            <a href="/"><img src="/images/logo.png" alt="TagPro"></a>
+                                    </h1>
+
+                                        <div class="server-stats">
+                                            <div>Stats</div>
+                                            <div>{{STATS_PLAYERS}} players in {{STATS_GAMES}} games
+                                            </div>
+                                            <div>{{STATS_ONLINE}} total users online</div>
+                                        </div>
+                                </div>
+                                <div class="col-sm-3 col-md-5 col-lg-6">
+                                    <div class="flair-log hidden-sm" id="flair-log">
+                                    </div>
+
+
+                                    <div class="userbar pull-right">
+                                            <a id="login-btn" class="btn btn-secondary" href="/login">Log In / Sign Up</a>
+                                            <a id="settings-btn" class="btn btn-default" href="/settings">Settings</a>
+                                    </div>
+
+                                    <div class="clearfix"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                        <div id="site-nav" class="nav">
+                            <button class="mobile-menu-toggle" onclick="this.blur();">
+                            <svg width="32" height="32" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1664 1344v128q0 26-19 45t-45 19h-1408q-26 0-45-19t-19-45v-128q0-26 19-45t45-19h1408q26 0 45 19t19 45zm0-512v128q0 26-19 45t-45 19h-1408q-26 0-45-19t-19-45v-128q0-26 19-45t45-19h1408q26 0 45 19t19 45zm0-512v128q0 26-19 45t-45 19h-1408q-26 0-45-19t-19-45v-128q0-26 19-45t45-19h1408q26 0 45 19t19 45z"/></svg>
+                            </button>
+                            <div class="visible-xs clearfix"></div>
+                            <ul>
+                                <li id="nav-tagpro" class=""><a href="/">TagPro</a></li>
+                                <li id="nav-groups" class=""><a href="/groups">Groups<span class="group-indicator groupsAvailable bounce">&#x25cf;</span></a></li>
+                                <li id="nav-leaderboards" class=""><a href="/leaders">Leaders</a></li>
+                                <li id="nav-maps" class=""><a href="/maps">Maps</a></li>
+                                <li id="nav-playersearch" class=""><a href="/playersearch">Player Search</a></li>
+                                <li id="nav-competitive" class=""><a href="/competitive">Competitive</a></li>
+                                <li id="nav-replays" class="active-tab"><a href="/replays">Replays</a></li>
+                                <li id="nav-feedback" class=""><a href="/feedback">Feedback<span id="feedback-indicator" style="display: none;" class="group-indicator bounce">&#x25cf;</span></a></li>
+
+                                    <li class="nav-mobile"><a href="/login">Log In / Sign Up</a></li>
+                                    <li class="nav-mobile"><a href="/settings">Settings</a></li>
+                            </ul>
+                        </div>
+            </div>
+        </div>
+
+        <!-- start userscript site-wide top -->
+        <div id="userscript-top" class="hidden">
+            <div class="container">
+                <div class="row">
+                    <div class="col-xs-12 userscript-template hidden">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- end userscript site-wide top -->
+
+        <input type="hidden" id="userId" value="{{USER_ID}}">
+<input type="hidden" id="isMod" value="">
+<input type="hidden" id="unavailable" value="false">
+
+<div class="container replays" id="replays-app">
+    <h1 class="header-title">Replays</h1>
+
+    <!-- ERROR VIEW -->
+    <div v-if="view==='failed'" class="col-sm-12" :key="lastUpdate" v-cloak>
+        <div class="msg msg-warning">
+            ${error}. Press "Reload" to refresh this page.
+        </div>
+        <p />
+        <button class="btn btn-default" type="submit"
+            @click="reloadPage()">Reload</button>
+    </div>
+
+    <!-- LOADING VIEW -->
+    <div v-if="view==='loading'" class="col-sm-12" :key="lastUpdate">
+        <div id="message">
+            Please wait
+        </div>
+
+        <div id="spinner" class="spinner text-center">
+            <div class="spinner-item"></div>
+            <div class="spinner-item"></div>
+            <div class="spinner-item"></div>
+            <div class="spinner-item"></div>
+        </div>
+    </div>
+
+    <!-- HISTORY VIEW -->
+    <div class="modal fade" id="favoriteModal" tabindex="-1" role="dialog" aria-labelledby="favoriteModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="btn btn-default close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="favoriteModalLabel">Favorite Replay</h4>
+            </div>
+            <div class="modal-body">
+                    <p>
+                        You must be logged in to save replays to your Favorites list.
+                    </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>    <div v-if="view==='history'" class="row" :key="lastUpdate" v-cloak>
+        <div class="col-md-12">
+            <ul class="tab-list">
+                <li data-tab="mine" :class="{ active: tab === 'mine' }" @click="switchTab('mine')"><a>My Games</a></li>
+                <li data-tab="favorite" :class="{ active: tab === 'favorite' }" @click="switchTab('favorite')"><a>Favorite Games</a></li>
+                <li data-tab="all" :class="{ active: tab === 'all' }" @click="switchTab('all')"><a>All Public Games</a></li>
+                <li data-tab="foruser" v-if="forUserId" :class="{ active: tab === 'foruser' }" @click="switchTab('foruser')"><a>For User</a></li>
+                <li data-tab="direct" v-if="forUuid" :class="{ active: tab === 'direct' }" @click="switchTab('direct')"><a>Direct Link</a></li>
+                <li data-tab="upload" :class="{ active: tab === 'upload' }" @click="switchTab('upload')"><a>Upload</a></li>
+            </ul>
+
+            <div class="tab-content">
+                <div class="tab-pane active">
+
+                    <div v-if="tab === 'foruser'" v-cloak>
+                        <p>
+                            Showing results for <a :href="'/profile/' + forUserId"><template v-if="resultReservedName">✓ </template>${resultName}</a>
+                            <span v-if="modView">(Mod View)</span>
+                        </p>
+                    </div>
+
+                    <div v-if="showResults === 'notLoggedIn'" v-cloak>
+                        You must be logged in to see games that you've played in
+                        or save games to your Favorites list.
+                    </div>
+                    <div id="filter" v-if="showFilter && allowFilter" v-cloak>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th colspan="2">
+                                        Filters
+                                        <span class="pull-right">
+                                            <i class="fa fa-xmark clickableText" @click="toggleFilter"></i>
+                                        </span>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Date range:</td>
+                                    <td>
+                                        <div class="input-daterange input-group" id="datepicker">
+                                            <input type="text" class="form-control" id="dateStart">
+                                            <span class="input-group-addon">to</span>
+                                            <input type="text" class="form-control" id="dateEnd">
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Map name:</td>
+                                    <td>
+                                        <select v-model="filter.mapPreset" id="mapPreset" class="form-control js-selectpicker" title="Public maps (rotation & trial)" data-width="250px">
+                                            <option></option>
+                                                <option class="maptype-rotation">A Flaccid Type Map</option>
+                                                <option class="maptype-rotation">Afterlife</option>
+                                                <option class="maptype-rotation">Almond</option>
+                                                <option class="maptype-rotation">Arti</option>
+                                                <option class="maptype-rotation">Arti NS</option>
+                                                <option class="maptype-rotation">Asida</option>
+                                                <option class="maptype-rotation">Audacity 2</option>
+                                                <option class="maptype-rotation">Basenji</option>
+                                                <option class="maptype-rotation">Camp Dog</option>
+                                                <option class="maptype-rotation">Carrera NFC</option>
+                                                <option class="maptype-rotation">Centenaria</option>
+                                                <option class="maptype-rotation">Cloudy</option>
+                                                <option class="maptype-rotation">Combine</option>
+                                                <option class="maptype-rotation">Derelict</option>
+                                                <option class="maptype-rotation">Driveshaft</option>
+                                                <option class="maptype-rotation">Galapagos 2</option>
+                                                <option class="maptype-rotation">GASBOP TagPro Map</option>
+                                                <option class="maptype-rotation">Gold Rush NFC</option>
+                                                <option class="maptype-rotation">Gumbo</option>
+                                                <option class="maptype-rotation">Gumbo NFC</option>
+                                                <option class="maptype-trial">Harlequin</option>
+                                                <option class="maptype-trial">House Party</option>
+                                                <option class="maptype-rotation">Kardashev 3</option>
+                                                <option class="maptype-trial">Korok</option>
+                                                <option class="maptype-rotation">Lockhart [MM23 South Winner]</option>
+                                                <option class="maptype-rotation">Melodramatic Fanatic</option>
+                                                <option class="maptype-rotation">Milano 2</option>
+                                                <option class="maptype-rotation">Miso</option>
+                                                <option class="maptype-rotation">Moon Base 2024</option>
+                                                <option class="maptype-rotation">Oncilla</option>
+                                                <option class="maptype-rotation">OTI Jardim</option>
+                                                <option class="maptype-trial">Pitch</option>
+                                                <option class="maptype-rotation">Plasma 2026</option>
+                                                <option class="maptype-rotation">Poppy [MM26 Champion]</option>
+                                                <option class="maptype-rotation">Potted Plant</option>
+                                                <option class="maptype-rotation">Pound Cake</option>
+                                                <option class="maptype-rotation">Professor Oak</option>
+                                                <option class="maptype-rotation">Recursive</option>
+                                                <option class="maptype-rotation">REDLINE</option>
+                                                <option class="maptype-trial">Riverside</option>
+                                                <option class="maptype-rotation">Sardonica</option>
+                                                <option class="maptype-rotation">Shake</option>
+                                                <option class="maptype-trial">Spool</option>
+                                                <option class="maptype-rotation">Thicket 2</option>
+                                                <option class="maptype-rotation">Tiny Dancer [MM26]</option>
+                                                <option class="maptype-rotation">Untitled Princess Carolyn Project</option>
+                                                <option class="maptype-rotation">Wamble</option>
+                                                <option class="maptype-rotation">Wamble NFC</option>
+                                                <option class="maptype-rotation">Whiplash</option>
+                                                <option class="maptype-rotation">Whiplash NS</option>
+                                                <option class="maptype-rotation">wildflower</option>
+                                                <option class="maptype-rotation">Willow 2</option>
+                                                <option class="maptype-rotation">Wombo Combo 2026</option>
+                                        </select>
+                                        or
+                                        <input type="text" v-model="filter.mapName" class="form-control" size="20" maxlength="50" placeholder="Map name match">
+                                    </td>
+                                </tr>
+                                <tr v-if="tab === 'favorite'">
+                                    <td>Replay name/notes:</td>
+                                    <td><input type="text" v-model="filter.replayNameOrNotes" class="form-control" size="20" maxlength="50"></td>
+                                </tr>
+                                <tr>
+                                    <td>Game type:</td>
+                                    <td>
+                                        <select v-model="filter.visibility" class="form-control">
+                                            <option></option>
+                                            <option value="public">Casual</option>
+                                            <option value="maptest">Maptest</option>
+                                            <option value="minigame">Minigame</option>
+                                            <option value="private">Private</option>
+                                            <option value="ranked">Ranked</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr v-if="userId || tab === 'foruser'">
+                                    <td>${tab === 'foruser' ? (resultName + "'s") : "My"} team:</td>
+                                    <td>
+                                        <select v-model="filter.myTeam" class="form-control">
+                                            <option></option>
+                                            <option value="1">Red</option>
+                                            <option value="2">Blue</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Winner:</td>
+                                    <td>
+                                        <select v-model="filter.winner" class="form-control">
+                                            <option></option>
+                                            <option value="1">Red</option>
+                                            <option value="2">Blue</option>
+                                            <option value="mine" v-if="userId || tab === 'foruser'">${tab === 'foruser' ? (resultName + "'s") : "My"} team</option>
+                                            <option value="other" v-if="userId || tab === 'foruser'">Not ${tab === 'foruser' ? (resultName + "'s") : "my"} team</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2">
+                                        <button class="btn btn-default btn-apply" @click="applyFilter()">Apply</button>
+                                        <button class="btn btn-default" @click="clearFilter()">Clear</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div v-if="showResults === 'none'" v-cloak>
+                        No matching games found.
+
+                        <span v-if="tab === 'direct' && forUuid">
+                            If this game is still in progress, the replay will be available shortly after it is finished.
+                        </span>
+
+                        <div v-if="tab === 'favorite' && !showFilter">
+                            <br><br>
+                            To save a game to your Favorites, click the <i class="fa-regular fa-heart"></i> icon:
+                            <ul style="padding: revert; list-style: revert;">
+                                <li>in the game list, on any tab on this page; or</li>
+                                <li>in the top bar when viewing a replay.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div v-if="showResults === 'table'" v-cloak>
+                        <table class="table table-stripped table-teams">
+                            <thead>
+                                <tr>
+                                    <th colspan="2">
+                                        <i class="fa fa-filter clickableText filterToggle" v-if="allowFilter" @click="toggleFilter"></i>
+                                        Start
+                                    </th>
+                                    <th style="min-width: 10ch;">Map</th>
+                                    <th class="nogrow">Map Type</th>
+                                    <th v-if="tab === 'favorite'" colspan="2">Name/Notes</th>
+                                    <th class="nogrow">Server</th>
+                                    <th class="nogrow">Type</th>
+                                    <th class="nogrow">Duration</th>
+                                    <th class="nogrow" v-if="resultUserId" colspan="2">
+                                        <span v-if="userId === resultUserId">My</span>
+                                        Team
+                                    </th>
+                                    <th colspan="2">Score</th>
+                                    <th class="nogrow">Replay</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="game in games" :key="game.id">
+                                    <td class="nogrow" :title="formatDate(game.started, true, false)">${formatDate(game.started, false, true)[0]}</td>
+                                    <td class="nogrow" :title="formatDate(game.started, true, false)">${formatDate(game.started, false, true)[1]}</td>
+                                    <td data-column="map">${game.mapName}</td>
+                                    <td class="nogrow">${game.mapType}</td>
+                                    <td v-if="tab === 'favorite'" data-column="favoriteName">${game.favorite?.name || "Some Game"}</td>
+                                    <td v-if="tab === 'favorite'" class="nogrow"><i class="fa fa-comment clickableText" :title="formatNotesTooltip(game.favorite?.notes)" @click="showFavoriteModal(game.id)"></i></td>
+                                    <td class="nogrow" :title="game.server">${formatServer(game.server)}</td>
+                                    <td class="nogrow">${game.visibility}</td>
+                                    <td class="nogrow">${formatDuration(game.duration)}</td>
+                                    <td class="nogrow" v-if="resultUserId" :class="(game.myTeam || 'no') + '-team-text'">${game.myTeamName || "&nbsp;"}</td>
+                                    <td class="nogrow" v-if="resultUserId" :class="(game.myTeam || 'no') + '-team-text'"><span v-if="game.myTeamWon"><i class="fa fa-trophy"></i></span><span v-else>&nbsp;</span></td>
+                                    <td class="nogrow text-center" :class="'red-team' + (game.winner === 1 ? '' : '-text')">${game.teams.red.score}</td>
+                                    <td class="nogrow text-center" :class="'blue-team' + (game.winner === 2 ? '' : '-text')">${game.teams.blue.score}</td>
+                                    <td class="nogrow">
+                                        <a :href="replayUrl(game.id, game.gameUser, null)" target="replay"><i title="Play" class="fa fa-circle-play clickableText"></i></a>
+                                        <a :href="'https://tagpro.eu/?match=' + game.uuid" target="tagproeu"><i title="Game Info on tagpro.eu" class="fa fa-circle-info"></i></a>
+                                        <a :href="gameFileUrl(game.id, resultUserId, null)"><i title="Download" class="fa fa-circle-down"></i></a>
+                                        <i title="Favorite" :class="game.favorite ? 'fa' : 'fa-regular'" class="fa-heart clickableText" @click="showFavoriteModal(game.id)"></i>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div v-if="(games.length === pageSize) || page" style="width: 100%">
+                            <span v-if="page > 0" @click="setPage(-1);" class="clickableText">
+                                <i class="fa fa-angles-left"></i>
+                                Newer
+                            </span>
+                            <span v-if="(games.length === pageSize) && (page < pageMax)" @click="setPage(1);" class="clickableText pull-right">
+                                Older
+                                <i class="fa fa-angles-right"></i>
+                            </span>
+                            <span v-if="(games.length === pageSize) && (page === pageMax)" class="pull-right">
+                                Use filters to see more
+                            </span>
+                        </div>
+                    </div>
+
+                    <div v-if="showUpload" v-cloak>
+                        <p>
+                            If you've previously downloaded a game file from this page,
+                            upload it here to view the replay.
+                        </p>
+                        <p>
+                            File to upload: <input class="form-control" type="file" id="uploadFile" style="width: auto; display: inline;">
+                        </p>
+                        <p>
+                            <button class="btn btn-primary" type="submit"
+                                @click="uploadFile()">Play</button>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+        <!-- start userscript site-wide bottom -->
+        <div id="userscript-bottom" class="hidden">
+            <div class="container">
+                <div class="row">
+                    <div class="col-xs-12 userscript-template hidden">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- end userscript site-wide bottom -->
+
+        <footer class="footer">
+            <div class="container">
+                <div class="row">
+                    <div class="col-md-3 col-sm-3">
+                        <div class="visible-xs text-center">
+                            <img src="/images/KoalaBeast.png">
+                            <div class="copyright">
+                                &copy; <span class="js-copyright-date">2016</span>
+                                Koalabeast Games
+                            </div>
+                        </div>
+                        <div class="hidden-xs">
+                            <img src="/images/KoalaBeast.png">
+                            <div class="copyright">
+                                &copy; <span class="js-copyright-date">2016</span>
+                                Koalabeast Games
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="col-md-9 col-sm-9 col-xs-12">
+                        <div class="row">
+                            <div class="col-sm-4 col-xs-12">
+                                <h3 class="header-title">TagPro</h3>
+                                <ul>
+                                    <li><a href="mailto:tagpro@koalabeast.com">Support</a></li>
+                                    <li><a href="https://docs.google.com/document/d/1n90H8CXwr_yNVWsxrcbPDZl2qhUd9JN9FWX-0qw0Qew/edit?usp=sharing" target="_blank">Code of Conduct</a></li>
+                                    <li><a href="https://docs.google.com/document/d/1yPGNGaHY5JNh1UGVmtMGz8cDZalgGoOMCNgjnKThpPo/edit?usp=sharing" target="_blank">Privacy Policy</a></li>
+                                </ul>
+                            </div>
+                            <div class="col-sm-4 col-xs-12">
+                                <h3 class="header-title">Community</h3>
+                                <ul>
+                                    <li><a href="https://www.reddit.com/r/tagpro" target="_blank">Subreddit</a></li>
+                                    <li><a href="https://discord.gg/hhW3MDzrt3" target="_blank">Discord</a></li>
+                                    <li><a href="https://www.reddit.com/r/tagpro/wiki/index" target="_blank">Wiki</a></li>
+                                </ul>
+                            </div>
+                            <div class="col-sm-4 col-xs-12">
+                                <h3 class="header-title">Social Media</h3>
+                                <ul>
+                                    <li><a href="https://twitter.com/play_tagpro" target="_blank">Twitter</a></li>
+                                    <li><a href="https://www.tiktok.com/@tagpro.gg" target="_blank">TikTok</a></li>
+                                    <li><a href="https://www.youtube.com/user/KoalaBeastGames" target="_blank">YouTube</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </footer>
+
+        
+
+            <script src="/R-965af4e7a4b8-z/compact/redirect.js"></script>
+
+        <script>
+            !function (w, d) {
+                if (w.rdt) return;
+                var p = (w.rdt = function () { p.sendEvent ? p.sendEvent.apply(p, arguments) : p.callQueue.push(arguments) });
+                p.callQueue = [];
+                var t = d.createElement("script");
+                t.src = "https://www.redditstatic.com/ads/pixel.js";
+                t.async = !0;
+                var s = d.getElementsByTagName("script")[0];
+                s.parentNode.insertBefore(t, s);
+            }(window, document);
+            rdt("init", "t2_vrwbckj1", { "optOut": false, "useDecimalCurrencyValues": true, "email": "", "externalId": "" });
+            rdt("track", "PageVisit");
+        </script>
+    </body>
+</html>

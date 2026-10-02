@@ -1,0 +1,41 @@
+// End-to-end replay test: account plays a 1-minute game with bots, then finds it under "My Games".
+const { io } = require('socket.io-client');
+const { spawn } = require('child_process');
+const base = process.argv[2] || 'http://localhost:3000';
+let cookie = '';
+const get = async (p, o = {}) => { const r = await fetch(base + p, { redirect: 'manual', ...o, headers: { cookie, ...(o.headers || {}) } }); for (const c of r.headers.getSetCookie?.() || []) cookie = c.split(';')[0]; return r; };
+const form = (o) => ({ method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(o).toString() });
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+(async () => {
+  await get('/');
+  await get('/register', form({ username: 'replaytest' + Math.floor(Math.random() * 1e5), password: 'secret123' }));
+  const userId = (await (await get('/replays')).text()).match(/id="userId" value="([0-9a-f]*)"/)[1];
+  console.log('account id', userId);
+  const gid = (await get('/groups/create', form({ name: 'Replay Test', private: 'on' }))).headers.get('location').split('/').pop();
+  const g = io(base + '/groups/' + gid, { transports: ['websocket'], extraHeaders: { cookie } });
+  await new Promise((r) => g.on('loaded', r));
+  const bots = spawn('node', [__dirname + '/bots.js', gid, '3', base], { stdio: 'ignore' });
+  await wait(3000);
+  g.emit('setting', { name: 'time', value: '1' }); await wait(300);
+  g.emit('groupPlay'); await new Promise((r) => g.on('play', r));
+  await get('/games/find');
+  const j = io(base + '/games/find', { transports: ['websocket'], extraHeaders: { cookie } });
+  j.on('ready', () => j.emit('JoinerSelections', {})); await new Promise((r) => j.on('FoundWorld', r)); j.disconnect();
+  const sock = (await (await get('/game')).text()).match(/gameSocket = location.origin \+ "([^"]+)"/)[1];
+  const s = io(base + sock, { transports: ['websocket'], extraHeaders: { cookie } });
+  let seq = 1; const wig = setInterval(() => { s.emit('keydown', { k: 'left', t: seq++ }); setTimeout(() => s.emit('keyup', { k: 'left', t: seq++ }), 100); }, 5000);
+  await new Promise((r) => s.on('end', r)); console.log('game ended'); clearInterval(wig);
+  await wait(4500);
+  const data = await (await get('/replays/data?page=0&pageSize=25&userId=' + userId)).json();
+  const game = data.games[0];
+  console.log('my games:', data.games.length, game && { map: game.mapName, myTeam: game.myTeam, won: game.myTeamWon, teams: game.teams, players: game.players.map((p) => p.displayName) });
+  const key = Buffer.from(game.id + userId, 'hex').toString('base64').replace(/\+/g, '_');
+  const r = await get('/replays/gameFile?key=' + key);
+  const text = await r.text();
+  const lines = text.split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));
+  const valid = lines.every((t) => Array.isArray(t) && Number.isInteger(t[0]) && /^[a-z]/i.test(t[1]));
+  console.log('replay file', r.status, r.headers.get('x-replay-filename'), 'packets', lines.length, 'client-valid', valid,
+    'has time', lines.some((t) => t[1] === 'time'), 'has end', lines.some((t) => t[1] === 'end'), 'p packets', lines.filter((t) => t[1] === 'p').length);
+  console.log('viewer url: /game?replay=' + key);
+  bots.kill(); process.exit(0);
+})().catch((e) => { console.error(e); process.exit(1); });

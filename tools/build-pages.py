@@ -54,6 +54,16 @@ page('groups-real.html', 'groups.html', groups)
 page('home-real.html', 'home.html')
 page('settings-real.html', 'settings.html')
 
+def replays_page(h):
+    return h.replace('<input type="hidden" id="userId" value="">', '<input type="hidden" id="userId" value="{{USER_ID}}">')
+page('replays-real.html', 'replays.html', replays_page)
+
+# replay viewer: the real game page in replay mode
+def replay_viewer(h):
+    h = re.sub(r"tagproConfig.replayKey = '[^']*'", "tagproConfig.replayKey = '{{REPLAY_KEY}}'", h)
+    return h
+page('game-replay.html', 'replay.html', replay_viewer)
+
 # generic card page (login, profile) built from the real settings page layout
 def card(h):
     a = h.index('<div class="card">') + len('<div class="card">')

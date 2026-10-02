@@ -9,6 +9,7 @@ const pages = require('./pages');
 const groups = require('./groups');
 const games = require('./games');
 const accounts = require('./accounts');
+const replays = require('./replays');
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0'; // the VPS service sets 127.0.0.1 so only Caddy is public
@@ -67,6 +68,18 @@ app.post('/profile', (req, res) => {
 });
 app.post('/profile/selectedFlair', (req, res) => res.json(accounts.setFlair(req.session, req.body.flair)));
 
+// ---- replays ----
+app.get('/replays', (req, res) => html(res, pages.render('replays.html', { USER_ID: req.session.account ? req.session.account.id : '' })));
+app.get('/replays/data', (req, res) => res.json(replays.list(req.query, req.session.account && req.session.account.id)));
+app.get('/replays/gameFile', (req, res) => {
+  const id = req.query.key ? replays.keyToGameId(req.query.key) : String(req.query.gameId || '');
+  const f = replays.file(id);
+  if (!f) { res.set('X-Replay-Error', 'Replay not found'); return res.status(404).send('Replay not found'); }
+  res.set('X-Replay-Filename', f.name);
+  if (!req.query.key) res.attachment(f.name.replace(/[^\w .-]/g, '_') + '.ndjson');
+  res.type('text/plain').sendFile(f.path);
+});
+
 // settings are browser cookies; the real page just posts for an acknowledgement
 app.get('/settings', (req, res) => html(res, pages.render('settings.html')));
 app.post('/settings', (req, res) => res.json({ success: true }));
@@ -119,6 +132,11 @@ app.post('/groups/testmap', upload.fields([{ name: 'layout' }, { name: 'logic' }
 
 app.get('/games/find', (req, res) => html(res, pages.render('find.html', { GROUP_ID: req.session.groupId || 'null' })));
 
+app.get('/game', (req, res, next) => {
+  // /game?replay=<key>: the real game page in replay mode
+  if (req.query.replay) return html(res, pages.render('replay.html', { REPLAY_KEY: pages.esc(String(req.query.replay).slice(0, 80)) }));
+  next();
+});
 app.get('/game', (req, res) => {
   const pg = req.session.pendingGame;
   const room = pg && games.games.get(pg.id);

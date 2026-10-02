@@ -43,7 +43,7 @@ function register(username, password) {
   const key = u.toLowerCase();
   if (accounts[key]) return { error: 'That username is taken.' };
   const salt = crypto.randomBytes(16).toString('hex');
-  accounts[key] = { username: u, salt, hash: hash(String(password), salt), displayName: u.slice(0, 12), flair: null, created: Date.now() };
+  accounts[key] = { id: crypto.randomBytes(12).toString('hex'), username: u, salt, hash: hash(String(password), salt), displayName: u.slice(0, 12), flair: null, created: Date.now() };
   save();
   return { account: accounts[key] };
 }
@@ -72,6 +72,7 @@ function unbind(session) {
 function apply(session) {
   const a = accounts[logins[session.id]];
   if (!a) { session.account = null; return session; }
+  if (!a.id) { a.id = crypto.randomBytes(12).toString('hex'); save(); } // accounts made before replays existed
   session.account = a;
   session.auth = true;
   session.name = a.displayName;

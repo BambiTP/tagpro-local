@@ -152,7 +152,14 @@ class GameRoom {
 
   // ---------- clients ----------
   playerCount(team) { return Object.values(this.players).filter((p) => !team || p.team === team).length; }
-  spectatorCount() { let n = 0; for (const c of this.clients) if (c.spectator) n++; return n; }
+  spectatorCount() { let n = 0; for (const c of this.clients) if (c.spectator && !c.recorder) n++; return n; }
+  humanClients() { let n = 0; for (const c of this.clients) if (!c.recorder) n++; return n; }
+
+  // a replay recorder: joins like the real recorder (a silent "watching" spectator)
+  addRecorder(rec) {
+    rec.recorder = true;
+    this.addClient(rec, { id: 'recorder', name: 'recorder' }, { spectate: true, recorder: true });
+  }
 
   send(client, ev, data) { try { client.emit(ev, data); } catch (e) { /* closed */ } }
   broadcast(ev, data, filter) { for (const c of this.clients) if (!filter || filter(c)) this.send(c, ev, data); }
@@ -189,6 +196,12 @@ class GameRoom {
     if (s.gravityWellForce !== 1) this.send(client, 'gravityWellForce', s.gravityWellForce);
 
     const others = Object.values(this.players).map((p) => this.fullPlayer(p));
+    if (client.spectator && opts.recorder) {
+      this.send(client, 'arrivedInGame', { gameId: this.id, spectateType: 'watching', reconnect: false });
+      this.send(client, 'spectators', this.spectatorCount());
+      this.send(client, 'score', this.score);
+      return;
+    }
     if (client.spectator) {
       this.send(client, 'arrivedInGame', { gameId: this.id, spectateType: 'watching', reconnect: false });
       this.send(client, 'chat', { from: null, message: "You've joined a game as a spectator. Once enough players come online, you'll be redirected to a game. Q/W=Rotate through players. A=Red's flag carrier. S=Blue's flag carrier. C=Center. Z=Toggle auto-zoom. +/-=Zoom in/out.", to: 'all' });
@@ -211,6 +224,10 @@ class GameRoom {
     this.send(client, 'preferredServer', '');
     if (others.length) this.send(client, 'p', others);
     this.players[p.id] = p;
+    (this.playerHistory || (this.playerHistory = {}))[p.id] = {
+      id: p.id, team, userId: (session.account && session.account.id) || null, displayName: p.name,
+      joined: this.now(), left: null, finished: false,
+    };
     this.send(client, 'p', [this.fullPlayer(p)]);
     this.broadcast('score', this.score);
     this.broadcast('chat', { from: null, message: `${p.name} has joined the ${team === 1 ? 'Red' : 'Blue'} team.`, to: 'all', for: p.id, icon: team === 1 ? 'join1' : 'join2' });
@@ -272,12 +289,13 @@ class GameRoom {
       if (p.flag) this.returnFlag(p, null, true);
       this.world.DestroyBody(p.body);
       delete this.players[p.id];
+      if (this.playerHistory && this.playerHistory[p.id]) this.playerHistory[p.id].left = this.now();
       this.broadcast('playerLeft', p.id);
       this.broadcast('chat', { from: null, message: `${p.name} has left the ${p.team === 1 ? 'Red' : 'Blue'} team.`, to: 'all', for: p.id, icon: p.team === 1 ? 'leave1' : 'leave2' });
       if (!this.ended && this.state !== STATES.COUNTDOWN && this.playerCount() === 0) this.end(this.score.r > this.score.b ? 'red' : this.score.b > this.score.r ? 'blue' : 'tie', false);
       else if (!this.ended && this.state !== STATES.COUNTDOWN && (this.playerCount(1) === 0 || this.playerCount(2) === 0) && this.isPrivate === false) { /* public: keep playing, joiner refills */ }
     } else if (client.spectator) this.broadcast('spectators', this.spectatorCount());
-    if (this.clients.size === 0) this.onEmpty(this);
+    if (this.humanClients() === 0) this.onEmpty(this);
   }
 
   // ---------- input ----------
@@ -311,6 +329,7 @@ class GameRoom {
         if (this.playerCount(other) > this.playerCount(p.team) && !this.isPrivate) return;
         if (p.flag) this.returnFlag(p, null, true);
         p.team = other;
+        if (this.playerHistory && this.playerHistory[p.id]) this.playerHistory[p.id].team = other;
         const f = C.getPlayerCollisions(this.settings.ghostMode, other === 1);
         const fix = p.body.GetFixtureList(); const fd = fix.GetFilterData(); fd.categoryBits = f.categoryBits; fd.maskBits = f.maskBits; fix.SetFilterData(fd);
         this.queue(p, 'team');
@@ -1059,6 +1078,8 @@ class GameRoom {
     if (this.ended) return;
     this.ended = true;
     this.state = STATES.ENDED;
+    this.winner = winner;
+    for (const p of Object.values(this.players)) if (this.playerHistory && this.playerHistory[p.id]) this.playerHistory[p.id].finished = true;
     this.broadcast('end', { winner, ranked: false, isMercy: !!isMercy });
     this.onEnd(this, winner);
     this.later(TU.END_LINGER_MS, () => this.close());

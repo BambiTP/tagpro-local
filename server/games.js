@@ -7,6 +7,7 @@ const { loadMap } = require('../engine/mapLoader');
 const { GameRoom } = require('../engine/game');
 const sessions = require('./sessions');
 const groups = require('./groups');
+const replays = require('./replays');
 
 const MAPS_DIR = path.join(__dirname, '..', 'maps');
 const games = new Map();
@@ -69,7 +70,8 @@ function createGame({ mapKey, settings, isPrivate, groupId }) {
   const id = gameId();
   const room = new GameRoom({
     id, uuid: crypto.randomUUID(), map, mapName: map.info.name, settings, isPrivate, groupId,
-    onEnd: () => {
+    onEnd: (r) => {
+      setTimeout(() => r.recorder && r.recorder.finish(), 3000); // replay saved shortly after the end
       const g = groupId && groups.groups.get(groupId);
       if (g && g.game.gameId === id) g.setGame(null);
     },
@@ -78,6 +80,8 @@ function createGame({ mapKey, settings, isPrivate, groupId }) {
     },
   });
   games.set(id, room);
+  room.recorder = new replays.Recorder(room);
+  room.addRecorder(room.recorder); // every game gets a replay
   room.start();
   console.log(`game ${id} on ${map.info.name}${groupId ? ' for group ' + groupId : ''}`);
   return room;
