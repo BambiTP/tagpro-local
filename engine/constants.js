@@ -51,8 +51,9 @@ const PHYSICS = {
 // Gameplay tuning. Timings are measured from real replays (ref/replays); forces are
 // starting estimates to be calibrated against replays (tools/ calibration scripts).
 const TUNING = {
-  JUKE_JUICE_ACCEL: 0.031,      // ac seen in replays with grip
-  TEAM_TILE_ACCEL: 0.031,
+  // ac in replays: 0.025 base, 0.031 juke juice, 0.037 team tile, 0.043 both
+  JUKE_JUICE_BONUS: 0.006,
+  TEAM_TILE_BONUS: 0.012,
   TOP_SPEED_MAX: 3.5,           // topspeed powerup (not in public rotation)
   BOOST_SPEED: 7.5,             // m/s after a boost
   // explosions: radial dv = STRENGTH * (RADIUS - d), fitted to real replays (tools/calib/*.py)

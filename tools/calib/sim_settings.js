@@ -30,4 +30,24 @@ for (const delay of [100, 400]) {
   console.log(`tagged ${delay}ms after grab -> FC popped: ${fc.dead}`);
   r.close();
 }
+
+// spacebar / powerup settings
+const mk = (settings) => { const r = new GameRoom({ id: 's', map, settings }); r.state = 1; r.addClient(fake(), { id: 'a', name: 'A' }, { team: 1 }); r.addClient(fake(), { id: 'b', name: 'B' }, { team: 2 }); return [r, ...Object.values(r.players)]; };
+{ const [r, a] = mk({ combinejjrb: true }); r.givePowerup(a, 1); console.log('combinejjrb: jj', a.jukeJuice, 'rb', a.bomb, 's-powerups', a['s-powerups']); r.close(); }
+{ const [r, a] = mk({ jukeJuiceBoost: true, jukeJuiceBoostPower: 70 }); r.givePowerup(a, 1); a.body.SetLinearVelocity(new V(1, 0)); r.spacebar(a); console.log('jj boost: speed', a.body.GetLinearVelocity().Length().toFixed(2), 'jj left', a.jukeJuice); r.close(); }
+{ const [r, a] = mk({ spacebarDetonateAll: false }); r.givePowerup(a, 2); r.givePowerup(a, 1); r.settings.jukeJuiceBoost = true; r.spacebar(a); console.log('order (rb first): after 1 press rb', a.bomb, 'jj', a.jukeJuice); r.close(); }
+{ const [r, a] = mk({ spacebarDetonateAll: true, jukeJuiceBoost: true }); r.givePowerup(a, 2); r.givePowerup(a, 1); a.body.SetLinearVelocity(new V(1, 0)); r.spacebar(a); console.log('detonate all: rb', a.bomb, 'jj', a.jukeJuice); r.close(); }
+{ const [r, a, b] = mk({ rollingBombBehavior: 'default' }); r.givePowerup(a, 2); r.enemyContact(a, b); console.log('default rb on enemy touch: still has rb', a.bomb); r.pop(a, b); console.log('default rb on death: rb', a.bomb); r.close(); }
+{ const [r, a, b] = mk({ rollingBombBehavior: 'classic' }); r.givePowerup(a, 2); r.spacebar(a); console.log('classic rb after space: rb', a.bomb); r.enemyContact(a, b); console.log('classic rb on enemy touch: rb', a.bomb); r.close(); }
+// overtime respawn increment
+{ const [r, a, b] = mk({}); r.state = 5; r.overtimeStartedAt = Date.now(); console.log('OT respawn: before pops', r.respawnDelay()); r.pop(a, b); r.pop(b, a); console.log('OT respawn after 2 pops', r.respawnDelay()); r.close(); }
+// overtime juke juice on grab
+{ const [r, a] = mk({ overtimeJukeJuice: true }); r.state = 5; r.grabFlag(a, 2); console.log('OT grab gives jj:', a.jukeJuice); r.close(); }
+// clutch time
+for (const mode of ['tied', 'winnable']) {
+  const [r, a, b] = mk({ lastPossession: mode }); r.grabFlag(a, 2); r.score = mode === 'tied' ? { r: 1, b: 1 } : { r: 0, b: 1 };
+  r.stateEndsAt = Date.now() - 1; r.updateClock(Date.now());
+  console.log(`clutch ${mode}: state ${r.state} (7=clutch)`);
+  r.pop(a, b); r.updateClock(Date.now()); console.log(`  after FC pops: state ${r.state} ended ${r.ended}`); r.close();
+}
 process.exit(0);

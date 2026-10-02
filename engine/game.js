@@ -20,7 +20,7 @@ const T = {
   EMPTY: 0, WALL: 1, FLOOR: 2, RED_FLAG: 3, BLUE_FLAG: 4, BOOST: 5, POWERUP: 6, SPIKE: 7, BUTTON: 8,
   GATE_OFF: 9, GATE_ON: 9.1, GATE_RED: 9.2, GATE_BLUE: 9.3, BOMB: 10, RED_TILE: 11, BLUE_TILE: 12,
   PORTAL: 13, RED_BOOST: 14, BLUE_BOOST: 15, YELLOW_FLAG: 16, RED_ENDZONE: 17, BLUE_ENDZONE: 18,
-  GRAVITY_WELL: 22, RED_PORTAL: 24, BLUE_PORTAL: 25,
+  RED_POTATO: 19, BLUE_POTATO: 20, GRAVITY_WELL: 22, RED_PORTAL: 24, BLUE_PORTAL: 25,
 };
 const PUPS = { 1: 'jukeJuice', 2: 'rollingBomb', 3: 'tagpro', 4: 'topSpeed' };
 
@@ -82,8 +82,8 @@ class GameRoom {
   indexMap() {
     for (let x = 0; x < this.W; x++) for (let y = 0; y < this.H; y++) {
       const t = this.tiles[x][y];
-      if (t === T.RED_FLAG) this.flagHome[1] = { x, y };
-      if (t === T.BLUE_FLAG) this.flagHome[2] = { x, y };
+      if (t === T.RED_FLAG || t === T.RED_POTATO) this.flagHome[1] = { x, y, potato: t === T.RED_POTATO };
+      if (t === T.BLUE_FLAG || t === T.BLUE_POTATO) this.flagHome[2] = { x, y, potato: t === T.BLUE_POTATO };
       if (t === T.GRAVITY_WELL) this.gravityWells.push({ x: x * PH.TILE, y: y * PH.TILE });
     }
     const sp = this.map.spawnPoints || {};
@@ -395,10 +395,7 @@ class GameRoom {
 
   respawnDelay() {
     let d = this.settings.playerRespawnTime;
-    if (this.state === STATES.OVERTIME && this.settings.overtimeRespawnIncrement) {
-      const periods = Math.floor((this.now() - this.overtimeStartedAt) / 60000) + 1;
-      d += periods * this.settings.overtimeRespawnIncrement;
-    }
+    if (this.state === STATES.OVERTIME && this.settings.overtimeRespawnIncrement) d += (this.overtimePops || 0) * this.settings.overtimeRespawnIncrement;
     return d;
   }
 
@@ -434,9 +431,11 @@ class GameRoom {
   // killer: player or null; opts.silent: no stats/sounds (team switch)
   pop(p, killer, opts = {}) {
     if (p.dead) return;
+    if (p.bomb && this.settings.rollingBombBehavior !== 'classic' && !opts.silent) this.detonateRollingBomb(p);
     const pos = p.body.GetPosition();
     const at = { x: pos.x, y: pos.y };
     p.dead = true;
+    p.collected = [];
     p.draw = false;
     const removeBody = () => { p.body.SetLinearVelocity(new V(0, 0)); p.body.SetActive(false); };
     if (this.world.IsLocked()) this.afterStep.push(removeBody); else removeBody();
@@ -452,6 +451,7 @@ class GameRoom {
       if (this.settings.poosts) this.explode(at, TU.POP_RADIUS, TU.POP_STRENGTH, p);
     }
     if (p.flag) this.returnFlag(p, killer);
+    if (this.state === STATES.OVERTIME && !opts.silent) this.overtimePops = (this.overtimePops || 0) + 1;
     this.spawnPlayer(p, this.respawnDelay());
   }
 
@@ -469,15 +469,22 @@ class GameRoom {
   }
 
   // ---------- flags ----------
-  flagAtHome(team) { const h = this.flagHome[team]; return h && this.tiles[h.x][h.y] === (team === 1 ? T.RED_FLAG : T.BLUE_FLAG); }
+  flagTile(team) { const h = this.flagHome[team]; return h.potato ? (team === 1 ? T.RED_POTATO : T.BLUE_POTATO) : (team === 1 ? T.RED_FLAG : T.BLUE_FLAG); }
+  flagAtHome(team) { const h = this.flagHome[team]; return h && this.tiles[h.x][h.y] === this.flagTile(team); }
 
   grabFlag(p, team) {
     const h = this.flagHome[team];
-    this.setTile(h.x, h.y, team === 1 ? '3.1' : '4.1');
+    this.setTile(h.x, h.y, this.flagTile(team) + '.1');
     p.flag = team; p['s-grabs']++;
+    p.potatoFlag = !!h.potato; p.selfDestructSoon = false;
+    p.clutchFlag = this.state === STATES.CLUTCH ? true : undefined; // grabbed during clutch: can't score
+    if (p.clutchFlag === undefined) delete p.clutchFlag;
     p.grabbedAt = this.now();
     p.invincibleUntil = this.now() + TU.GRAB_INVINCIBLE_MS;
-    this.queue(p, 'flag', 's-grabs');
+    this.queue(p, 'flag', 'potatoFlag', 'selfDestructSoon', 's-grabs');
+    if (p.clutchFlag) this.queue(p, 'clutchFlag');
+    // overtime juke juice: a flag carrier gets juke juice when grabbing during overtime
+    if (this.state === STATES.OVERTIME && this.settings.overtimeJukeJuice) this.givePowerup(p, 1, { silent: true });
     for (const c of this.clients) {
       const viewer = c.playerId && this.players[c.playerId];
       const friendly = viewer && viewer.team === p.team;
@@ -487,9 +494,10 @@ class GameRoom {
 
   returnFlag(p, killer, silent) {
     const team = p.flag;
-    p.flag = null; this.queue(p, 'flag');
+    p.flag = null; p.potatoFlag = null; p.selfDestructSoon = null; delete p.clutchFlag; p.clutchHolder = false;
+    this.queue(p, 'flag', 'potatoFlag', 'selfDestructSoon');
     const h = this.flagHome[team];
-    if (h) this.setTile(h.x, h.y, team === 1 ? T.RED_FLAG : T.BLUE_FLAG);
+    if (h) this.setTile(h.x, h.y, this.flagTile(team));
     if (silent) return;
     p['s-drops']++; this.queue(p, 's-drops');
     if (killer) { killer['s-returns']++; this.queue(killer, 's-returns'); }
@@ -502,10 +510,10 @@ class GameRoom {
 
   capture(p) {
     const team = p.flag;
-    p.flag = null; p['s-captures']++;
-    this.queue(p, 'flag', 's-captures');
+    p.flag = null; p.potatoFlag = null; p.selfDestructSoon = null; p.clutchHolder = false; p['s-captures']++;
+    this.queue(p, 'flag', 'potatoFlag', 'selfDestructSoon', 's-captures');
     const h = this.flagHome[team];
-    this.setTile(h.x, h.y, team === 1 ? T.RED_FLAG : T.BLUE_FLAG);
+    this.setTile(h.x, h.y, this.flagTile(team));
     if (p.team === 1) this.score.r++; else this.score.b++;
     for (const c of this.clients) {
       const viewer = c.playerId && this.players[c.playerId];
@@ -574,28 +582,42 @@ class GameRoom {
     });
   }
 
-  givePowerup(p, kind) {
+  givePowerup(p, kind, opts = {}) {
     const s = this.settings;
     const name = PUPS[kind];
     const dur = { jukeJuice: s.powerupJukeJuiceDuration, rollingBomb: s.powerupRollingBombDuration, tagpro: s.powerupTagproDuration, topSpeed: 20000 }[name];
-    p['s-powerups']++; this.queue(p, 's-powerups');
-    this.broadcast('sound', { s: 'powerup', v: 1 }, (c) => c.playerId === p.id);
+    if (!opts.silent) {
+      p['s-powerups']++; this.queue(p, 's-powerups');
+      this.broadcast('sound', { s: 'powerup', v: 1 }, (c) => c.playerId === p.id);
+    }
+    p.collected = (p.collected || []).filter((n) => n !== name).concat(name); // spacebar uses them in this order
     if (p.effects[name]) clearTimeout(p.effects[name]);
-    if (name === 'jukeJuice') { p.jukeJuice = true; p.grip = this.now() + dur; p.ac = TU.JUKE_JUICE_ACCEL * s.accel; this.queue(p, 'jukeJuice', 'grip', 'ac'); }
+    if (name === 'jukeJuice') { p.jukeJuice = true; p.grip = this.now() + dur; p.ac = (PH.ACCEL + TU.JUKE_JUICE_BONUS) * s.accel; this.queue(p, 'jukeJuice', 'grip', 'ac'); }
     if (name === 'rollingBomb') { p.bomb = true; this.queue(p, 'bomb'); }
     if (name === 'tagpro') { p.tagpro = true; p.tagproTags = 0; this.queue(p, 'tagpro'); }
     if (name === 'topSpeed') { p.speed = true; p.ms = TU.TOP_SPEED_MAX * s.topspeed; this.queue(p, 'speed', 'ms'); }
     p.effects[name] = this.later(dur, () => this.clearEffect(p, name));
-    if (name === 'jukeJuice') p.jjBoostUsed = false;
+    // combinejjrb: picking up either juke juice or rolling bomb gives both
+    if (s.combinejjrb && !opts.combined && (name === 'jukeJuice' || name === 'rollingBomb')) this.givePowerup(p, name === 'jukeJuice' ? 2 : 1, { silent: true, combined: true });
   }
 
-  // spacebar: received from the client; what it does (juke juice boost / rolling bomb detonation
-  // settings) isn't confirmed yet, so it does nothing for now.
-  spacebar(p) {}
+  // spacebar uses held powerups: rolling bomb (default behaviour) detonates; juke juice (with
+  // jukeJuiceBoost) acts like a boost and is used up. spacebarDetonateAll uses both at once,
+  // otherwise the one collected first goes first.
+  spacebar(p) {
+    const s = this.settings;
+    if (p.dead || !this.playing()) return;
+    const usable = (p.collected || []).filter((n) =>
+      (n === 'rollingBomb' && p.bomb && s.rollingBombBehavior !== 'classic') || (n === 'jukeJuice' && p.jukeJuice && s.jukeJuiceBoost));
+    for (const n of s.spacebarDetonateAll ? usable : usable.slice(0, 1)) {
+      if (n === 'rollingBomb') this.detonateRollingBomb(p);
+      if (n === 'jukeJuice') { this.boost(p, s.jukeJuiceBoostPower / 100); this.clearEffect(p, 'jukeJuice'); }
+    }
+  }
 
   detonateRollingBomb(x) {
     const s = this.settings;
-    x.bomb = false; this.queue(x, 'bomb'); clearTimeout(x.effects.rollingBomb); delete x.effects.rollingBomb;
+    this.clearEffect(x, 'rollingBomb');
     const pos = x.body.GetPosition();
     this.broadcast('bomb', { x: pos.x * PH.SCALE, y: pos.y * PH.SCALE, type: 1 });
     this.explosionSound({ x: pos.x, y: pos.y });
@@ -604,7 +626,9 @@ class GameRoom {
 
   clearEffect(p, name) {
     if (!this.players[p.id]) return;
+    clearTimeout(p.effects[name]);
     delete p.effects[name];
+    if (p.collected) p.collected = p.collected.filter((n) => n !== name);
     const s = this.settings;
     if (name === 'jukeJuice') { p.jukeJuice = false; p.grip = false; p.ac = PH.ACCEL * s.accel; this.queue(p, 'jukeJuice', 'grip', 'ac'); }
     if (name === 'rollingBomb') { p.bomb = false; this.queue(p, 'bomb'); }
@@ -647,11 +671,11 @@ class GameRoom {
       if (o.edge < PH.BALL_RADIUS - 0.01 && ((base === T.RED_TILE && p.team === 1) || (base === T.BLUE_TILE && p.team === 2))) onTeamTile = true;
       switch (base) {
         case T.SPIKE: if (this.touches(o, 'spike')) this.pop(p, null); break;
-        case T.RED_FLAG: case T.BLUE_FLAG: {
+        case T.RED_FLAG: case T.BLUE_FLAG: case T.RED_POTATO: case T.BLUE_POTATO: {
           if (!this.touches(o, 'flag')) break;
-          const team = base === T.RED_FLAG ? 1 : 2;
+          const team = (base === T.RED_FLAG || base === T.RED_POTATO) ? 1 : 2;
           if (team !== p.team && !p.flag) this.grabFlag(p, team);
-          else if (team === p.team && p.flag && p.flag !== p.team) this.capture(p);
+          else if (team === p.team && p.flag && p.flag !== p.team && !p.clutchFlag) this.capture(p);
           break;
         }
         case T.BOOST: case T.RED_BOOST: case T.BLUE_BOOST: {
@@ -694,18 +718,18 @@ class GameRoom {
     for (const key of nowTouching) if (!p.touching.has(key)) this.pressButton(key, p);
     p.touching = nowTouching;
     // team tiles speed the owner team up
-    const ac = (p.jukeJuice ? TU.JUKE_JUICE_ACCEL : onTeamTile ? TU.TEAM_TILE_ACCEL : PH.ACCEL) * this.settings.accel;
+    const ac = (PH.ACCEL + (p.jukeJuice ? TU.JUKE_JUICE_BONUS : 0) + (onTeamTile ? TU.TEAM_TILE_BONUS : 0)) * this.settings.accel;
     if (Math.abs(ac - p.ac) > 1e-9) { p.ac = ac; this.queue(p, 'ac'); }
   }
 
-  boost(p) {
+  boost(p, power = 1) {
     const v = p.body.GetLinearVelocity();
     let dx = v.x, dy = v.y;
     const k = p.keys;
     if (Math.hypot(dx, dy) < 1e-3) { dx = (k.right ? 1 : 0) - (k.left ? 1 : 0); dy = (k.down ? 1 : 0) - (k.up ? 1 : 0); }
     const len = Math.hypot(dx, dy);
     if (len < 1e-6) return;
-    p.body.SetLinearVelocity(new V(dx / len * TU.BOOST_SPEED, dy / len * TU.BOOST_SPEED));
+    p.body.SetLinearVelocity(new V(dx / len * TU.BOOST_SPEED * power, dy / len * TU.BOOST_SPEED * power));
     this.broadcast('sound', { s: 'burst', v: 1 });
     this.queue(p, 'pos');
   }
@@ -836,7 +860,7 @@ class GameRoom {
     const bothFC = a.flag && b.flag;
     const bothTP = a.tagpro && b.tagpro;
     // rolling bombs go off on enemy contact
-    for (const [x] of [[a, b], [b, a]]) if (x.bomb) this.detonateRollingBomb(x);
+    if (s.rollingBombBehavior === 'classic') for (const x of [a, b]) if (x.bomb) this.detonateRollingBomb(x);
     if (bothFC && s.kissingFCs) return;
     if (bothTP && s.kissingTPs && !(a.flag || b.flag)) return;
     const kills = [];
@@ -922,6 +946,8 @@ class GameRoom {
       for (const p of Object.values(this.players)) if (!p.dead) this.tileInteractions(p);
       this.playerContacts();
       this.afkCheck(now);
+      const pt = Number(this.settings.potatoTime) || 0;
+      if (pt > 0) for (const p of Object.values(this.players)) if (p.flag && p.potatoFlag && now - p.grabbedAt >= pt) this.pop(p, null);
       if (this.tick % 60 === 0) this.secondTick(now);
     }
     if (this.pendingTiles.length) { this.broadcast('mapupdate', this.pendingTiles.length === 1 ? this.pendingTiles[0] : this.pendingTiles); this.pendingTiles = []; }
@@ -986,8 +1012,28 @@ class GameRoom {
       this.setState(STATES.ACTIVE, this.stateEndsAt - now);
       this.startPowerups();
       this.broadcast('sound', { s: 'go', v: 1 });
+    } else if (this.state === STATES.CLUTCH) {
+      if (!Object.values(this.players).some((p) => p.flag && p.clutchHolder)) this.timeUp(now, true);
     } else if (this.state === STATES.ACTIVE && now >= this.stateEndsAt) {
-      this.timeUp(now);
+      const holders = Object.values(this.players).filter((p) => p.flag && this.clutchEligible(p));
+      if (holders.length) {
+        for (const p of holders) p.clutchHolder = true;
+        this.setState(STATES.CLUTCH, this.stateEndsAt - now);
+        this.broadcast('chat', { from: null, message: 'Clutch Time for held flags!', to: 'all', c: '#BFFF00' });
+        for (const c of this.clients) if (c.playerId) this.send(c, 'chat', { from: null, message: "Play continues until all flags are returned. You can grab the flag from the enemy's base to keep them from capping, but only flags held at the start of Clutch Time can be used to score.", to: c.playerId, c: '#63FE22', for: c.playerId });
+      } else this.timeUp(now);
+    }
+  }
+
+  // lastPossession: does this flag carrier's team get clutch time when the clock runs out?
+  clutchEligible(p) {
+    const mine = p.team === 1 ? this.score.r : this.score.b, theirs = p.team === 1 ? this.score.b : this.score.r;
+    switch (this.settings.lastPossession) {
+      case 'always': return true;
+      case 'tied': return mine === theirs;
+      case 'winnable': return mine === theirs - 1;
+      case 'tiedOrWinnable': return mine === theirs || mine === theirs - 1;
+      default: return false;
     }
   }
 
@@ -998,7 +1044,6 @@ class GameRoom {
         this.setState(STATES.OVERTIME, 1);
         this.broadcast('sound', { s: 'overtime', v: 1 });
         this.broadcast('chat', { from: null, message: 'OVERTIME! Next cap wins.', to: 'all', c: '#D4AF37' });
-        if (this.settings.overtimeJukeJuice) for (const p of Object.values(this.players)) this.givePowerup(p, 1);
       } else this.end(this.score.r > this.score.b ? 'red' : this.score.b > this.score.r ? 'blue' : 'tie', false);
     }
   }
