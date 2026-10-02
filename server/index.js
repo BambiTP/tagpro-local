@@ -191,7 +191,10 @@ app.post('/groups/testmap', upload.fields([{ name: 'layout' }, { name: 'logic' }
   } catch (e) { res.json({ success: false, error: 'Invalid map files' }); }
 });
 
-app.get('/games/find', (req, res) => html(res, pages.render('find.html', { GROUP_ID: req.session.groupId || 'null' })));
+app.get('/games/find', (req, res) => {
+  const g = req.session.groupId && groups.groups.get(req.session.groupId);
+  html(res, pages.render('find.html', { GROUP_ID: g ? g.id : 'null', PRIVATE_GROUP: g && g.settings.isPrivate ? 'true' : '' }));
+});
 
 app.get('/game', (req, res, next) => {
   // /game?replay=<key>: the real game page in replay mode

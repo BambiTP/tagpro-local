@@ -92,4 +92,21 @@ def card(h):
     h = re.sub(r'<title>[\s\S]*?</title>', '<title>{{TITLE}}</title>', h, count=1)
     return h
 page('settings-real.html', 'card.html', card)
-page('find-live-real.html', 'find.html')
+def find_page(h):
+    h = h.replace('<input type="hidden" id="isPrivateGroup" value="true">', '<input type="hidden" id="isPrivateGroup" value="{{PRIVATE_GROUP}}">')
+    # live public-queue count (Play Now); hidden for group launches
+    widget = '''
+    <div class="row"><div id="queue-count" class="text-center" style="font-size:20px;margin-top:4px"></div></div>
+    <script>
+    (function poll() {
+        if ($('#groupId').val() && $('#groupId').val() !== 'null') return;
+        fetch('/queue/status').then(function (r) { return r.json(); }).then(function (q) {
+            document.getElementById('queue-count').innerHTML = '<b>' + q.queued + ' / ' + q.needed + '</b> players in queue' +
+                '<div style="font-size:14px;opacity:.75">' + q.playing + ' playing in ' + q.games + (q.games === 1 ? ' game' : ' games') + '</div>';
+        }).catch(function () {}).then(function () { setTimeout(poll, 1500); });
+    })();
+    </script>'''
+    i = h.index('<div class="joiner-message">Connecting...</div>')
+    i = h.index('</div>', h.index('</div>', i) + 6) + len('</div>')
+    return h[:i] + widget + h[i:]
+page('find-live-real.html', 'find.html', find_page)

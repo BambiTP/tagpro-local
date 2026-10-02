@@ -139,6 +139,7 @@ function attachJoiner(io) {
     socket.emit('ready');
     const g = session.groupId && groups.groups.get(session.groupId);
     if (g) socket.emit('JoinerSettings', { regions: g.settings.regions, gameModes: ['classic'], spectate: false }, true);
+    else socket.emit('JoinerSettings', { regions: ['US East', 'US Central', 'US West', 'Europe', 'Oceanic'], gameModes: ['classic'], spectate: false }, false);
     let sent = false;
     const go = async () => {
       if (sent) return;
