@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# One-time setup on a fresh Ubuntu 22.04/24.04 server. Run from inside the cloned repo:
-#   sudo bash deploy/setup.sh                 # serves on http://<server-ip>
-#   sudo DOMAIN=tagpro.example.com bash deploy/setup.sh   # automatic HTTPS for a domain
+# One-time (re-runnable) setup on an Ubuntu server. Run as root from inside the project:
+#   bash deploy/setup.sh                              # HTTPS on <ip-with-dashes>.sslip.io
+#   DOMAIN=tagpro.example.com bash deploy/setup.sh    # HTTPS on your own domain (point its A record here first)
+# sslip.io is a free wildcard DNS service: 1-2-3-4.sslip.io resolves to 1.2.3.4, so Caddy can get a
+# free Let's Encrypt certificate without registering a domain.
 set -euo pipefail
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-echo "== installing Node.js, git, Caddy"
 export DEBIAN_FRONTEND=noninteractive
+
+echo "== installing Node.js, git, Caddy"
 apt-get update -y
 apt-get install -y curl git ca-certificates gnupg
 # prefer the distro packages (recent Ubuntu ships Node >= 18 and Caddy); fall back to upstream repos
@@ -29,36 +32,58 @@ cd "$APP_DIR"
 npm ci --omit=dev
 bash deploy/fetch-music.sh || echo "(music download failed - the game works without it)"
 
-echo "== systemd service"
+echo "== service user (the game does not run as root)"
+id tagpro >/dev/null 2>&1 || useradd --system --home "$APP_DIR" --shell /usr/sbin/nologin tagpro
+chown -R tagpro:tagpro "$APP_DIR"
+
+echo "== systemd service (listens on localhost only; Caddy is the public front)"
 cat > /etc/systemd/system/tagpro.service <<UNIT
 [Unit]
 Description=TagPro local server
 After=network.target
 
 [Service]
+User=tagpro
 WorkingDirectory=$APP_DIR
 ExecStart=$(command -v node) server/index.js
-Environment=PORT=3000 NODE_ENV=production
+Environment=PORT=3000 HOST=127.0.0.1 NODE_ENV=production
 Restart=always
 RestartSec=2
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=$APP_DIR/maps
 
 [Install]
 WantedBy=multi-user.target
 UNIT
 systemctl daemon-reload
-systemctl enable --now tagpro
+systemctl enable tagpro
 systemctl restart tagpro
 
-echo "== Caddy (port 80/443 -> 3000, websockets included)"
-SITE="${DOMAIN:-:80}"
+echo "== Caddy: HTTPS + websockets -> localhost:3000"
+IP=$(curl -fsS https://api.ipify.org || hostname -I | awk '{print $1}')
+DOMAIN="${DOMAIN:-${IP//./-}.sslip.io}"
 cat > /etc/caddy/Caddyfile <<CADDY
-$SITE {
+$DOMAIN {
   encode gzip
   reverse_proxy localhost:3000
+}
+
+# visiting the bare IP redirects to the HTTPS address
+http://$IP {
+  redir https://$DOMAIN{uri}
 }
 CADDY
 systemctl restart caddy
 
-IP=$(curl -fsS https://api.ipify.org || hostname -I | awk '{print $1}')
+echo "== firewall: only SSH and web"
+apt-get install -y ufw
+ufw allow OpenSSH >/dev/null
+ufw allow 80/tcp >/dev/null
+ufw allow 443/tcp >/dev/null
+ufw --force enable
+
 echo
-echo "Done. Open: ${DOMAIN:+https://$DOMAIN}${DOMAIN:-http://$IP}/groups"
+echo "Done. Open: https://$DOMAIN/groups"

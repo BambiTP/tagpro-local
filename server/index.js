@@ -10,6 +10,7 @@ const groups = require('./groups');
 const games = require('./games');
 
 const PORT = Number(process.env.PORT || 3000);
+const HOST = process.env.HOST || '0.0.0.0'; // the VPS service sets 127.0.0.1 so only Caddy is public
 const PUBLIC = path.join(__dirname, '..', 'public');
 const music = require(path.join(PUBLIC, 'music.json'));
 
@@ -117,7 +118,7 @@ groups.attach(io, { launchGroupGame: (g) => games.launchGroupGame(g).catch((e) =
 games.attachJoiner(io);
 games.attachGames(io);
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
   const ips = Object.values(os.networkInterfaces()).flat().filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => i.address);
   console.log(`TagPro local server on http://localhost:${PORT}`);
   for (const ip of ips) console.log(`  LAN: http://${ip}:${PORT}`);
