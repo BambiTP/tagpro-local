@@ -134,11 +134,13 @@ app.get('/profile/:id', (req, res) => {
 // ---- admin control panel (public game map/settings) ----
 app.get('/admin', (req, res) => {
   if (!admin.isAdmin(req.session)) return req.session.account ? res.status(403).send('Not an admin') : res.redirect('/login');
-  html(res, card('TagPro Admin', admin.panel(req.query.saved ? 'Saved. The next public game uses these settings.' : '')));
+  const failed = req.query.failed ? String(req.query.failed) : '';
+  html(res, card('TagPro Admin', admin.panel(req.query.saved ? 'Saved. The next public game uses these settings.' : '', failed ? `Couldn't download from Fortunate Maps: ${failed}` : '')));
 });
-app.post('/admin', (req, res) => {
+app.post('/admin', async (req, res) => {
   if (!admin.isAdmin(req.session)) return res.status(403).send('Not an admin');
-  admin.update(req.body); res.redirect('/admin?saved=1');
+  const failed = await admin.update(req.body, games.fetchFortunateMap);
+  res.redirect('/admin?saved=1' + (failed.length ? '&failed=' + encodeURIComponent(failed.join(', ')) : ''));
 });
 app.post('/admin/reset', (req, res) => {
   if (!admin.isAdmin(req.session)) return res.status(403).send('Not an admin');

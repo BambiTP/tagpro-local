@@ -76,26 +76,57 @@ function coerce(key, raw) {
   return String(raw == null ? def : raw).slice(0, 40);
 }
 
-function update(body) {
+// map list entries are Fortunate Maps ids (numbers); a few rebuilt maps use their own keys
+const parseIds = (text) => String(text || '').split(/[\s,]+/).map((x) => x.trim()).filter((x) => /^(\d{1,7}|real-[a-z0-9-]+)$/.test(x));
+
+function preview(m) {
+  const real = path.join(__dirname, '..', 'public', 'images', 'maps', m.name + '-small.png');
+  if (fs.existsSync(real)) return '/images/maps/' + encodeURIComponent(m.name) + '-small.png';
+  return /^\d+$/.test(m.key) ? `https://fortunatemaps.herokuapp.com/preview/${m.key}.jpeg` : '';
+}
+
+// downloads any FM ids that aren't installed yet; returns ids that couldn't be fetched
+async function ensureMaps(ids, fetchFortunateMap) {
+  const have = new Set(installedMaps().map((m) => m.key));
+  const failed = [];
+  for (const id of ids) {
+    if (have.has(id)) continue;
+    if (!/^\d+$/.test(id)) { failed.push(id); continue; }
+    try { await fetchFortunateMap(id); } catch (e) { failed.push(id); }
+  }
+  return failed;
+}
+
+async function update(body, fetchFortunateMap) {
+  const rotIds = parseIds(body.rotation);
+  const mapId = String(body.map || '').trim().toLowerCase() === 'random' || !String(body.map || '').trim() ? 'random' : parseIds(body.map)[0];
+  const failed = await ensureMaps(rotIds.concat(mapId && mapId !== 'random' ? [mapId] : []), fetchFortunateMap);
   const settings = {};
   for (const [key] of FIELDS) settings[key] = coerce(key, body[key]);
   // keep only values that differ from the public defaults
   state.settings = Object.fromEntries(Object.entries(settings).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify(DEFAULT_VALUES[k])));
   const keys = new Set(installedMaps().map((m) => m.key));
-  state.map = body.map === 'random' || keys.has(body.map) ? body.map : 'random';
-  const rot = [].concat(body.rotation || []).filter((k) => keys.has(k));
+  state.map = mapId && keys.has(mapId) ? mapId : 'random';
+  const rot = [...new Set(rotIds)].filter((k) => keys.has(k));
   state.rotation = rot.length ? rot : null;
   const n = Number(body.gameSize);
   state.gameSize = [2, 4, 6, 8, 10, 12, 14, 16].includes(n) ? n : 8;
   save();
+  return failed;
 }
 
 function reset() { state = { settings: {}, map: 'random', rotation: null, gameSize: 8 }; save(); }
 
-function panel(message) {
+function panel(message, warn) {
   const cur = publicSettings();
   const maps = installedMaps();
-  const pool = new Set(rotationPool() || maps.filter((m) => m.inRotation).map((m) => m.key));
+  const byKey = Object.fromEntries(maps.map((m) => [m.key, m]));
+  const pool = (rotationPool() || maps.filter((m) => m.inRotation).map((m) => m.key)).map((k) => byKey[k]).filter(Boolean);
+  const single = mapChoice() !== 'random' ? byKey[mapChoice()] : null;
+  const card = (m) => `<div style="width:120px;text-align:center;font-size:12px">
+      ${preview(m) ? `<img src="${esc(preview(m))}" alt="" style="width:120px;height:80px;object-fit:contain;background:#111;border-radius:4px">` : '<div style="width:120px;height:80px;background:#111;border-radius:4px"></div>'}
+      <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(m.name)}">${esc(m.name)}</div>
+      <div style="opacity:.6">${esc(m.key)}</div></div>`;
   const input = (key) => {
     const v = cur[key], label = esc(LABELS[key] || key);
     if (typeof DEFAULT_VALUES[key] === 'boolean') return `<div class="checkbox"><label><input type="checkbox" name="${key}" ${v ? 'checked' : ''}> ${label}</label></div>`;
@@ -104,18 +135,18 @@ function panel(message) {
     return `<div class="form-group"><label>${label}</label><input class="form-control" type="${type}" name="${key}" value="${esc(v)}"></div>`;
   };
   const changed = Object.keys(state.settings).length;
-  return `<h1>Admin</h1>
+  return `<h1>Admin</h1>${warn ? `<div class="alert alert-warning">${esc(warn)}</div>` : ''}
     <p style="opacity:.75">Public games (Play Now). Changes apply to the next game that starts.</p>
     ${message ? `<div class="alert alert-success">${esc(message)}</div>` : ''}
     <form method="post" action="/admin">
       <h3>Map</h3>
-      <div class="form-group"><select class="form-control" name="map">
-        <option value="random" ${mapChoice() === 'random' ? 'selected' : ''}>Random from rotation (below)</option>
-        ${maps.map((m) => `<option value="${esc(m.key)}" ${mapChoice() === m.key ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}
-      </select></div>
-      <details><summary style="cursor:pointer">Rotation (${pool.size} of ${maps.length} maps)</summary>
-        <div style="columns:2;margin-top:8px">${maps.map((m) => `<div class="checkbox" style="margin:2px 0"><label><input type="checkbox" name="rotation" value="${esc(m.key)}" ${pool.has(m.key) ? 'checked' : ''}> ${esc(m.name)}</label></div>`).join('')}</div>
-      </details>
+      <div class="form-group"><label>Map: <code>random</code> (from the rotation below) or one Fortunate Maps ID</label>
+        <input class="form-control" name="map" value="${esc(mapChoice())}"></div>
+      ${single ? `<div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">${card(single)}</div>` : ''}
+      <h3>Rotation <small>${pool.length} maps</small></h3>
+      <div class="form-group"><label>Fortunate Maps IDs, one per line (new IDs are downloaded when you save)</label>
+        <textarea class="form-control" name="rotation" rows="6" style="font-family:monospace">${esc(pool.map((m) => m.key).join('\n'))}</textarea></div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px">${pool.map(card).join('')}</div>
       <h3>Queue</h3>
       <div class="form-group"><label>Players per game</label><select class="form-control" name="gameSize">
         ${[2, 4, 6, 8, 10, 12, 14, 16].map((n) => `<option value="${n}" ${n === gameSize() ? 'selected' : ''}>${n} (${n / 2}v${n / 2})</option>`).join('')}

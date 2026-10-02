@@ -1,0 +1,22 @@
+const { chromium } = require('playwright');
+(async () => {
+  const base = 'http://localhost:3000';
+  const b = await chromium.launch(); const page = await b.newPage({ viewport: { width: 1280, height: 1000 } });
+  page.on('pageerror', (e) => console.log('PAGEERROR', e.message));
+  const u = 'adm' + Math.floor(Math.random() * 1e5);
+  await page.goto(base + '/login'); const reg = page.locator('form[action="/register"]');
+  await reg.locator('[name=username]').fill(u); await reg.locator('[name=password]').fill('secret123');
+  await Promise.all([page.waitForNavigation(), reg.locator('button').click()]);
+  require('child_process').execSync('node ' + __dirname + '/make-admin.js ' + u);
+  await page.goto(base + '/admin');
+  const before = (await page.inputValue('textarea[name=rotation]')).split('\n').length;
+  await page.fill('textarea[name=rotation]', (await page.inputValue('textarea[name=rotation]')) + '\n96536');
+  await Promise.all([page.waitForNavigation(), page.click('form[action="/admin"] button[type=submit]')]);
+  const after = (await page.inputValue('textarea[name=rotation]')).split('\n');
+  console.log('rotation ids before', before, 'after', after.length, '| contains 96536:', after.includes('96536'));
+  console.log('message:', (await page.locator('.alert').allTextContents()).join(' | '));
+  const imgs = await page.locator('form[action="/admin"] img').evaluateAll((els) => els.map((e) => ({ src: e.getAttribute('src'), ok: e.complete && e.naturalWidth > 0 })));
+  console.log('previews:', imgs.length, 'loaded:', imgs.filter((i) => i.ok).length, '| new map preview:', JSON.stringify(imgs.find((i) => /96536|Camp/.test(i.src))));
+  await page.screenshot({ path: __dirname + '/../ref/shots/admin.png' });
+  await b.close();
+})();
