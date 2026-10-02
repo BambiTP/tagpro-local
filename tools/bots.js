@@ -121,6 +121,9 @@ class Bot {
       const t = parseFloat(this.map[x][y]);
       if (Math.floor(t) === 3) this.home[1] = { x, y };
       if (Math.floor(t) === 4) this.home[2] = { x, y };
+      if (Math.floor(t) === 16) this.home[3] = { x, y };            // neutral flag
+      if (t === 17) (this.endzone1 || (this.endzone1 = [])).push({ x, y }); // red endzone
+      if (t === 18) (this.endzone2 || (this.endzone2 = [])).push({ x, y }); // blue endzone
     }
   }
 
@@ -177,7 +180,14 @@ class Bot {
     const enemies = Object.values(this.players).filter((p) => p.team === enemy && !p.dead && p.rx != null);
     const enemyFC = enemies.find((p) => p.flag);
     let goal;
-    if (me.flag) goal = this.home[me.team];
+    if (this.home[3]) {
+      // neutral flag: carry it to our endzone, otherwise go for the flag or its carrier
+      const carrier = Object.values(this.players).find((p) => p.flag === 3 && !p.dead && p.rx != null);
+      const zones = (me.team === 1 ? this.endzone1 : this.endzone2) || [];
+      if (me.flag === 3 && zones.length) goal = zones.reduce((a, b) => (Math.hypot(a.x - myTile.x, a.y - myTile.y) <= Math.hypot(b.x - myTile.x, b.y - myTile.y) ? a : b));
+      else if (carrier && carrier.team !== me.team) goal = { x: Math.round(carrier.rx / TILE), y: Math.round(carrier.ry / TILE) };
+      else goal = this.home[3];
+    } else if (me.flag) goal = this.home[me.team];
     else if (enemyFC) goal = { x: Math.round(enemyFC.rx / TILE), y: Math.round(enemyFC.ry / TILE) };
     else if (this.role === 'defense') {
       const h = this.home[me.team];

@@ -65,6 +65,7 @@ class GameRoom {
     this.ended = false;
     this.timers = [];
 
+    this.gravity = this.settings.mode === 'gravity' || !!this.map.gravity;
     this.W = this.map.tiles.length;
     this.H = this.map.tiles[0].length;
     this.tiles = this.map.tiles.map((col) => col.slice());
@@ -85,6 +86,7 @@ class GameRoom {
       if (t === T.RED_FLAG || t === T.RED_POTATO) this.flagHome[1] = { x, y, potato: t === T.RED_POTATO };
       if (t === T.BLUE_FLAG || t === T.BLUE_POTATO) this.flagHome[2] = { x, y, potato: t === T.BLUE_POTATO };
       if (t === T.GRAVITY_WELL) this.gravityWells.push({ x: x * PH.TILE, y: y * PH.TILE });
+      if (t === T.YELLOW_FLAG) this.flagHome[3] = { x, y, potato: false };
     }
     const sp = this.map.spawnPoints || {};
     for (const [team, key] of [[1, 'red'], [2, 'blue']]) {
@@ -102,10 +104,11 @@ class GameRoom {
   // ---------- physics ----------
   buildWorld() {
     this.pendingTiles = [];
-    this.world = new Box2D.Dynamics.b2World(new V(0, 0), true);
+    // gravity mode: same values as the official /scripts/gravity.js the client loads
+    this.world = new Box2D.Dynamics.b2World(this.gravity ? new V(0, TU.GRAVITY_Y) : new V(0, 0), true);
     const fd = new Box2D.Dynamics.b2FixtureDef();
     const bd = new Box2D.Dynamics.b2BodyDef();
-    fd.density = 1; fd.friction = PH.WALL_FRICTION; fd.restitution = PH.WALL_RESTITUTION * 1;
+    fd.density = 1; fd.friction = this.gravity ? 0 : PH.WALL_FRICTION; fd.restitution = this.gravity ? TU.GRAVITY_RESTITUTION : PH.WALL_RESTITUTION * 1;
     fd.filter.categoryBits = -1;
     bd.type = Box2D.Dynamics.b2Body.b2_staticBody;
     for (let x = 0; x < this.W; x++) for (let y = 0; y < this.H; y++) {
@@ -135,8 +138,8 @@ class GameRoom {
   createBody(p) {
     const fd = new Box2D.Dynamics.b2FixtureDef();
     const bd = new Box2D.Dynamics.b2BodyDef();
-    fd.density = PH.BALL_DENSITY; fd.friction = PH.BALL_FRICTION;
-    fd.restitution = PH.BALL_RESTITUTION * this.settings.bounce;
+    fd.density = PH.BALL_DENSITY; fd.friction = this.gravity ? 0 : PH.BALL_FRICTION;
+    fd.restitution = (this.gravity ? TU.GRAVITY_RESTITUTION : PH.BALL_RESTITUTION) * this.settings.bounce;
     fd.shape = new Box2D.Collision.Shapes.b2CircleShape(PH.BALL_RADIUS);
     const f = C.getPlayerCollisions(this.settings.ghostMode, p.team === 1);
     fd.filter.categoryBits = f.categoryBits; fd.filter.maskBits = f.maskBits;
@@ -187,6 +190,7 @@ class GameRoom {
       eventTextures: {}, eventSounds: [], eventMusic: [], eventGraphics: [], eventScripts: [], eventSplats: null, eventFlairs: [],
       gameMode: 'classic', classicGameMode: 'ctf', scoreAlgorithm: 'IPMv1.1', worldStarted: true,
       ...(s.mapTestingMode ? { mapTestingMode: true } : {}),
+      ...(this.gravity ? { eventScripts: ['/scripts/gravity.js'] } : {}),
     });
     this.send(client, 'teamNames', { redTeamName: s.redTeamName, blueTeamName: s.blueTeamName });
     this.send(client, 'time', { time: Math.max(0, this.stateEndsAt - this.now()), state: this.state });
@@ -313,6 +317,7 @@ class GameRoom {
         const seq = Number(d.t) || 0;
         p[d.k] = down ? seq : -seq;
         this.queue(p, d.k);
+        if (this.gravity && down && d.k === 'up') this.jump(p);
         break;
       }
       case 'chat': {
@@ -471,7 +476,8 @@ class GameRoom {
       this.broadcast('sound', { s: 'pop', v: 1 });
       if (this.settings.poosts) this.explode(at, TU.POP_RADIUS, TU.POP_STRENGTH, p);
     }
-    if (p.flag) this.returnFlag(p, killer);
+    if (p.flag === 3 && killer && !killer.flag && !killer.dead) this.stealFlag(p, killer);
+    else if (p.flag) this.returnFlag(p, killer);
     if (this.state === STATES.OVERTIME && !opts.silent) this.overtimePops = (this.overtimePops || 0) + 1;
     this.spawnPlayer(p, this.respawnDelay());
   }
@@ -490,7 +496,7 @@ class GameRoom {
   }
 
   // ---------- flags ----------
-  flagTile(team) { const h = this.flagHome[team]; return h.potato ? (team === 1 ? T.RED_POTATO : T.BLUE_POTATO) : (team === 1 ? T.RED_FLAG : T.BLUE_FLAG); }
+  flagTile(team) { const h = this.flagHome[team]; if (team === 3) return T.YELLOW_FLAG; return h.potato ? (team === 1 ? T.RED_POTATO : T.BLUE_POTATO) : (team === 1 ? T.RED_FLAG : T.BLUE_FLAG); }
   flagAtHome(team) { const h = this.flagHome[team]; return h && this.tiles[h.x][h.y] === this.flagTile(team); }
 
   grabFlag(p, team) {
@@ -510,6 +516,20 @@ class GameRoom {
       const viewer = c.playerId && this.players[c.playerId];
       const friendly = viewer && viewer.team === p.team;
       this.send(c, 'sound', friendly ? { s: 'friendlyalert', v: 1 } : { s: 'alert', v: viewer ? 1 : 0.25 });
+    }
+  }
+
+  // neutral flag: the tagger takes the flag straight from the carrier
+  stealFlag(from, to) {
+    from.flag = null; from.potatoFlag = null; from.selfDestructSoon = null; from.clutchHolder = false; delete from.clutchFlag;
+    from['s-drops']++; this.queue(from, 'flag', 'potatoFlag', 'selfDestructSoon', 's-drops');
+    to.flag = 3; to.potatoFlag = false; to.selfDestructSoon = false; to['s-grabs']++;
+    to.grabbedAt = this.now();
+    to.invincibleUntil = this.now() + TU.GRAB_INVINCIBLE_MS;
+    this.queue(to, 'flag', 'potatoFlag', 'selfDestructSoon', 's-grabs');
+    for (const c of this.clients) {
+      const viewer = c.playerId && this.players[c.playerId];
+      this.send(c, 'sound', viewer && viewer.team === to.team ? { s: 'friendlyalert', v: 1 } : { s: 'alert', v: viewer ? 1 : 0.25 });
     }
   }
 
@@ -699,6 +719,16 @@ class GameRoom {
           else if (team === p.team && p.flag && p.flag !== p.team && !p.clutchFlag) this.capture(p);
           break;
         }
+        case T.YELLOW_FLAG: {
+          if (!this.touches(o, 'flag') || p.flag || typeof t === 'string') break;
+          this.grabFlag(p, 3);
+          break;
+        }
+        case T.RED_ENDZONE: case T.BLUE_ENDZONE: {
+          if (p.flag !== 3 || o.edge >= PH.BALL_RADIUS - 0.01) break;
+          if ((base === T.RED_ENDZONE && p.team === 1) || (base === T.BLUE_ENDZONE && p.team === 2)) this.capture(p);
+          break;
+        }
         case T.BOOST: case T.RED_BOOST: case T.BLUE_BOOST: {
           if (!this.touches(o, 'boost')) break;
           if ((base === T.RED_BOOST && p.team !== 1) || (base === T.BLUE_BOOST && p.team !== 2)) break;
@@ -880,30 +910,30 @@ class GameRoom {
     }
   }
 
+  // Tag rules (confirmed):
+  // - touching an enemy flag carrier pops them; two flag carriers pop each other only with
+  //   kissingFCs on ("no kiss" = nobody pops)
+  // - a TagPro pops any enemy without TagPro; two TagPros pop each other only with kissingTPs on
   enemyContact(a, b) {
     const s = this.settings;
-    const bothFC = a.flag && b.flag;
-    const bothTP = a.tagpro && b.tagpro;
-    // rolling bombs go off on enemy contact
     if (s.rollingBombBehavior === 'classic') for (const x of [a, b]) if (x.bomb) this.detonateRollingBomb(x);
-    if (bothFC && s.kissingFCs) return;
-    if (bothTP && s.kissingTPs && !(a.flag || b.flag)) return;
-    const kills = [];
-    if (a.tagpro) kills.push([b, a]);
-    if (b.tagpro) kills.push([a, b]);
-    if (b.flag && !(bothTP && s.kissingTPs && b.tagpro && !a.tagpro)) kills.push([b, a]);
-    if (a.flag) kills.push([a, b]);
-    const done = new Set();
-    for (const [victim, killer] of kills) {
-      if (done.has(victim) || this.now() < (victim.invincibleUntil || 0)) continue;
-      if (victim.tagpro && killer.tagpro && s.kissingTPs && !victim.flag) continue;
-      done.add(victim);
+    const kills = (tagger, victim) => {
+      if (tagger.tagpro && victim.tagpro) return !!s.kissingTPs;
+      if (tagger.tagpro) return true;
+      if (victim.flag) return tagger.flag ? !!s.kissingFCs : true;
+      return false;
+    };
+    const pops = [];
+    if (kills(a, b)) pops.push([b, a]);
+    if (kills(b, a)) pops.push([a, b]);
+    for (const [victim, killer] of pops) {
+      if (this.now() < (victim.invincibleUntil || 0)) continue;
       if (killer.tagpro && !victim.flag) {
         killer.tagproTags++;
         if (s.tagproMaxTags && killer.tagproTags >= s.tagproMaxTags) this.clearEffect(killer, 'tagpro');
       }
-      this.pop(victim, killer);
     }
+    for (const [victim, killer] of pops) if (this.now() >= (victim.invincibleUntil || 0)) this.pop(victim, killer);
   }
 
   resetMap() {
@@ -915,6 +945,37 @@ class GameRoom {
       let v = orig;
       if (b === T.POWERUP) { const k = this.randomPup(); v = k ? Number((6 + k / 10).toFixed(1)) : T.POWERUP; }
       if (String(cur) !== String(v)) this.setTile(x, y, v);
+    }
+  }
+
+  // ---------- gravity mode ----------
+  jumpLimit() { const n = Number(this.settings.jumpLimit); return n >= 51 ? Infinity : (Number.isFinite(n) ? n : 2); }
+
+  jump(p) {
+    if (p.dead || !this.playing()) return;
+    if (p.jumpsLeft === undefined) p.jumpsLeft = this.jumpLimit();
+    if (p.jumpsLeft <= 0) return;
+    p.jumpsLeft--;
+    const v = p.body.GetLinearVelocity();
+    p.body.SetLinearVelocity(new V(v.x, v.y - TU.JUMP_SPEED));
+    this.queue(p, 'pos');
+  }
+
+  // landing on the ground (a wall below the ball) restores jumps; optionally landing on a player
+  groundContacts() {
+    const wm = new Box2D.Collision.b2WorldManifold();
+    for (let c = this.world.GetContactList(); c; c = c.GetNext()) {
+      if (!c.IsTouching()) continue;
+      const fa = c.GetFixtureA(), fb = c.GetFixtureB();
+      const pa = fa.GetBody().player, pb = fb.GetBody().player;
+      if (!pa && !pb) continue;
+      if (pa && pb && !this.settings.isPlayerJumpResetEnabled) continue;
+      c.GetWorldManifold(wm);
+      // normal points from A to B; the ball is "on top" when the other body is below it
+      // only a landing counts: a ball still leaving the ground after a jump keeps its count
+      const landed = (q) => q.body.GetLinearVelocity().y > -0.5;
+      if (pa && wm.m_normal.y > 0.5 && landed(pa)) pa.jumpsLeft = this.jumpLimit();
+      if (pb && wm.m_normal.y < -0.5 && landed(pb)) pb.jumpsLeft = this.jumpLimit();
     }
   }
 
@@ -968,6 +1029,7 @@ class GameRoom {
       }
       this.world.Step(PH.STEP, PH.VELOCITY_ITERATIONS, PH.POSITION_ITERATIONS);
       for (const fn of this.afterStep.splice(0)) fn();
+      if (this.gravity) this.groundContacts();
       for (const p of Object.values(this.players)) if (!p.dead) this.tileInteractions(p);
       this.playerContacts();
       this.afkCheck(now);

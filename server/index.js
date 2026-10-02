@@ -202,10 +202,11 @@ app.get('/game', (req, res) => {
   const pg = req.session.pendingGame;
   const room = pg && games.games.get(pg.id);
   if (!room || room.closed) return res.redirect('/');
-  html(res, withTextures(req, pages.render('game.html', {
+  const page = (h) => room.gravity ? h.replace('<script src="/R-62bb0909b74c-z/compact/global-game.js"></script>', '<script src="/R-62bb0909b74c-z/compact/global-game.js"></script>\n        <script src="/R-62bb0909b74c-z/scripts/gravity.js"></script>') : h;
+  html(res, page(withTextures(req, pages.render('game.html', {
     GAME_SOCKET: '/game/' + room.id, GAME_SERVER: 'local', GAME_ID: room.id,
     GAME_SOCKET_LABEL: req.headers.host, GROUP_ID: room.groupId || 'null',
-  })));
+  }))));
 });
 
 // flair feed (server-sent events); no accounts locally, so it just stays open

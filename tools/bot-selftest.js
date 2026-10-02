@@ -16,6 +16,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await wait(4000);
   g.emit('team', { id: me, team: 3 });
   g.emit('setting', { name: 'time', value: '1' });
+  if (process.argv[2]) g.emit('setting', { name: 'map', value: process.argv[2] });
   await wait(500);
   g.emit('groupPlay');
   await new Promise((r) => g.on('play', r));

@@ -65,7 +65,10 @@ const TUNING = {
   WARNING_FRAMES: 12, WARNING_FRAME_MS: 250,        // ".101".. ".112" respawn warnings
   AFK_WARN_MS: 25000, AFK_KICK_MS: 30000,
   MAPTEST_AFK_KICK_MS: 5 * 60000,                    // map testing mode: 5 minutes
-  GRAB_INVINCIBLE_MS: 250,                           // flag carrier can't be popped right after grabbing
+  GRAB_INVINCIBLE_MS: 250,
+  // gravity mode: world/fixture values from the official scripts/gravity.js; jump fitted to
+  // real gravity replays (ref/gravity): an up press adds ~4.4 m/s upward (median of 25 samples)
+  GRAVITY_Y: 9.8 / 2, GRAVITY_RESTITUTION: 0.3, JUMP_SPEED: 4.4,                           // flag carrier can't be popped right after grabbing
   SNAPSHOT_TICKS: 15,                                // full position delta every 250ms
   CLOCKSYNC_MS: 15000,
   COUNTDOWN_MS: 20000,

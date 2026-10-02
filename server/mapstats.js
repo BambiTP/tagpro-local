@@ -11,6 +11,8 @@ try { ratings = JSON.parse(fs.readFileSync(RATINGS, 'utf8')); } catch (e) { rati
 const save = () => { fs.writeFileSync(RATINGS + '.tmp', JSON.stringify(ratings)); fs.renameSync(RATINGS + '.tmp', RATINGS); };
 
 let replaysIndex = () => [];
+let MAP_TYPES = {};
+try { MAP_TYPES = require('../ref-data/map-types.json'); } catch (e) { MAP_TYPES = {}; }
 
 function rotationMaps() {
   let keys = [];
@@ -31,7 +33,7 @@ function entry(m, plays) {
     averageRating: total ? (likes - dislikes) / total : 0, totalUsers: total, isDeleted: false, weight: 1,
     averageLikes: total ? Math.round(likes / total * 100) : 0, averageDislikes: total ? Math.round(dislikes / total * 100) : 0,
     averageIndifferents: total ? Math.round(meh / total * 100) : 0, score: total ? Math.round(likes / total * 100) : 0,
-    type: 'ctf', inCasualRotation: true, seasonalStats: [], communityFavoured: false, communityDisfavoured: false,
+    type: MAP_TYPES[m.info.name] || 'ctf', inCasualRotation: true, seasonalStats: [], communityFavoured: false, communityDisfavoured: false,
   };
 }
 
