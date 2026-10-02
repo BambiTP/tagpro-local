@@ -55,7 +55,8 @@ class GameRoom {
     this.clients = new Set();
     this.players = {};       // id -> player
     this.nextPlayerId = 1;
-    this.score = { r: 0, b: 0 };
+    this.score = { r: Number(this.settings.redTeamScore) || 0, b: Number(this.settings.blueTeamScore) || 0 };
+    this.tileGen = {}; // "x,y" -> generation; bumping it cancels pending respawn timers (map test reset)
     this.tick = 0;
     this.state = STATES.COUNTDOWN;
     this.stateEndsAt = this.now() + TU.COUNTDOWN_MS;
@@ -178,6 +179,7 @@ class GameRoom {
       gameId: this.id, gameUuid: this.uuid, state: 9, map: this.mapName, mapfile: this.mapName,
       eventTextures: {}, eventSounds: [], eventMusic: [], eventGraphics: [], eventScripts: [], eventSplats: null, eventFlairs: [],
       gameMode: 'classic', classicGameMode: 'ctf', scoreAlgorithm: 'IPMv1.1', worldStarted: true,
+      ...(s.mapTestingMode ? { mapTestingMode: true } : {}),
     });
     this.send(client, 'teamNames', { redTeamName: s.redTeamName, blueTeamName: s.blueTeamName });
     this.send(client, 'time', { time: Math.max(0, this.stateEndsAt - this.now()), state: this.state });
@@ -283,8 +285,9 @@ class GameRoom {
     const p = client.playerId && this.players[client.playerId];
     switch (ev) {
       case 'keydown': case 'keyup': {
-        if (!p || !d || !(d.k in p.keys)) return;
+        if (!p || !d || !(d.k in p.keys || d.k === 'space')) return;
         const down = ev === 'keydown';
+        if (d.k === 'space') { p.lastInput = this.now(); if (down) this.spacebar(p); return; }
         p.keys[d.k] = down;
         p.lastInput = this.now();
         if (p.afk) { p.afk = false; }
@@ -326,6 +329,7 @@ class GameRoom {
       case 'spectate': case 'modSpectate': break;
       case 'mapRating': case 'preferredServer': case 'tips': case 'touch': case 'pings': break;
       case 'mark': if (p) this.broadcast('mark', p.id); break;
+      case 'resetMap': if (p && this.settings.mapTestingMode) this.resetMap(); break;
       default: break;
     }
   }
@@ -472,6 +476,7 @@ class GameRoom {
     this.setTile(h.x, h.y, team === 1 ? '3.1' : '4.1');
     p.flag = team; p['s-grabs']++;
     p.grabbedAt = this.now();
+    p.invincibleUntil = this.now() + TU.GRAB_INVINCIBLE_MS;
     this.queue(p, 'flag', 's-grabs');
     for (const c of this.clients) {
       const viewer = c.playerId && this.players[c.playerId];
@@ -546,14 +551,20 @@ class GameRoom {
   }
 
   // generic respawn with 12 x 250ms warning frames (e.g. 5.101 .. 5.112), as measured in replays
+  bumpTile(x, y) { const k = x + ',' + y; return (this.tileGen[k] = (this.tileGen[k] || 0) + 1); }
+  tileCurrent(x, y, gen) { return this.tileGen[x + ',' + y] === gen; }
+
   timedRespawn(x, y, total, finalTile, warnTile) {
+    const gen = this.bumpTile(x, y);
     const warnTotal = TU.WARNING_FRAMES * TU.WARNING_FRAME_MS;
     const warn = this.settings.respawnWarnings && total > warnTotal;
     const idle = warn ? total - warnTotal : total;
     this.later(idle, () => {
+      if (!this.tileCurrent(x, y, gen)) return;
       if (!warn) return this.setTile(x, y, finalTile);
       let i = 1;
       const step = () => {
+        if (!this.tileCurrent(x, y, gen)) return;
         if (i > TU.WARNING_FRAMES) return this.setTile(x, y, finalTile);
         this.setTile(x, y, warnTile(i));
         i++;
@@ -575,6 +586,20 @@ class GameRoom {
     if (name === 'tagpro') { p.tagpro = true; p.tagproTags = 0; this.queue(p, 'tagpro'); }
     if (name === 'topSpeed') { p.speed = true; p.ms = TU.TOP_SPEED_MAX * s.topspeed; this.queue(p, 'speed', 'ms'); }
     p.effects[name] = this.later(dur, () => this.clearEffect(p, name));
+    if (name === 'jukeJuice') p.jjBoostUsed = false;
+  }
+
+  // spacebar: received from the client; what it does (juke juice boost / rolling bomb detonation
+  // settings) isn't confirmed yet, so it does nothing for now.
+  spacebar(p) {}
+
+  detonateRollingBomb(x) {
+    const s = this.settings;
+    x.bomb = false; this.queue(x, 'bomb'); clearTimeout(x.effects.rollingBomb); delete x.effects.rollingBomb;
+    const pos = x.body.GetPosition();
+    this.broadcast('bomb', { x: pos.x * PH.SCALE, y: pos.y * PH.SCALE, type: 1 });
+    this.explosionSound({ x: pos.x, y: pos.y });
+    this.explode({ x: pos.x, y: pos.y }, TU.ROLLING_BOMB_RADIUS * s.rollingBombDistanceMultipler, TU.ROLLING_BOMB_STRENGTH * s.rollingBombForceMultipler, x);
   }
 
   clearEffect(p, name) {
@@ -725,7 +750,9 @@ class GameRoom {
       const dk = d.x + ',' + d.y;
       const destIsPortal = this.map.portals[dk] && Math.floor(parseFloat(this.tiles[d.x][d.y])) === Math.floor(base) && typeof this.tiles[d.x][d.y] === 'number';
       if (destIsPortal && this.map.portals[dk].destination) this.setTile(d.x, d.y, (parseFloat(this.tiles[d.x][d.y]) + 0.1).toFixed(1));
+      const gen = this.bumpTile(x, y);
       this.later(cooldown, () => {
+        if (!this.tileCurrent(x, y, gen)) return;
         this.setTile(x, y, base);
         if (destIsPortal) this.setTile(d.x, d.y, Math.floor(parseFloat(this.tiles[d.x][d.y])) === T.PORTAL || [T.RED_PORTAL, T.BLUE_PORTAL].includes(Math.floor(parseFloat(this.tiles[d.x][d.y]))) ? Math.round(parseFloat(this.tiles[d.x][d.y]) - 0.1) : this.tiles[d.x][d.y]);
       });
@@ -809,15 +836,7 @@ class GameRoom {
     const bothFC = a.flag && b.flag;
     const bothTP = a.tagpro && b.tagpro;
     // rolling bombs go off on enemy contact
-    for (const [x, y] of [[a, b], [b, a]]) {
-      if (x.bomb) {
-        x.bomb = false; this.queue(x, 'bomb'); clearTimeout(x.effects.rollingBomb); delete x.effects.rollingBomb;
-        const pos = x.body.GetPosition();
-        this.broadcast('bomb', { x: pos.x * PH.SCALE, y: pos.y * PH.SCALE, type: 1 });
-        this.explosionSound({ x: pos.x, y: pos.y });
-        this.explode({ x: pos.x, y: pos.y }, TU.ROLLING_BOMB_RADIUS * s.rollingBombDistanceMultipler, TU.ROLLING_BOMB_STRENGTH * s.rollingBombForceMultipler, x);
-      }
-    }
+    for (const [x] of [[a, b], [b, a]]) if (x.bomb) this.detonateRollingBomb(x);
     if (bothFC && s.kissingFCs) return;
     if (bothTP && s.kissingTPs && !(a.flag || b.flag)) return;
     const kills = [];
@@ -827,7 +846,7 @@ class GameRoom {
     if (a.flag) kills.push([a, b]);
     const done = new Set();
     for (const [victim, killer] of kills) {
-      if (done.has(victim)) continue;
+      if (done.has(victim) || this.now() < (victim.invincibleUntil || 0)) continue;
       if (victim.tagpro && killer.tagpro && s.kissingTPs && !victim.flag) continue;
       done.add(victim);
       if (killer.tagpro && !victim.flag) {
@@ -835,6 +854,18 @@ class GameRoom {
         if (s.tagproMaxTags && killer.tagproTags >= s.tagproMaxTags) this.clearEffect(killer, 'tagpro');
       }
       this.pop(victim, killer);
+    }
+  }
+
+  resetMap() {
+    for (let x = 0; x < this.W; x++) for (let y = 0; y < this.H; y++) {
+      const orig = this.map.tiles[x][y], cur = this.tiles[x][y];
+      const b = Math.floor(parseFloat(orig));
+      if (![T.BOOST, T.RED_BOOST, T.BLUE_BOOST, T.BOMB, T.PORTAL, T.RED_PORTAL, T.BLUE_PORTAL, T.POWERUP].includes(b)) continue;
+      this.bumpTile(x, y);
+      let v = orig;
+      if (b === T.POWERUP) { const k = this.randomPup(); v = k ? Number((6 + k / 10).toFixed(1)) : T.POWERUP; }
+      if (String(cur) !== String(v)) this.setTile(x, y, v);
     }
   }
 
@@ -919,16 +950,18 @@ class GameRoom {
   afkCheck(now) {
     for (const p of Object.values(this.players)) {
       const idle = now - Math.max(p.lastInput, this.startedPlayAt || 0);
-      if (idle > TU.AFK_KICK_MS) {
+      const kickAt = this.settings.mapTestingMode ? TU.MAPTEST_AFK_KICK_MS : TU.AFK_KICK_MS;
+      const warnAt = kickAt - (TU.AFK_KICK_MS - TU.AFK_WARN_MS);
+      if (idle > kickAt) {
         const c = p.client;
         this.send(c, 'disconnectReason', 'afk');
         this.removeClient(c);
         try { c.disconnect(); } catch (e) { /* ignore */ }
-      } else if (idle > TU.AFK_WARN_MS && !p.afkWarned) {
+      } else if (idle > warnAt && !p.afkWarned) {
         p.afkWarned = true;
         this.send(p.client, 'chat', { from: null, message: 'MOVE! It looks like you are AFK and we are about to kick you for it!', to: p.id, c: '#ff8f8f', for: p.id });
         this.send(p.client, 'sound', { s: 'bing', v: 1 });
-      } else if (idle < TU.AFK_WARN_MS) p.afkWarned = false;
+      } else if (idle < warnAt) p.afkWarned = false;
     }
   }
 
@@ -954,6 +987,12 @@ class GameRoom {
       this.startPowerups();
       this.broadcast('sound', { s: 'go', v: 1 });
     } else if (this.state === STATES.ACTIVE && now >= this.stateEndsAt) {
+      this.timeUp(now);
+    }
+  }
+
+  timeUp(now) {
+    {
       if (this.score.r === this.score.b && this.settings.overtime) {
         this.overtimeStartedAt = now;
         this.setState(STATES.OVERTIME, 1);

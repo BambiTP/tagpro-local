@@ -63,6 +63,8 @@ const TUNING = {
   TOUCH_RADIUS: { flag: 0.15, boost: 0.15, powerup: 0.15, bomb: 0.15, spike: 0.14, button: 0.15, portal: 0.15 },
   WARNING_FRAMES: 12, WARNING_FRAME_MS: 250,        // ".101".. ".112" respawn warnings
   AFK_WARN_MS: 25000, AFK_KICK_MS: 30000,
+  MAPTEST_AFK_KICK_MS: 5 * 60000,                    // map testing mode: 5 minutes
+  GRAB_INVINCIBLE_MS: 250,                           // flag carrier can't be popped right after grabbing
   SNAPSHOT_TICKS: 15,                                // full position delta every 250ms
   CLOCKSYNC_MS: 15000,
   COUNTDOWN_MS: 20000,
