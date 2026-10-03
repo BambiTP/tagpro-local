@@ -228,7 +228,7 @@ app.get('/game', (req, res) => {
   if (!room || room.closed) return res.redirect('/');
   const GG = '<script src="/R-62bb0909b74c-z/compact/global-game.js"></script>';
   const extra = (room.gravity ? '\n        <script src="/R-62bb0909b74c-z/scripts/gravity.js"></script>' : '')
-    + (room.localTrust ? '\n        <script>tagproConfig.localTrust = true;</script><script src="/localtrust.js"></script>' : '');
+    + (room.localTrust ? '\n        <script>tagproConfig.localTrust = ' + JSON.stringify(room.trustConfig()).replace(/</g, '\\u003c') + ';</script><script src="/localtrust.js"></script>' : '');
   const page = (h) => h.replace(GG, GG + extra);
   html(res, page(withTextures(req, pages.render('game.html', {
     GAME_SOCKET: '/game/' + room.id, GAME_SERVER: 'local', GAME_ID: room.id,

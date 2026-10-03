@@ -41,7 +41,7 @@ const PUBLIC_DEFAULTS = {
 // movement has no input delay. Only in ghost modes where players never bump each other, since
 // bumps between two client-owned balls can't be resolved fairly.
 const TRUST_GHOST = new Set(['noPlayerCollisions', 'noPlayerOrMarsCollisions']);
-const TRUST_MAX_SPEED = 20;   // m/s; boosts + bombs stay well under this
+const TRUST_MAX_SPEED = 30;   // m/s; boost + bomb on top of each other stays under this
 const TRUST_SLACK = 0.6;      // m of extra movement allowed per report (jitter, late packets)
 
 class GameRoom {
@@ -73,8 +73,9 @@ class GameRoom {
     this.timers = [];
 
     this.gravity = this.settings.mode === 'gravity' || !!this.map.gravity;
-    this.localTrust = !!this.settings.localTrust && TRUST_GHOST.has(this.settings.ghostMode) && !this.gravity;
+    this.localTrust = !!this.settings.localTrust && TRUST_GHOST.has(this.settings.ghostMode);
     this.trust = new WeakMap(); // player -> last accepted report { x, y, at }
+    this.trusted = new WeakSet(); // players whose client runs /localtrust.js (they've sent a report)
     this.W = this.map.tiles.length;
     this.H = this.map.tiles[0].length;
     this.tiles = this.map.tiles.map((col) => col.slice());
@@ -339,7 +340,7 @@ class GameRoom {
         const seq = Number(d.t) || 0;
         p[d.k] = down ? seq : -seq;
         this.queue(p, d.k);
-        if (this.gravity && down && d.k === 'up') this.jump(p);
+        if (this.gravity && down && d.k === 'up' && !this.isTrusted(p)) this.jump(p); // trusted: the client jumps itself
         break;
       }
       case 'chat': {
@@ -429,12 +430,14 @@ class GameRoom {
     // local trust: a player's own client owns its position, so it never gets its own snapshot back
     for (const c of this.clients) {
       const own = c.playerId;
-      const mine = own != null && u.some((o) => o.id === own);
+      const mine = own != null && this.isTrusted(this.players[own]) && u.some((o) => o.id === own);
       this.broadcastP(mine ? u.filter((o) => o.id !== own) : u, (x) => x === c);
     }
   }
 
   // ---------- local trust ----------
+  isTrusted(p) { return this.localTrust && !!p && this.trusted.has(p); }
+
   // d: { x, y, vx, vy, a, ra, e } in metres / m/s, e = the player's snap epoch (lte) the client last saw
   trustedMove(p, d) {
     if (!d || p.dead || !this.playing() || !p.body.IsActive()) return;
@@ -446,15 +449,53 @@ class GameRoom {
     const last = this.trust.get(p);
     const from = last || p.body.GetPosition();
     const dt = last ? Math.min(0.5, (now - last.at) / 1000) : 0.5;
-    const ok = Math.hypot(vx, vy) <= TRUST_MAX_SPEED
-      && Math.hypot(x - from.x, y - from.y) <= TRUST_MAX_SPEED * dt + TRUST_SLACK
+    const reach = TRUST_MAX_SPEED * dt + TRUST_SLACK;
+    let ok = Math.hypot(vx, vy) <= TRUST_MAX_SPEED
+      && Math.hypot(x - from.x, y - from.y) <= reach
       && this.trustPathClear(from.x, from.y, x, y);
+    if (!ok && Math.hypot(vx, vy) <= TRUST_MAX_SPEED) { // a portal the client went through on its own?
+      const pt = this.trustPortal(p, from, x, y, reach);
+      if (pt) { this.teleport(p, pt.x, pt.y, pt.base, true); ok = true; }
+    }
     if (!ok) { this.trust.delete(p); this.directSet(p); return; } // snap the client back to the server
     this.trust.set(p, { x, y, at: now });
+    this.trusted.add(p);
     p.body.SetPosition(new V(x, y));
     p.body.SetLinearVelocity(new V(vx, vy));
     p.body.SetAngularVelocity(a);
     p.body.SetAngle(ra);
+  }
+
+  // an open portal near `from` whose destination is near (x, y)
+  trustPortal(p, from, x, y, reach) {
+    for (const key in this.map.portals) {
+      const d = this.map.portals[key].destination;
+      if (!d) continue;
+      const [px, py] = key.split(',').map(Number);
+      const t = this.tiles[px] && this.tiles[px][py];
+      if (typeof t !== 'number' || ![T.PORTAL, T.RED_PORTAL, T.BLUE_PORTAL].includes(t)) continue;
+      if ((t === T.RED_PORTAL && p.team !== 1) || (t === T.BLUE_PORTAL && p.team !== 2)) continue;
+      if (Math.hypot(from.x - px * PH.TILE, from.y - py * PH.TILE) > reach) continue;
+      if (Math.hypot(x - d.x * PH.TILE, y - d.y * PH.TILE) > reach) continue;
+      return { x: px, y: py, base: t };
+    }
+    return null;
+  }
+
+  // what /localtrust.js needs to predict its own ball exactly like this server does
+  trustConfig() {
+    const s = this.settings, portals = {};
+    for (const key in this.map.portals) { const d = this.map.portals[key].destination; if (d) portals[key] = [d.x, d.y]; }
+    return {
+      R: PH.BALL_RADIUS, tile: PH.TILE, ac: PH.ACCEL * s.accel, ms: PH.MAX_SPEED * s.topspeed,
+      jjAc: TU.JUKE_JUICE_BONUS * s.accel, teamAc: TU.TEAM_TILE_BONUS * s.accel, teamMs: TU.TEAM_TILE_MAX_SPEED * s.topspeed,
+      topMs: TU.TOP_SPEED_MAX * s.topspeed, boost: TU.BOOST_SPEED, bombR: TU.BOMB_RADIUS, bombS: TU.BOMB_STRENGTH,
+      touch: TU.TOUCH_RADIUS, portals,
+      gravity: this.gravity ? {
+        jump: TU.JUMP_SPEED, restitution: TU.GRAVITY_RESTITUTION, playerReset: !!s.isPlayerJumpResetEnabled,
+        jumps: Number.isFinite(this.jumpLimit()) ? this.jumpLimit() : null, // null = unlimited
+      } : null,
+    };
   }
 
   // no full wall square between the two points (sampled every ~5cm); the ball may graze a wall
@@ -552,13 +593,18 @@ class GameRoom {
     this.spawnPlayer(p, this.respawnDelay());
   }
 
-  explode(at, radius, strength, except) {
+  // predicted: a local-trust player whose own client already applied this explosion (its bomb tile)
+  explode(at, radius, strength, except, predicted) {
     for (const o of Object.values(this.players)) {
       if (o === except || o.dead) continue;
       const pos = o.body.GetPosition();
       const dx = pos.x - at.x, dy = pos.y - at.y, d = Math.hypot(dx, dy);
       if (d >= radius || d < 1e-6) continue;
       const k = strength * (radius - d);
+      if (this.isTrusted(o)) { // the client owns the ball: send the change, its next report carries it
+        if (o !== predicted) this.send(o.client, 'ltKick', { vx: dx / d * k, vy: dy / d * k });
+        continue;
+      }
       const v = o.body.GetLinearVelocity();
       o.body.SetLinearVelocity(new V(v.x + dx / d * k, v.y + dy / d * k));
       this.queue(o, 'pos');
@@ -722,7 +768,11 @@ class GameRoom {
       (n === 'rollingBomb' && p.bomb && s.rollingBombBehavior !== 'classic') || (n === 'jukeJuice' && p.jukeJuice && s.jukeJuiceBoost));
     for (const n of s.spacebarDetonateAll ? usable : usable.slice(0, 1)) {
       if (n === 'rollingBomb') this.detonateRollingBomb(p);
-      if (n === 'jukeJuice') { this.boost(p, s.jukeJuiceBoostPower / 100); this.clearEffect(p, 'jukeJuice'); }
+      if (n === 'jukeJuice') {
+        if (this.isTrusted(p)) this.send(p.client, 'ltBoost', s.jukeJuiceBoostPower / 100); // client boosts its own ball
+        else this.boost(p, s.jukeJuiceBoostPower / 100);
+        this.clearEffect(p, 'jukeJuice');
+      }
     }
   }
 
@@ -802,7 +852,8 @@ class GameRoom {
         case T.BOOST: case T.RED_BOOST: case T.BLUE_BOOST: {
           if (!this.touches(o, 'boost')) break;
           if ((base === T.RED_BOOST && p.team !== 1) || (base === T.BLUE_BOOST && p.team !== 2)) break;
-          this.boost(p);
+          if (this.isTrusted(p)) this.broadcast('sound', { s: 'burst', v: 1 }); // the client already boosted itself
+          else this.boost(p);
           const empty = base + 0.1;
           this.setTile(o.x, o.y, String(Number(empty.toFixed(1))));
           this.timedRespawn(o.x, o.y, this.settings.speedPadRespawnTime, base, (i) => Number(empty.toFixed(1) + String(i).padStart(2, '0')));
@@ -816,7 +867,7 @@ class GameRoom {
         }
         case T.BOMB: {
           if (!this.touches(o, 'bomb')) break;
-          this.detonateBomb(o.x, o.y);
+          this.detonateBomb(o.x, o.y, p);
           break;
         }
         case T.BUTTON: if (this.touches(o, 'button')) nowTouching.add(key); break;
@@ -828,6 +879,7 @@ class GameRoom {
         case T.PORTAL: case T.RED_PORTAL: case T.BLUE_PORTAL: {
           if (!this.touches(o, 'portal')) break;
           if (key === p.arrivedOnPortal) { stillOnArrival = true; break; }
+          if (this.isTrusted(p)) break; // the client teleports itself; see trustedMove
           if (typeof t === 'string') break;
           if ((base === T.RED_PORTAL && p.team !== 1) || (base === T.BLUE_PORTAL && p.team !== 2)) break;
           this.teleport(p, o.x, o.y, base);
@@ -862,12 +914,12 @@ class GameRoom {
     this.queue(p, 'pos');
   }
 
-  detonateBomb(x, y) {
+  detonateBomb(x, y, by) {
     const at = { x: x * PH.TILE, y: y * PH.TILE };
     this.setTile(x, y, '10.1');
     this.broadcast('bomb', { x: x * 40, y: y * 40, type: 2 });
     this.explosionSound(at);
-    this.explode(at, TU.BOMB_RADIUS, TU.BOMB_STRENGTH, null);
+    this.explode(at, TU.BOMB_RADIUS, TU.BOMB_STRENGTH, null, by);
     this.timedRespawn(x, y, this.settings.dynamiteRespawnTime, T.BOMB, (i) => Number('10.1' + String(i).padStart(2, '0')));
   }
 
@@ -880,7 +932,8 @@ class GameRoom {
     }
   }
 
-  teleport(p, x, y, base) {
+  // trusted: the client already teleported itself (local trust), so no snap
+  teleport(p, x, y, base, trusted) {
     const key = x + ',' + y;
     const conf = this.map.portals[key];
     if (!conf || !conf.destination) return;
@@ -895,7 +948,7 @@ class GameRoom {
     // real server: flash + explosion at the destination, and directSet so clients snap instead of easing
     this.broadcast('bomb', { x: d.x * 40, y: d.y * 40, type: 3 });
     if (this.settings.poosts) this.explode({ x: d.x * PH.TILE, y: d.y * PH.TILE }, TU.PORTAL_RADIUS, TU.PORTAL_STRENGTH, p);
-    this.directSet(p);
+    if (!trusted) this.directSet(p);
     if (cooldown > 0) {
       const cool = (base + 0.1).toFixed(1);
       this.setTile(x, y, cool);

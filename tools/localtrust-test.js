@@ -1,42 +1,79 @@
-// Local trust (group setting): server accepts/rejects client-reported positions. Run: node tools/localtrust-test.js
+// Local trust (group setting): server accepts/rejects client-reported positions and leaves
+// boosts/bombs/portals of trusted balls to their clients. Run: node tools/localtrust-test.js
 const P = __dirname + '/../';
 const { GameRoom } = require(P + 'engine/game.js');
-const { loadMap, trimPng } = require(P + 'engine/mapLoader'); const { PNG } = require(P + 'node_modules/pngjs');
+const { loadMap, trimPng } = require(P + 'engine/mapLoader');
+const { PNG } = require(P + 'node_modules/pngjs');
+const V = require(P + 'engine/box2d').Common.Math.b2Vec2;
 const fs = require('fs');
-const map = loadMap(PNG.sync.read(trimPng(fs.readFileSync(P + 'maps/69860.png'))), JSON.parse(fs.readFileSync(P + 'maps/69860.json')));
+const load = (k) => loadMap(PNG.sync.read(trimPng(fs.readFileSync(P + 'maps/' + k + '.png'))), JSON.parse(fs.readFileSync(P + 'maps/' + k + '.json')));
 let t = 0; const now = () => t;
-const mk = (s) => new GameRoom({ id: 'x', map, settings: Object.assign({ ghostMode: 'noPlayerCollisions', localTrust: true }, s), now });
-const room = mk({});
-console.log('localTrust on:', room.localTrust, '| off w/o ghost:', mk({ ghostMode: 'disabled' }).localTrust, '| off noTeam:', mk({ ghostMode: 'noTeamCollisions' }).localTrust);
-const got = [];
-const client = { emit: (ev, d) => got.push([ev, d]), disconnect() {} };
-const other = { emit: (ev, d) => other.got.push([ev, d]), disconnect() {}, got: [] };
-room.addClient(client, { id: 's1', name: 'A' }); room.addClient(other, { id: 's2', name: 'B' });
-room.state = 1; // ACTIVE
-const p = room.players[client.playerId];
-for (let i = 0; i < 2; i++) room.step();
-const pos = p.body.GetPosition(); const x0 = pos.x, y0 = pos.y;
-console.log('lte after spawn', p.lte, 'pos', x0.toFixed(2), y0.toFixed(2));
-const send = (d) => client.onEvent('lt', Object.assign({ e: p.lte, vx: 0, vy: 0, a: 0, ra: 0 }, d));
-// small legit move
+let fails = 0; const check = (name, ok) => { console.log((ok ? 'ok   ' : 'FAIL ') + name); if (!ok) fails++; };
+const mk = (map, s) => new GameRoom({ id: 'x', map, settings: Object.assign({ ghostMode: 'noPlayerCollisions', localTrust: true }, s), now });
+const join = (room, name) => { const c = { got: [], emit(ev, d) { this.got.push([ev, d]); }, disconnect() {} }; room.addClient(c, { id: name, name }); return c; };
+const close = (room) => { room.closed = true; for (const h of room.timers) clearTimeout(h); };
+
+const map = load('74431');
+check('on with No Player Collisions', mk(map, {}).localTrust);
+check('off without ghost mode', !mk(map, { ghostMode: 'disabled' }).localTrust);
+check('off with No Team Collisions', !mk(map, { ghostMode: 'noTeamCollisions' }).localTrust);
+
+const room = mk(map, {});
+const a = join(room, 'A'), b = join(room, 'B');
+room.state = 1; room.step(); room.step();
+const p = room.players[a.playerId], q = room.players[b.playerId];
+const at = (x, y) => { p.body.SetPosition(new V(x, y)); room.trust.delete(p); t += 1000; };
+const send = (d) => a.onEvent('lt', Object.assign({ e: p.lte, vx: 0, vy: 0, a: 0, ra: 0 }, d));
+const { x: x0, y: y0 } = p.body.GetPosition();
+
 t += 33; send({ x: x0 + 0.05, y: y0 });
-console.log('legit move accepted:', Math.abs(p.body.GetPosition().x - (x0 + 0.05)) < 1e-6);
-// stale epoch ignored
-t += 33; client.onEvent('lt', { e: p.lte - 1, x: x0 + 0.1, y: y0, vx: 0, vy: 0, a: 0, ra: 0 });
-console.log('stale epoch ignored:', Math.abs(p.body.GetPosition().x - (x0 + 0.05)) < 1e-6);
-// teleport hack rejected -> snap
-const lte = p.lte; t += 33; send({ x: x0 + 5, y: y0 });
-console.log('jump rejected + snap:', p.body.GetPosition().x < x0 + 1, p.lte === lte + 1);
-// through-wall: find nearest wall tile and aim through it
-let wall = null; const tx = Math.round(x0 / 0.4), ty = Math.round(y0 / 0.4);
-for (let d = 1; d < 30 && !wall; d++) if (room.tiles[tx + d] && room.tiles[tx + d][ty] === 1) wall = d;
-if (wall) { t += 2000; room.trust.delete(p); p.body.SetPosition(new (require(P + 'engine/box2d').Common.Math.b2Vec2)(x0, y0)); const l2 = p.lte; send({ x: x0 + (wall + 1) * 0.4, y: y0 }); console.log('wall clip rejected:', p.lte === l2 + 1); }
-// speed cap
-t += 33; send({ x: p.body.GetPosition().x, y: p.body.GetPosition().y, vx: 50 }); console.log('speed hack rejected:', p.body.GetLinearVelocity().x < 50);
-// snapshot stripping
-got.length = 0; other.got.length = 0; t += 33; send({ x: p.body.GetPosition().x + 0.02, y: p.body.GetPosition().y, vx: 1 });
+check('small move accepted', Math.abs(p.body.GetPosition().x - (x0 + 0.05)) < 1e-6 && room.isTrusted(p));
+check('bot/other player not trusted until it reports', !room.isTrusted(q));
+t += 33; a.onEvent('lt', { e: p.lte - 1, x: x0 + 0.1, y: y0, vx: 0, vy: 0, a: 0, ra: 0 });
+check('report from before a snap ignored', Math.abs(p.body.GetPosition().x - (x0 + 0.05)) < 1e-6);
+let lte = p.lte; t += 33; send({ x: x0 + 9, y: y0 });
+check('teleport hack rejected + snapped', p.lte === lte + 1);
+t += 33; send({ x: p.body.GetPosition().x, y: p.body.GetPosition().y, vx: 50 });
+check('speed hack rejected', p.body.GetLinearVelocity().x < 50);
+
+// wall: find a floor tile with a full wall right of it
+let wall = null;
+for (let x = 1; x < room.W - 2 && !wall; x++) for (let y = 1; y < room.H - 1 && !wall; y++) if (room.tiles[x][y] === 2 && room.tiles[x + 1][y] === 1 && room.tiles[x + 2][y] === 2) wall = [x, y];
+if (wall) { at(wall[0] * 0.4, wall[1] * 0.4); lte = p.lte; send({ x: (wall[0] + 2) * 0.4, y: wall[1] * 0.4 }); check('move through a wall rejected', p.lte === lte + 1); }
+
+// portal: client teleports itself, server accepts the jump without snapping
+const key = Object.keys(map.portals).find((k) => map.portals[k].destination && room.tiles[k.split(',')[0]][k.split(',')[1]] === 13);
+const [px, py] = key.split(',').map(Number), dest = map.portals[key].destination;
+at(px * 0.4 + 0.3, py * 0.4); send({ x: px * 0.4 + 0.3, y: py * 0.4 });
+lte = p.lte; t += 33; send({ x: dest.x * 0.4 + 0.05, y: dest.y * 0.4 });
+check('own portal jump accepted, no snap', p.lte === lte && Math.abs(p.body.GetPosition().x - (dest.x * 0.4 + 0.05)) < 1e-6);
+check('server does not teleport a trusted ball itself', (() => { at(px * 0.4, py * 0.4); send({ x: px * 0.4, y: py * 0.4 }); p.arrivedOnPortal = null; room.step(); return Math.hypot(p.body.GetPosition().x - px * 0.4, p.body.GetPosition().y - py * 0.4) < 0.1; })());
+
+// explosions: a trusted ball gets a kick message, its server velocity is left to the client
+a.got.length = 0; const v0 = p.body.GetLinearVelocity().x; const pp = p.body.GetPosition();
+room.explode({ x: pp.x - 0.5, y: pp.y }, 2.8, 4, null);
+const k = a.got.find(([ev]) => ev === 'ltKick');
+check('explosion sends ltKick to trusted ball', k && k[1].vx > 0 && p.body.GetLinearVelocity().x === v0);
+const qv = q.body.GetLinearVelocity().x; const qp = q.body.GetPosition();
+room.explode({ x: qp.x - 0.5, y: qp.y }, 2.8, 4, null);
+check('untrusted ball still pushed by the server', q.body.GetLinearVelocity().x > qv);
+
+// snapshots
+a.got.length = 0; b.got.length = 0; t += 33; send({ x: p.body.GetPosition().x + 0.02, y: p.body.GetPosition().y, vx: 1 });
 room.snapshot();
-const own = got.filter(([e, d]) => e === 'p').flatMap(([, d]) => d.u).filter((o) => o.id === p.id);
-const theirs = other.got.filter(([e, d]) => e === 'p').flatMap(([, d]) => d.u).filter((o) => o.id === p.id);
-console.log('owner gets no own snapshot:', own.length === 0, '| others get it:', theirs.length > 0 && theirs[0].rx != null);
-room.closed = true; for (const h of room.timers) clearTimeout(h);
+const ids = (c) => c.got.filter(([e]) => e === 'p').flatMap(([, d]) => d.u).filter((o) => o.id === p.id);
+check('trusted player gets no own snapshot', ids(a).length === 0);
+check('others still get it', ids(b).length > 0 && ids(b)[0].rx != null);
+check('trustConfig has portals', Object.keys(room.trustConfig().portals).length > 0);
+close(room);
+
+// gravity: trust works there too, and a trusted player's up press doesn't jump on the server
+const groom = mk(map, { mode: 'gravity' });
+check('on in gravity mode', groom.localTrust && groom.trustConfig().gravity.jump > 0);
+const g = join(groom, 'G'); groom.state = 1; groom.step();
+const gp = groom.players[g.playerId], gpos = gp.body.GetPosition();
+g.onEvent('lt', { e: gp.lte, x: gpos.x, y: gpos.y, vx: 0, vy: 0, a: 0, ra: 0 });
+g.onEvent('keydown', { k: 'up', t: 1 });
+check('server leaves the jump to a trusted client', gp.body.GetLinearVelocity().y > -1);
+close(groom);
+process.exit(fails ? 1 : 0);
