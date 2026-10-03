@@ -96,4 +96,20 @@ check('respawned boost under the ball does not fire', bp.body.GetLinearVelocity(
 place(bx, 0.5); place(bx + 1, 0.5);                 // off and back on
 check('fires again after leaving and coming back', bp.body.GetLinearVelocity().x > 5);
 close(broom);
+
+// a trusted client bounced off a bomb: the server sees it on the bomb in one report only, and must
+// still set it off (tile used, no kick back to the client, which already applied it)
+const mroom = mk(map, {});
+const mc = join(mroom, 'M'); mroom.state = 1; mroom.step();
+const mp = mroom.players[mc.playerId];
+let mx = -1, my = -1;
+for (let x = 2; x < mroom.W - 2 && mx < 0; x++) for (let y = 2; y < mroom.H - 2; y++) if ([[0, 0], [1, 0], [-1, 0]].every(([dx, dy]) => mroom.tiles[x + dx][y + dy] === 2)) { mx = x; my = y; break; }
+mroom.setTile(mx, my, 10, true);
+const mrep = (x, vx) => { t += 33; mc.onEvent('lt', { e: mp.lte, x, y: my * 0.4, vx, vy: 0, a: 0, ra: 0 }); };
+mrep((mx - 1) * 0.4, 2); mroom.step();
+mc.got.length = 0;
+mrep(mx * 0.4 - 0.25, -9); mrep(mx * 0.4 - 0.5, -9);    // on the bomb, then already thrown off it, same tick
+check('bomb hit seen in one report is set off', String(mroom.tiles[mx][my]) === '10.1');
+check('no kick sent back to the client that hit it', !mc.got.some(([ev]) => ev === 'ltKick'));
+close(mroom);
 process.exit(fails ? 1 : 0);

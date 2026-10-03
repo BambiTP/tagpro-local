@@ -466,6 +466,9 @@ class GameRoom {
     p.body.SetLinearVelocity(new V(vx, vy));
     p.body.SetAngularVelocity(a);
     p.body.SetAngle(ra);
+    // check tiles at every reported spot now: the next tick may only see a later report, and a ball
+    // the client just bounced off a bomb is only on it for this one
+    this.tileInteractions(p);
   }
 
   // an open portal near `from` whose destination is near (x, y)

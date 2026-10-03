@@ -17,6 +17,7 @@
   if (!cfg) return;
   tagpro.ready.after(function () {
     var sock = tagpro.socket, body = null, frame = 0;
+    var hit = false;        // used a tile this frame: report now, so the server sees us on it
     var V = Box2D.Common.Math.b2Vec2, TILE = cfg.tile, R = cfg.R;
     var MOVE = { up: 1, down: 1, left: 1, right: 1 };
     var used = {};          // "x,y" -> time: tiles this client already used, until the server's tile update arrives
@@ -108,14 +109,14 @@
         if (kind && center < R + cfg.touch[kind]) { onPickups[key] = 1; if (wasOn[key]) continue; } // respawned under us
         if (typeof t !== 'number' || (used[key] && now - used[key] < 1500)) continue; // used / respawning
         if ((t === 5 || (t === 14 && p.team === 1) || (t === 15 && p.team === 2)) && center < R + cfg.touch.boost) {
-          used[key] = now; boost(p, 1);
+          used[key] = now; hit = true; boost(p, 1);
         } else if (t === 10 && center < R + cfg.touch.bomb) {
-          used[key] = now;
+          used[key] = now; hit = true;
           var dx = pos.x - cx, dy = pos.y - cy, d = Math.hypot(dx, dy);
           if (d > 1e-6 && d < cfg.bombR) kick(dx / d * cfg.bombS * (cfg.bombR - d), dy / d * cfg.bombS * (cfg.bombR - d));
         } else if ((t === 13 || (t === 24 && p.team === 1) || (t === 25 && p.team === 2)) && cfg.portals[key] && key !== arrived && center < R + cfg.touch.portal) {
           var dest = cfg.portals[key];
-          used[key] = now; arrived = dest[0] + ',' + dest[1];
+          used[key] = now; hit = true; arrived = dest[0] + ',' + dest[1];
           body.SetPosition(new V(dest[0] * TILE, dest[1] * TILE));
           return;
         }
@@ -132,7 +133,8 @@
         if (!body || !p || p.dead || !p.draw) return;
         predict(p);
         if (G) { if (bouncy !== body) unbounce(); groundCheck(); }
-        if (++frame % 2) return;
+        if (++frame % 2 && !hit) return;
+        hit = false;
         var pos = body.GetPosition(), v = body.GetLinearVelocity();
         emit('lt', { x: pos.x, y: pos.y, vx: v.x, vy: v.y, a: body.GetAngularVelocity(), ra: body.GetAngle(), e: p.lte || 0 });
       },
