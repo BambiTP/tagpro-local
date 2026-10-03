@@ -75,5 +75,25 @@ const gp = groom.players[g.playerId], gpos = gp.body.GetPosition();
 g.onEvent('lt', { e: gp.lte, x: gpos.x, y: gpos.y, vx: 0, vy: 0, a: 0, ra: 0 });
 g.onEvent('keydown', { k: 'up', t: 1 });
 check('server leaves the jump to a trusted client', gp.body.GetLinearVelocity().y > -1);
+for (let i = 0; i < 30; i++) groom.step();
+const gnow = gp.body.GetPosition();
+check('trusted ball does not drift between reports (no server gravity)', Math.abs(gnow.y - gpos.y) < 1e-9);
 close(groom);
+
+// pickups fire on the way in only: a boost that respawns under a ball waits until it leaves and returns
+const broom = mk(map, { ghostMode: 'disabled' });
+const bc = join(broom, 'B'); broom.state = 1; broom.step();
+const bp = broom.players[bc.playerId];
+let bx = -1, by = -1;
+for (let x = 1; x < broom.W - 1 && bx < 0; x++) for (let y = 1; y < broom.H - 1; y++) if (broom.tiles[x][y] === 2 && broom.tiles[x + 1][y] === 2) { bx = x; by = y; break; }
+broom.setTile(bx + 1, by, 5, true);
+const place = (x, vx) => { bp.body.SetPosition(new V(x * 0.4, by * 0.4)); bp.body.SetLinearVelocity(new V(vx, 0)); broom.tileInteractions(bp); };
+place(bx, 1);                                       // off the boost
+place(bx + 1, 1);                                   // roll onto it
+check('boost fires when rolling onto it', bp.body.GetLinearVelocity().x > 5);
+place(bx + 1, 0.5); broom.setTile(bx + 1, by, 5, true); place(bx + 1, 0.5); // it respawns while we sit on it
+check('respawned boost under the ball does not fire', bp.body.GetLinearVelocity().x < 1);
+place(bx, 0.5); place(bx + 1, 0.5);                 // off and back on
+check('fires again after leaving and coming back', bp.body.GetLinearVelocity().x > 5);
+close(broom);
 process.exit(fails ? 1 : 0);

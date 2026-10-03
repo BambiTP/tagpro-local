@@ -23,6 +23,7 @@ const T = {
   RED_POTATO: 19, BLUE_POTATO: 20, GRAVITY_WELL: 22, YELLOW_TILE: 23, RED_PORTAL: 24, BLUE_PORTAL: 25,
 };
 const PUPS = { 1: 'jukeJuice', 2: 'rollingBomb', 3: 'tagpro', 4: 'topSpeed' };
+const PICKUP_KIND = { 5: 'boost', 14: 'boost', 15: 'boost', 6: 'powerup', 10: 'bomb' }; // floor(tile) -> touch radius
 
 const PUBLIC_DEFAULTS = {
   time: 6, caps: 0, mercyRule: 3, overtime: true, overtimeRespawnIncrement: 3000, overtimeJukeJuice: true,
@@ -288,6 +289,7 @@ class GameRoom {
       effects: { value: {}, writable: true },    // name -> expiry timer
       respawnAt: { value: 0, writable: true },
       touching: { value: new Set(), writable: true },
+      onPickups: { value: new Set(), writable: true }, // boost/powerup/bomb tiles under the ball last tick
       portalCooldownUntil: { value: 0, writable: true },
       client: { value: null, writable: true },
       tagproTags: { value: 0, writable: true },
@@ -458,7 +460,7 @@ class GameRoom {
       if (pt) { this.teleport(p, pt.x, pt.y, pt.base, true); ok = true; }
     }
     if (!ok) { this.trust.delete(p); this.directSet(p); return; } // snap the client back to the server
-    this.trust.set(p, { x, y, at: now });
+    this.trust.set(p, { x, y, vx, vy, at: now });
     this.trusted.add(p);
     p.body.SetPosition(new V(x, y));
     p.body.SetLinearVelocity(new V(vx, vy));
@@ -825,10 +827,16 @@ class GameRoom {
     const tiles = this.overlappingTiles(pos);
     let onTeamTile = false, stillOnArrival = false;
     const nowTouching = new Set();
+    // boosts, powerups and bombs fire only when the ball moves onto them: one that respawns under a
+    // ball stays put until the ball leaves and comes back
+    const wasOn = p.onPickups, nowOn = new Set();
+    p.onPickups = nowOn;
     for (const o of tiles) {
       if (p.dead) return;
       const t = o.t, key = o.x + ',' + o.y;
       const base = typeof t === 'string' ? parseFloat(t) : t;
+      const kind = PICKUP_KIND[Math.floor(base)];
+      if (kind && this.touches(o, kind)) { nowOn.add(key); if (wasOn.has(key)) continue; }
       // team tiles speed up their own team (yellow: everyone), never a flag carrier (replays: 0/143 FCs boosted)
       if (o.edge < PH.BALL_RADIUS - 0.01 && !p.flag && ((base === T.RED_TILE && p.team === 1) || (base === T.BLUE_TILE && p.team === 2) || base === T.YELLOW_TILE)) onTeamTile = true;
       switch (base) {
@@ -1161,6 +1169,7 @@ class GameRoom {
       for (const p of Object.values(this.players)) {
         if (p.dead) continue;
         p.body.SetAwake(true);
+        if (this.isTrusted(p) && this.trust.has(p)) continue; // its client moves it
         const v = p.body.GetLinearVelocity();
         const ms = p.ms, ac = p.ac, k = p.keys;
         if (k.left && v.x > -ms) v.x -= ac;
@@ -1182,6 +1191,12 @@ class GameRoom {
         }
       }
       this.world.Step(PH.STEP, PH.VELOCITY_ITERATIONS, PH.POSITION_ITERATIONS);
+      // local trust: a trusted ball stays exactly where its client last put it (no drift into
+      // spikes etc. between reports); contacts from this step still count
+      for (const p of Object.values(this.players)) {
+        const l = !p.dead && this.isTrusted(p) && this.trust.get(p);
+        if (l) { p.body.SetPosition(new V(l.x, l.y)); p.body.SetLinearVelocity(new V(l.vx, l.vy)); }
+      }
       for (const fn of this.afterStep.splice(0)) fn();
       if (this.gravity) this.groundContacts();
       for (const p of Object.values(this.players)) if (!p.dead) this.tileInteractions(p);

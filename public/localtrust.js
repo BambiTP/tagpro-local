@@ -21,6 +21,8 @@
     var MOVE = { up: 1, down: 1, left: 1, right: 1 };
     var used = {};          // "x,y" -> time: tiles this client already used, until the server's tile update arrives
     var arrived = null;     // portal we came out of; re-arms once we roll off it
+    var onPickups = {};     // boost/powerup/bomb tiles under the ball last frame: they only fire on the way in
+    var PICKUP = { 5: 'boost', 14: 'boost', 15: 'boost', 6: 'powerup', 10: 'bomb' };
     var me = function () { return tagpro.players[tagpro.playerId]; };
     var G = cfg.gravity, jumps = G ? G.jumps : 0; // jumps: null = unlimited
     var playing = function () { return [tagpro.states.ACTIVE, tagpro.states.OVERTIME, tagpro.states.CLUTCH].indexOf(tagpro.state) >= 0; };
@@ -66,7 +68,7 @@
     var sync = tagpro.world.syncPlayer;
     tagpro.world.syncPlayer = function (p, snap) {
       if (!body || p.id !== tagpro.playerId || p.dead || !p.draw || (snap && p.directSet)) {
-        if (p.id === tagpro.playerId) { used = {}; arrived = null; if (G) jumps = G.jumps; }
+        if (p.id === tagpro.playerId) { used = {}; arrived = null; onPickups = {}; if (G) jumps = G.jumps; }
         return sync.apply(this, arguments);
       }
       p.sync = null; // our own ball: ignore the server's (older) idea of it
@@ -91,7 +93,8 @@
       var pos = body.GetPosition(), h = TILE / 2, now = performance.now();
       var x0 = Math.floor((pos.x - R + h) / TILE), x1 = Math.floor((pos.x + R + h) / TILE);
       var y0 = Math.floor((pos.y - R + h) / TILE), y1 = Math.floor((pos.y + R + h) / TILE);
-      var onTeamTile = false, onArrival = false;
+      var onTeamTile = false, onArrival = false, wasOn = onPickups;
+      onPickups = {};
       for (var x = x0; x <= x1; x++) for (var y = y0; y <= y1; y++) {
         var col = tagpro.map[x], t = col && col[y];
         if (t == null) continue;
@@ -101,6 +104,8 @@
         var base = Math.floor(parseFloat(t));
         if (edge < R - 0.01 && !p.flag && ((base === 11 && p.team === 1) || (base === 12 && p.team === 2) || base === 23)) onTeamTile = true;
         if (key === arrived && center < R + cfg.touch.portal) onArrival = true;
+        var kind = PICKUP[base];
+        if (kind && center < R + cfg.touch[kind]) { onPickups[key] = 1; if (wasOn[key]) continue; } // respawned under us
         if (typeof t !== 'number' || (used[key] && now - used[key] < 1500)) continue; // used / respawning
         if ((t === 5 || (t === 14 && p.team === 1) || (t === 15 && p.team === 2)) && center < R + cfg.touch.boost) {
           used[key] = now; boost(p, 1);
