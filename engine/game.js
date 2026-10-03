@@ -494,8 +494,7 @@ class GameRoom {
     return {
       R: PH.BALL_RADIUS, tile: PH.TILE, ac: PH.ACCEL * s.accel, ms: PH.MAX_SPEED * s.topspeed,
       jjAc: TU.JUKE_JUICE_BONUS * s.accel, teamAc: TU.TEAM_TILE_BONUS * s.accel, teamMs: TU.TEAM_TILE_MAX_SPEED * s.topspeed,
-      topMs: TU.TOP_SPEED_MAX * s.topspeed, boost: TU.BOOST_SPEED, bombR: TU.BOMB_RADIUS, bombS: TU.BOMB_STRENGTH,
-      touch: TU.TOUCH_RADIUS, portals,
+      topMs: TU.TOP_SPEED_MAX * s.topspeed, touch: TU.TOUCH_RADIUS, portals,
       gravity: this.gravity ? {
         jump: TU.JUMP_SPEED, restitution: TU.GRAVITY_RESTITUTION, playerReset: !!s.isPlayerJumpResetEnabled,
         jumps: Number.isFinite(this.jumpLimit()) ? this.jumpLimit() : null, // null = unlimited
@@ -598,8 +597,7 @@ class GameRoom {
     this.spawnPlayer(p, this.respawnDelay());
   }
 
-  // predicted: a local-trust player whose own client already applied this explosion (its bomb tile)
-  explode(at, radius, strength, except, predicted) {
+  explode(at, radius, strength, except) {
     for (const o of Object.values(this.players)) {
       if (o === except || o.dead) continue;
       const pos = o.body.GetPosition();
@@ -607,7 +605,7 @@ class GameRoom {
       if (d >= radius || d < 1e-6) continue;
       const k = strength * (radius - d);
       if (this.isTrusted(o)) { // the client owns the ball: send the change, its next report carries it
-        if (o !== predicted) this.send(o.client, 'ltKick', { vx: dx / d * k, vy: dy / d * k });
+        this.send(o.client, 'ltKick', { vx: dx / d * k, vy: dy / d * k });
         continue;
       }
       const v = o.body.GetLinearVelocity();
@@ -773,11 +771,7 @@ class GameRoom {
       (n === 'rollingBomb' && p.bomb && s.rollingBombBehavior !== 'classic') || (n === 'jukeJuice' && p.jukeJuice && s.jukeJuiceBoost));
     for (const n of s.spacebarDetonateAll ? usable : usable.slice(0, 1)) {
       if (n === 'rollingBomb') this.detonateRollingBomb(p);
-      if (n === 'jukeJuice') {
-        if (this.isTrusted(p)) this.send(p.client, 'ltBoost', s.jukeJuiceBoostPower / 100); // client boosts its own ball
-        else this.boost(p, s.jukeJuiceBoostPower / 100);
-        this.clearEffect(p, 'jukeJuice');
-      }
+      if (n === 'jukeJuice') { this.boost(p, s.jukeJuiceBoostPower / 100); this.clearEffect(p, 'jukeJuice'); }
     }
   }
 
@@ -863,8 +857,7 @@ class GameRoom {
         case T.BOOST: case T.RED_BOOST: case T.BLUE_BOOST: {
           if (!this.touches(o, 'boost')) break;
           if ((base === T.RED_BOOST && p.team !== 1) || (base === T.BLUE_BOOST && p.team !== 2)) break;
-          if (this.isTrusted(p)) this.broadcast('sound', { s: 'burst', v: 1 }); // the client already boosted itself
-          else this.boost(p);
+          this.boost(p);
           const empty = base + 0.1;
           this.setTile(o.x, o.y, String(Number(empty.toFixed(1))));
           this.timedRespawn(o.x, o.y, this.settings.speedPadRespawnTime, base, (i) => Number(empty.toFixed(1) + String(i).padStart(2, '0')));
@@ -878,7 +871,7 @@ class GameRoom {
         }
         case T.BOMB: {
           if (!this.touches(o, 'bomb')) break;
-          this.detonateBomb(o.x, o.y, p);
+          this.detonateBomb(o.x, o.y);
           break;
         }
         case T.BUTTON: if (this.touches(o, 'button')) nowTouching.add(key); break;
@@ -921,16 +914,17 @@ class GameRoom {
     if (m < 1e-6) return;
     const k2 = TU.BOOST_SPEED * power / m; // straight: 7.5 m/s, diagonal: up to 7.5 * sqrt(2)
     p.body.SetLinearVelocity(new V(dx * k2, dy * k2));
+    if (this.isTrusted(p)) this.send(p.client, 'ltVel', { vx: dx * k2, vy: dy * k2 }); // its client owns the ball
     this.broadcast('sound', { s: 'burst', v: 1 });
     this.queue(p, 'pos');
   }
 
-  detonateBomb(x, y, by) {
+  detonateBomb(x, y) {
     const at = { x: x * PH.TILE, y: y * PH.TILE };
     this.setTile(x, y, '10.1');
     this.broadcast('bomb', { x: x * 40, y: y * 40, type: 2 });
     this.explosionSound(at);
-    this.explode(at, TU.BOMB_RADIUS, TU.BOMB_STRENGTH, null, by);
+    this.explode(at, TU.BOMB_RADIUS, TU.BOMB_STRENGTH, null);
     this.timedRespawn(x, y, this.settings.dynamiteRespawnTime, T.BOMB, (i) => Number('10.1' + String(i).padStart(2, '0')));
   }
 
