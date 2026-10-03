@@ -57,6 +57,8 @@ function render(name, vars = {}) {
   vars = Object.assign({}, statsProvider(), vars);
   let html = tpl(name).replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => (k in vars ? vars[k] : m));
   html = disableDeadLinks(rebrand(html));
+  // redrawn images: version the URLs so cached copies of the old ones aren't shown
+  html = html.replace(/\/images\/(logo|KoalaBeast)\.png(?=")/g, '/images/$1.png?v=bambi1');
   // link previews (Discord etc.) need absolute URLs pointing at this site
   if (vars.ORIGIN) {
     html = html.replace(/(<meta property="og:url" content=")[^"]*(")/i, `$1${vars.ORIGIN}/$2`)
