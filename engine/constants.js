@@ -54,6 +54,7 @@ const TUNING = {
   // ac in replays: 0.025 base, 0.031 juke juice, 0.037 team tile, 0.043 both
   JUKE_JUICE_BONUS: 0.006,
   TEAM_TILE_BONUS: 0.012,
+  TEAM_TILE_MAX_SPEED: 5,       // ms on a team tile (replays: 5 on team tiles, 2.5 otherwise)
   TOP_SPEED_MAX: 3.5,           // topspeed powerup (not in public rotation)
   BOOST_SPEED: 7.5,             // m/s after a boost
   // explosions: radial dv = STRENGTH * (RADIUS - d), fitted to real replays (tools/calib/*.py)
@@ -61,14 +62,16 @@ const TUNING = {
   ROLLING_BOMB_RADIUS: 1.67, ROLLING_BOMB_STRENGTH: 3.84,
   POP_RADIUS: 1.4, POP_STRENGTH: 1.5,                // "poosts": 3.5 tiles, n=1720 (+ tagger collision, see game.js)
   PORTAL_RADIUS: 1.6, PORTAL_STRENGTH: 1.37,         // 4 tiles, centred on the destination (bomb type 3 packet)
-  TOUCH_RADIUS: { flag: 0.15, boost: 0.15, powerup: 0.15, bomb: 0.15, spike: 0.14, button: 0.15, portal: 0.15 },
+  TOUCH_RADIUS: { flag: 0.15, boost: 0.15, powerup: 0.15, bomb: 0.15, spike: 0.14, button: 0.08, portal: 0.15 },
   WARNING_FRAMES: 12, WARNING_FRAME_MS: 250,        // ".101".. ".112" respawn warnings
   AFK_WARN_MS: 25000, AFK_KICK_MS: 30000,
   MAPTEST_AFK_KICK_MS: 5 * 60000,                    // map testing mode: 5 minutes
-  GRAB_INVINCIBLE_MS: 250,
+  GRAB_INVINCIBLE_MS: 250,                           // flag carrier can't be popped right after grabbing
   // gravity mode: world/fixture values from the official scripts/gravity.js; jump fitted to
   // real gravity replays (ref/gravity): an up press adds ~4.4 m/s upward (median of 25 samples)
-  GRAVITY_Y: 9.8 / 2, GRAVITY_RESTITUTION: 0.3, JUMP_SPEED: 4.4,                           // flag carrier can't be popped right after grabbing
+  // restitution: gravity.js asks for 0.3, but in real gravity replays landings stop dead
+  // (vertical speed -> 0, ratio 0.00 over 400+ landings), so the server uses 0
+  GRAVITY_Y: 9.8 / 2, GRAVITY_RESTITUTION: 0, JUMP_SPEED: 4.4,
   SNAPSHOT_TICKS: 15,                                // full position delta every 250ms
   CLOCKSYNC_MS: 15000,
   COUNTDOWN_MS: 20000,

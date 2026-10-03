@@ -20,7 +20,7 @@ const T = {
   EMPTY: 0, WALL: 1, FLOOR: 2, RED_FLAG: 3, BLUE_FLAG: 4, BOOST: 5, POWERUP: 6, SPIKE: 7, BUTTON: 8,
   GATE_OFF: 9, GATE_ON: 9.1, GATE_RED: 9.2, GATE_BLUE: 9.3, BOMB: 10, RED_TILE: 11, BLUE_TILE: 12,
   PORTAL: 13, RED_BOOST: 14, BLUE_BOOST: 15, YELLOW_FLAG: 16, RED_ENDZONE: 17, BLUE_ENDZONE: 18,
-  RED_POTATO: 19, BLUE_POTATO: 20, GRAVITY_WELL: 22, RED_PORTAL: 24, BLUE_PORTAL: 25,
+  RED_POTATO: 19, BLUE_POTATO: 20, GRAVITY_WELL: 22, YELLOW_TILE: 23, RED_PORTAL: 24, BLUE_PORTAL: 25,
 };
 const PUPS = { 1: 'jukeJuice', 2: 'rollingBomb', 3: 'tagpro', 4: 'topSpeed' };
 
@@ -467,6 +467,7 @@ class GameRoom {
     if (this.world.IsLocked()) this.afterStep.push(removeBody); else removeBody();
     for (const k of ['tagpro', 'bomb', 'jukeJuice', 'grip', 'speed']) if (p[k]) { p[k] = false; this.queue(p, k); }
     for (const h of Object.values(p.effects)) clearTimeout(h);
+    if (p.touching && p.touching.size) { const held = [...p.touching]; p.touching = new Set(); for (const k of held) this.releaseButton(k, p); }
     p.effects = {}; p.ms = PH.MAX_SPEED * this.settings.topspeed; p.ac = PH.ACCEL * this.settings.accel;
     this.queue(p, 'dead', 'draw', 'ms', 'ac');
     if (!opts.silent) {
@@ -709,7 +710,8 @@ class GameRoom {
       if (p.dead) return;
       const t = o.t, key = o.x + ',' + o.y;
       const base = typeof t === 'string' ? parseFloat(t) : t;
-      if (o.edge < PH.BALL_RADIUS - 0.01 && ((base === T.RED_TILE && p.team === 1) || (base === T.BLUE_TILE && p.team === 2))) onTeamTile = true;
+      // team tiles speed up their own team (yellow: everyone), never a flag carrier (replays: 0/143 FCs boosted)
+      if (o.edge < PH.BALL_RADIUS - 0.01 && !p.flag && ((base === T.RED_TILE && p.team === 1) || (base === T.BLUE_TILE && p.team === 2) || base === T.YELLOW_TILE)) onTeamTile = true;
       switch (base) {
         case T.SPIKE: if (this.touches(o, 'spike')) this.pop(p, null); break;
         case T.RED_FLAG: case T.BLUE_FLAG: case T.RED_POTATO: case T.BLUE_POTATO: {
@@ -775,6 +777,8 @@ class GameRoom {
     // team tiles speed the owner team up
     const ac = (PH.ACCEL + (p.jukeJuice ? TU.JUKE_JUICE_BONUS : 0) + (onTeamTile ? TU.TEAM_TILE_BONUS : 0)) * this.settings.accel;
     if (Math.abs(ac - p.ac) > 1e-9) { p.ac = ac; this.queue(p, 'ac'); }
+    const ms = (p.speed ? TU.TOP_SPEED_MAX : onTeamTile ? TU.TEAM_TILE_MAX_SPEED : PH.MAX_SPEED) * this.settings.topspeed;
+    if (Math.abs(ms - p.ms) > 1e-9) { p.ms = ms; this.queue(p, 'ms'); }
   }
 
   boost(p, power = 1) {
@@ -868,22 +872,50 @@ class GameRoom {
     return (this.gateFieldCache[key] = out);
   }
 
+  // every button that controls a gate tile (a gate can be wired to several buttons)
+  gateButtons(gx, gy) {
+    if (!this.gateButtonMap) {
+      this.gateButtonMap = {};
+      for (const [bk, sw] of Object.entries(this.map.switches || {})) {
+        if (!sw || !sw.toggle) continue;
+        for (const [x, y] of this.gateField(sw.toggle)) (this.gateButtonMap[x + ',' + y] || (this.gateButtonMap[x + ',' + y] = new Set())).add(bk);
+      }
+    }
+    return this.gateButtonMap[gx + ',' + gy] || new Set();
+  }
+
+  // Gate rules (confirmed): count red and blue players pressing ANY button wired to the gate;
+  // more red -> red gate, more blue -> blue gate, a tie keeps the current colour. When nobody is
+  // pressing, the gate keeps the last colour for the button's sticky timer, then goes back to its
+  // default. Pressing again cancels the timer and switches instantly.
   updateGates(buttonKey) {
     const sw = this.map.switches[buttonKey];
     if (!sw || !sw.toggle) return;
-    const holders = [...(this.buttonsHeld[buttonKey] || [])].map((id) => this.players[id]).filter((q) => q && !q.dead);
-    const red = holders.filter((q) => q.team === 1).length, blue = holders.length - red;
+    this.gateTimers = this.gateTimers || {};
     for (const [gx, gy] of this.gateField(sw.toggle)) {
-      const def = (this.map.fields[gx + ',' + gy] || {}).defaultState || 'off';
-      const defTile = { off: T.GATE_OFF, on: T.GATE_ON, red: T.GATE_RED, blue: T.GATE_BLUE }[def.toLowerCase()] ?? T.GATE_OFF;
-      let v = defTile;
-      if (holders.length) {
-        if (defTile === T.GATE_OFF) v = red > blue ? T.GATE_RED : blue > red ? T.GATE_BLUE : T.GATE_ON;
-        else if (defTile === T.GATE_ON) v = T.GATE_OFF;
-        else if (defTile === T.GATE_RED) v = T.GATE_BLUE;
-        else if (defTile === T.GATE_BLUE) v = T.GATE_RED;
+      const gk = gx + ',' + gy;
+      let red = 0, blue = 0;
+      for (const bk of this.gateButtons(gx, gy)) {
+        for (const id of this.buttonsHeld[bk] || []) {
+          const q = this.players[id];
+          if (!q || q.dead) continue;
+          if (q.team === 1) red++; else blue++;
+        }
       }
-      if (this.tiles[gx][gy] !== v) { this.setTile(gx, gy, v); this.gatesChanged = true; }
+      const def = (this.map.fields[gk] || {}).defaultState || 'off';
+      const defTile = { off: T.GATE_OFF, on: T.GATE_ON, red: T.GATE_RED, blue: T.GATE_BLUE }[def.toLowerCase()] ?? T.GATE_OFF;
+      const set = (v) => { if (this.tiles[gx][gy] !== v) { this.setTile(gx, gy, v); this.gatesChanged = true; } };
+      if (red || blue) {
+        clearTimeout(this.gateTimers[gk]); delete this.gateTimers[gk];
+        if (red > blue) set(T.GATE_RED);
+        else if (blue > red) set(T.GATE_BLUE);
+        continue; // tie: keep current
+      }
+      if (this.gateTimers[gk] || this.tiles[gx][gy] === defTile) continue;
+      const sticky = Number(sw.timer) || 0;
+      if (sticky < 0) continue;               // -1: never goes back (stays the last team's colour)
+      if (sticky === 0) { set(defTile); continue; }
+      this.gateTimers[gk] = this.later(sticky, () => { delete this.gateTimers[gk]; set(defTile); });
     }
   }
 
