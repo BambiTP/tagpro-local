@@ -92,7 +92,7 @@ class GameRoom {
     for (const [team, key] of [[1, 'red'], [2, 'blue']]) {
       const pts = sp[key] || [];
       for (const p of pts) this.spawnTiles[team].push({ x: p.x, y: p.y, radius: p.radius || 0, weight: p.weight || 1 });
-      if (!this.spawnTiles[team].length && this.flagHome[team]) this.spawnTiles[team].push({ ...this.flagHome[team], radius: 2, weight: 1 });
+      if (!this.spawnTiles[team].length && this.flagHome[team]) this.spawnTiles[team].push({ ...this.flagHome[team], radius: 5, weight: 1 });
     }
   }
 
@@ -123,13 +123,26 @@ class GameRoom {
       bd.position.Set(PH.TILE * x, PH.TILE * y);
       this.world.CreateBody(bd).CreateFixture(fd);
     }
+    // spikes are solid: a static circle per spike tile; contact pops the player
+    const sfd = new Box2D.Dynamics.b2FixtureDef();
+    sfd.density = 1; sfd.friction = this.gravity ? 0 : PH.WALL_FRICTION; sfd.restitution = this.gravity ? TU.GRAVITY_RESTITUTION : PH.WALL_RESTITUTION;
+    sfd.filter.categoryBits = -1;
+    sfd.shape = new Box2D.Collision.Shapes.b2CircleShape(TU.TOUCH_RADIUS.spike);
+    for (let x = 0; x < this.W; x++) for (let y = 0; y < this.H; y++) {
+      if (this.tiles[x][y] !== T.SPIKE) continue;
+      bd.position.Set(PH.TILE * x, PH.TILE * y);
+      const b = this.world.CreateBody(bd); b.CreateFixture(sfd); b.spike = true;
+    }
     // Enemy touches are handled in BeginContact, i.e. during Step() *before* the solver runs:
     // the pop explosion is applied, then Box2D still resolves the collision against the (still
     // present) victim. That ordering reproduces real poosts (see tools/calib/poosts.py).
     const listener = new Box2D.Dynamics.b2ContactListener();
     listener.BeginContact = (c) => {
-      const a = c.GetFixtureA().GetBody().player, b = c.GetFixtureB().GetBody().player;
+      const ba = c.GetFixtureA().GetBody(), bb = c.GetFixtureB().GetBody();
+      const a = ba.player, b = bb.player;
       if (a && b && !a.dead && !b.dead && a.team !== b.team) this.enemyContact(a, b);
+      if (a && bb.spike && !a.dead) this.pop(a, null);
+      if (b && ba.spike && !b.dead) this.pop(b, null);
     };
     this.world.SetContactListener(listener);
     this.afterStep = [];
@@ -713,7 +726,6 @@ class GameRoom {
       // team tiles speed up their own team (yellow: everyone), never a flag carrier (replays: 0/143 FCs boosted)
       if (o.edge < PH.BALL_RADIUS - 0.01 && !p.flag && ((base === T.RED_TILE && p.team === 1) || (base === T.BLUE_TILE && p.team === 2) || base === T.YELLOW_TILE)) onTeamTile = true;
       switch (base) {
-        case T.SPIKE: if (this.touches(o, 'spike')) this.pop(p, null); break;
         case T.RED_FLAG: case T.BLUE_FLAG: case T.RED_POTATO: case T.BLUE_POTATO: {
           if (!this.touches(o, 'flag')) break;
           const team = (base === T.RED_FLAG || base === T.RED_POTATO) ? 1 : 2;
@@ -786,9 +798,10 @@ class GameRoom {
     let dx = v.x, dy = v.y;
     const k = p.keys;
     if (Math.hypot(dx, dy) < 1e-3) { dx = (k.right ? 1 : 0) - (k.left ? 1 : 0); dy = (k.down ? 1 : 0) - (k.up ? 1 : 0); }
-    const len = Math.hypot(dx, dy);
-    if (len < 1e-6) return;
-    p.body.SetLinearVelocity(new V(dx / len * TU.BOOST_SPEED * power, dy / len * TU.BOOST_SPEED * power));
+    const m = Math.max(Math.abs(dx), Math.abs(dy));
+    if (m < 1e-6) return;
+    const k2 = TU.BOOST_SPEED * power / m; // straight: 7.5 m/s, diagonal: up to 7.5 * sqrt(2)
+    p.body.SetLinearVelocity(new V(dx * k2, dy * k2));
     this.broadcast('sound', { s: 'burst', v: 1 });
     this.queue(p, 'pos');
   }
@@ -816,7 +829,7 @@ class GameRoom {
     const conf = this.map.portals[key];
     if (!conf || !conf.destination) return;
     const d = conf.destination;
-    const cooldown = conf.cooldown == null ? 4000 : conf.cooldown;
+    const cooldown = Number(conf.cooldown) || 0;
     const v = p.body.GetLinearVelocity();
     p.body.SetPosition(new V(d.x * PH.TILE, d.y * PH.TILE));
     p.body.SetLinearVelocity(new V(v.x, v.y));
