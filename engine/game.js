@@ -34,8 +34,15 @@ const PUBLIC_DEFAULTS = {
   respawnWarnings: true, pupIndicators: true, disableAllPups: false, gravityWellForce: 1, tagproMaxTags: 0,
   rollingBombForceMultipler: 1, rollingBombDistanceMultipler: 1, spacebarDetonateAll: false,
   jukeJuiceBoost: false, jukeJuiceBoostPower: 70, lastPossession: 'disabled', mapTestingMode: false,
-  redTeamScore: 0, blueTeamScore: 0, maxPlayersPerTeam: 4,
+  redTeamScore: 0, blueTeamScore: 0, maxPlayersPerTeam: 4, localTrust: false,
 };
+
+// "Local trust" (group setting): each player's own client is trusted for its ball's position, so
+// movement has no input delay. Only in ghost modes where players never bump each other, since
+// bumps between two client-owned balls can't be resolved fairly.
+const TRUST_GHOST = new Set(['noPlayerCollisions', 'noPlayerOrMarsCollisions']);
+const TRUST_MAX_SPEED = 20;   // m/s; boosts + bombs stay well under this
+const TRUST_SLACK = 0.6;      // m of extra movement allowed per report (jitter, late packets)
 
 class GameRoom {
   // opts: { id, uuid, map (from mapLoader), mapName, settings, isPrivate, groupId, onEmpty, onEnd, now }
@@ -66,6 +73,8 @@ class GameRoom {
     this.timers = [];
 
     this.gravity = this.settings.mode === 'gravity' || !!this.map.gravity;
+    this.localTrust = !!this.settings.localTrust && TRUST_GHOST.has(this.settings.ghostMode) && !this.gravity;
+    this.trust = new WeakMap(); // player -> last accepted report { x, y, at }
     this.W = this.map.tiles.length;
     this.H = this.map.tiles[0].length;
     this.tiles = this.map.tiles.map((col) => col.slice());
@@ -369,6 +378,7 @@ class GameRoom {
       case 'preferredServer': case 'tips': case 'touch': case 'pings': break;
       case 'mark': if (p) this.broadcast('mark', p.id); break;
       case 'resetMap': if (p && this.settings.mapTestingMode) this.resetMap(); break;
+      case 'lt': if (p && this.localTrust) this.trustedMove(p, d); break;
       default: break;
     }
   }
@@ -415,7 +425,51 @@ class GameRoom {
       const d = this.posDelta(p, false);
       if (Object.keys(d).length) u.push(Object.assign({ id: p.id }, d));
     }
-    this.broadcastP(u);
+    if (!this.localTrust) return this.broadcastP(u);
+    // local trust: a player's own client owns its position, so it never gets its own snapshot back
+    for (const c of this.clients) {
+      const own = c.playerId;
+      const mine = own != null && u.some((o) => o.id === own);
+      this.broadcastP(mine ? u.filter((o) => o.id !== own) : u, (x) => x === c);
+    }
+  }
+
+  // ---------- local trust ----------
+  // d: { x, y, vx, vy, a, ra, e } in metres / m/s, e = the player's snap epoch (lte) the client last saw
+  trustedMove(p, d) {
+    if (!d || p.dead || !this.playing() || !p.body.IsActive()) return;
+    if (Number(d.e) !== (p.lte || 0)) return; // sent before a server snap reached the client
+    const n = ['x', 'y', 'vx', 'vy', 'a', 'ra'].map((k) => Number(d[k]));
+    if (!n.every(Number.isFinite)) return;
+    const [x, y, vx, vy, a, ra] = n;
+    const now = this.now();
+    const last = this.trust.get(p);
+    const from = last || p.body.GetPosition();
+    const dt = last ? Math.min(0.5, (now - last.at) / 1000) : 0.5;
+    const ok = Math.hypot(vx, vy) <= TRUST_MAX_SPEED
+      && Math.hypot(x - from.x, y - from.y) <= TRUST_MAX_SPEED * dt + TRUST_SLACK
+      && this.trustPathClear(from.x, from.y, x, y);
+    if (!ok) { this.trust.delete(p); this.directSet(p); return; } // snap the client back to the server
+    this.trust.set(p, { x, y, at: now });
+    p.body.SetPosition(new V(x, y));
+    p.body.SetLinearVelocity(new V(vx, vy));
+    p.body.SetAngularVelocity(a);
+    p.body.SetAngle(ra);
+  }
+
+  // no full wall square between the two points (sampled every ~5cm); the ball may graze a wall
+  // edge, but its centre can't come within half a radius of a wall square's inside
+  trustPathClear(x0, y0, x1, y1) {
+    const steps = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 0.05));
+    const h = PH.TILE / 2 - PH.BALL_RADIUS / 2;
+    for (let i = 1; i <= steps; i++) {
+      const x = x0 + (x1 - x0) * i / steps, y = y0 + (y1 - y0) * i / steps;
+      const t = this.tileAt(x, y);
+      if (!t) return false;
+      if (t.t !== T.WALL) continue;
+      if (Math.abs(x - t.x * PH.TILE) < h && Math.abs(y - t.y * PH.TILE) < h) return false;
+    }
+    return true;
   }
 
   // ---------- spawning / popping ----------
@@ -461,7 +515,9 @@ class GameRoom {
   // tells clients to place the ball exactly (no reconcile easing); reset on the next tick
   directSet(p) {
     p.directSet = true;
-    this.queue(p, 'directSet', 'pos');
+    p.lte = (p.lte || 0) + 1; // local trust: reports from before this snap are stale
+    this.trust.delete(p);
+    this.queue(p, 'directSet', 'pos', 'lte');
     (this.resetDirectSet || (this.resetDirectSet = new Set())).add(p);
   }
 
@@ -1209,7 +1265,7 @@ class GameRoom {
   }
 }
 
-const api = { GameRoom, PUBLIC_DEFAULTS, T };
+const api = { GameRoom, PUBLIC_DEFAULTS, T, TRUST_GHOST };
 if (isNode) module.exports = api;
 else globalThis.TPGame = api;
 })();

@@ -1885,6 +1885,12 @@
                                             <option value="noMarsBallCollisions">No Mars Ball Collisions</option>
                                             <option value="noPlayerOrMarsCollisions">No Player or Mars Ball Collisions</option>
                                         </select>
+                                        <div class="checkbox">
+                                            <label>
+                                                <input type="checkbox" class="js-socket-setting" name="localTrust">
+                                                Local Trust: no input lag (only with No Player Collisions)
+                                            </label>
+                                        </div>
                                     </div>
 
                                     <div class="form-group">
@@ -2330,6 +2336,15 @@
                                             </div>
                                         </div>
 
+                                        <div class="col-md-12 js-display-setting" name="localTrust" parentSettingName="ghostMode">
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Local Trust</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
                                         <div class="col-md-12 js-display-setting" name="poosts" >
                                             <div class="extra-setting">
                                                 <span class="js-setting-clear">&times;</span>
@@ -2456,5 +2471,30 @@
             rdt("init", "t2_vrwbckj1", { "optOut": false, "useDecimalCurrencyValues": true, "email": "", "externalId": "" });
             rdt("track", "PageVisit");
         </script>
-    </body>
+    <script>
+    (function fix() {
+        var s = window.tagpro && tagpro.group && tagpro.group.socket;
+        if (!s) return setTimeout(fix, 200);
+        var show = function (on) {
+            $('.js-display-setting[name=localTrust]').toggleClass('non-default', on);
+            $('.extra-settings .js-display-setting.non-default:not(.hidden)').length ? $('.extra-settings').show() : $('.extra-settings').hide();
+        };
+        s.on('setting', function (e) { if (e && e.name === 'localTrust') show(e.value === true || e.value === 'true'); });
+        show($('.js-socket-setting[name=localTrust]').prop('checked')); // settings that arrived before this ran
+        // only usable when players can't bump each other; the page re-enables every setting for the
+        // leader on each update, so re-apply whenever that happens
+        var box = $('.js-socket-setting[name=localTrust]')[0], ghost = $('.js-socket-setting[name=ghostMode]');
+        var lock = function () {
+            var ok = ['noPlayerCollisions', 'noPlayerOrMarsCollisions'].indexOf(ghost.val()) >= 0;
+            var want = !ok || !$('.group.container').hasClass('js-leader');
+            if (box.disabled !== want) box.disabled = want;
+            $(box).closest('.checkbox').css('opacity', ok ? '' : 0.5);
+        };
+        s.on('setting', function (e) { if (e && e.name === 'ghostMode') setTimeout(lock); });
+        new MutationObserver(lock).observe(box, { attributes: true, attributeFilter: ['disabled'] });
+        new MutationObserver(lock).observe($('.group.container')[0], { attributes: true, attributeFilter: ['class'] });
+        lock();
+    })();
+</script>
+</body>
 </html>

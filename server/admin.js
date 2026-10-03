@@ -28,7 +28,7 @@ const LABELS = {
   powerupRollingBombDuration: 'Rolling bomb duration (ms)', powerupTagproDuration: 'TagPro powerup duration (ms)',
   redTeamName: 'Red team name', blueTeamName: 'Blue team name', redTeamScore: 'Red starting score', blueTeamScore: 'Blue starting score',
   potatoTime: 'Potato timer (ms, 0 = off)', powerupDelay: 'Delay first powerups one cycle', lastPossession: 'Clutch time (last possession)',
-  ghostMode: 'Ghost mode', poosts: 'Pop/portal boosts', kissingFCs: 'Kissing flag carriers', kissingTPs: 'Kissing TagPros',
+  ghostMode: 'Ghost mode', localTrust: 'Local trust (no input lag; ghost mode: no player collisions only)', poosts: 'Pop/portal boosts', kissingFCs: 'Kissing flag carriers', kissingTPs: 'Kissing TagPros',
   jukeJuiceBoost: 'Juke juice spacebar boost', jukeJuiceBoostPower: 'Juke juice boost power (%)',
   rollingBombForceMultipler: 'Rolling bomb force multiplier', rollingBombDistanceMultipler: 'Rolling bomb distance multiplier',
   spacebarDetonateAll: 'Spacebar uses all powerups', tagproMaxTags: 'TagPro powerup max tags (0 = unlimited)', gravityWellForce: 'Gravity well force',

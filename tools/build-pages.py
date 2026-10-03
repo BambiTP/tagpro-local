@@ -39,6 +39,67 @@ def group(h):
     h = h.replace('data-static="static.koalabeast.com"', 'data-static=""')
     h = h.replace('value="hvptqfho"', 'value="{{GROUP_ID}}"')
     h = h.replace('value="Some Group" name="groupName"', 'value="{{GROUP_NAME}}" name="groupName"')
+    h = local_trust(h)
+    return h
+
+# "Local trust" group setting (ours, not on the real site): a checkbox next to Ghost Mode, built
+# from the same markup the real page uses for its other checkbox settings
+def local_trust(h):
+    def once(old, new):
+        assert h.count(old) == 1, old
+        return h.replace(old, new)
+    h = once('''                                            <option value="noPlayerOrMarsCollisions">No Player or Mars Ball Collisions</option>
+                                        </select>
+                                    </div>
+''', '''                                            <option value="noPlayerOrMarsCollisions">No Player or Mars Ball Collisions</option>
+                                        </select>
+                                        <div class="checkbox">
+                                            <label>
+                                                <input type="checkbox" class="js-socket-setting" name="localTrust">
+                                                Local Trust: no input lag (only with No Player Collisions)
+                                            </label>
+                                        </div>
+                                    </div>
+''')
+    h = once('''                                        <div class="col-md-12 js-display-setting" name="poosts" >''',
+             '''                                        <div class="col-md-12 js-display-setting" name="localTrust" parentSettingName="ghostMode">
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Local Trust</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="poosts" >''')
+    # the page's own defaults table doesn't know localTrust, so it would always list it as changed
+    i = h.rindex('</body>')
+    h = h[:i] + '''<script>
+    (function fix() {
+        var s = window.tagpro && tagpro.group && tagpro.group.socket;
+        if (!s) return setTimeout(fix, 200);
+        var show = function (on) {
+            $('.js-display-setting[name=localTrust]').toggleClass('non-default', on);
+            $('.extra-settings .js-display-setting.non-default:not(.hidden)').length ? $('.extra-settings').show() : $('.extra-settings').hide();
+        };
+        s.on('setting', function (e) { if (e && e.name === 'localTrust') show(e.value === true || e.value === 'true'); });
+        show($('.js-socket-setting[name=localTrust]').prop('checked')); // settings that arrived before this ran
+        // only usable when players can't bump each other; the page re-enables every setting for the
+        // leader on each update, so re-apply whenever that happens
+        var box = $('.js-socket-setting[name=localTrust]')[0], ghost = $('.js-socket-setting[name=ghostMode]');
+        var lock = function () {
+            var ok = ['noPlayerCollisions', 'noPlayerOrMarsCollisions'].indexOf(ghost.val()) >= 0;
+            var want = !ok || !$('.group.container').hasClass('js-leader');
+            if (box.disabled !== want) box.disabled = want;
+            $(box).closest('.checkbox').css('opacity', ok ? '' : 0.5);
+        };
+        s.on('setting', function (e) { if (e && e.name === 'ghostMode') setTimeout(lock); });
+        new MutationObserver(lock).observe(box, { attributes: true, attributeFilter: ['disabled'] });
+        new MutationObserver(lock).observe($('.group.container')[0], { attributes: true, attributeFilter: ['class'] });
+        lock();
+    })();
+</script>
+''' + h[i:]
     return h
 
 page('game-live-real.html', 'game.html', game)

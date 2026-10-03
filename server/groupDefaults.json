@@ -133,6 +133,10 @@
    "disabled"
   ],
   [
+   "localTrust",
+   false
+  ],
+  [
    "poosts",
    true
   ],

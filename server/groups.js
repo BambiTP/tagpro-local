@@ -2,6 +2,7 @@
 // real group server (ref/group-capture-*.ndjson, ref/live*/group.ndjson) and global-group.js.
 const defaults = require('./groupDefaults.json');
 const sessions = require('./sessions');
+const { TRUST_GHOST } = require('../engine/game');
 
 const TEAM = { PLAYING: 0, RED: 1, BLUE: 2, SPECTATING: 3, WAITING: 4 };
 const MAX_MEMBERS = 32;
@@ -115,6 +116,11 @@ class Group {
       let name = d.name === 'groupName' ? 'name' : d.name;
       if (!(name in this.settings)) return;
       this.settings[name] = coerce(name, d.value, this.settings[name]);
+      // local trust only works when players can't bump each other
+      if (this.settings.localTrust && !TRUST_GHOST.has(this.settings.ghostMode)) {
+        this.settings.localTrust = false;
+        if (name !== 'localTrust') this.broadcastSetting('localTrust');
+      }
       if (name === 'name') this.settings.name = String(this.settings.name).slice(0, 32) || 'Some Group';
       if (name === 'isPrivate') {
         for (const o of this.members.values()) { o.team = this.defaultTeam(o.leader); this.broadcastMember(o); }
