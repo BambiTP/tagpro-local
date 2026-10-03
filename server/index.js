@@ -60,7 +60,11 @@ function withTextures(req, page) {
 // every page shows the logged-in name in the header
 const _render = pages.render;
 let currentReq = null;
-pages.render = (name, vars = {}) => _render(name, Object.assign({ USER_NAME: currentReq && currentReq.session.account ? currentReq.session.account.displayName : '' }, vars));
+const origin = (req) => req ? `${req.headers['x-forwarded-proto'] || req.protocol}://${req.headers['x-forwarded-host'] || req.headers.host}` : '';
+pages.render = (name, vars = {}) => _render(name, Object.assign({
+  USER_NAME: currentReq && currentReq.session.account ? currentReq.session.account.displayName : '',
+  ORIGIN: origin(currentReq),
+}, vars));
 app.use((req, res, next) => { currentReq = req; next(); });
 
 const card = (title, content, script) => pages.render('card.html', { TITLE: title, CARD: content, PAGE_SCRIPT: script || '/R-965af4e7a4b8-z/compact/global-settings.js' });

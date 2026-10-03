@@ -19,9 +19,49 @@ function esc(s) {
 let statsProvider = () => ({});
 function setStatsProvider(fn) { statsProvider = fn; }
 
+// ---- branding: visible "TagPro" -> crossed-out "Tag" + "Bambi" (titles/alt text: plain BambiPro)
+// only the game's name: whole word, not the TagPro powerup ("Powerup: TagPro", "Kissing TagPros",
+// "TagPro Max Tags", "TagPro Duration", "TagPro powerup")
+const BRAND_RE = /(?<!powerup:\s*)\b(tag)(pro)\b(?!s\b|\s+(?:powerup|max tags|duration))/gi;
+const bambi = (tag) => (tag === tag.toUpperCase() ? 'BAMBI' : tag[0] === 'T' ? 'Bambi' : 'bambi');
+function rebrand(html) {
+  const plain = (t) => t.replace(BRAND_RE, (m, tag, pro) => bambi(tag) + pro);
+  // inside <option>/<textarea> markup can't render: plain text, and an option without a value
+  // attribute is left alone (its text is its value, e.g. map names like "GASBOP TagPro Map")
+  let inOption = null, rawUntil = null;
+  return html.split(/(<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<title>[\s\S]*?<\/title>|<textarea[\s\S]*?<\/textarea>|<[^>]+>)/i).map((part) => {
+    if (rawUntil) { if (part.toLowerCase().startsWith(rawUntil)) rawUntil = null; return part; }
+    if (/^<(title|textarea)/i.test(part)) return plain(part);
+    if (/^<div\b[^>]*id="texture-pack-data"/i.test(part)) { rawUntil = '</div'; return part; } // JSON data, not text
+    if (part.startsWith('<')) {
+      if (/^<option\b/i.test(part)) inOption = /\bvalue=/i.test(part) ? 'plain' : 'keep';
+      else if (/^<\/(option|select)/i.test(part)) inOption = null;
+      // alt text and link-preview tags (og:*, twitter:*, description) can't show markup: plain BambiPro
+      if (/^<meta\b/i.test(part)) return part.replace(/(\bcontent=")([^"]*)(")/i, (m, a, v, b) => a + plain(v) + b);
+      return part.replace(/(\balt=")([^"]*)(")/gi, (m, a, v, b) => a + plain(v) + b);
+    }
+    if (inOption === 'keep') return part;
+    if (inOption === 'plain') return plain(part);
+    return part.replace(BRAND_RE, (m, tag, pro) => `<s>${tag}</s>${bambi(tag)}${pro}`);
+  }).join('');
+}
+
+// pages that don't exist on this server: shown greyed out and unclickable
+const DEAD_LINKS = ['/leaders', '/competitive', '/donate'];
+function disableDeadLinks(html) {
+  return html.replace(/<a\b([^>]*?)\bhref="([^"]*)"([^>]*)>/gi, (m, pre, href, post) =>
+    DEAD_LINKS.includes(href) ? `<a${pre}${post} aria-disabled="true" style="pointer-events:none;opacity:.4;cursor:default">` : m);
+}
+
 function render(name, vars = {}) {
   vars = Object.assign({}, statsProvider(), vars);
   let html = tpl(name).replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => (k in vars ? vars[k] : m));
+  html = disableDeadLinks(rebrand(html));
+  // link previews (Discord etc.) need absolute URLs pointing at this site
+  if (vars.ORIGIN) {
+    html = html.replace(/(<meta property="og:url" content=")[^"]*(")/i, `$1${vars.ORIGIN}/$2`)
+      .replace(/(<meta property="og:image" content=")\/(?!\/)([^"]*")/i, `$1${vars.ORIGIN}/$2`);
+  }
   if (vars.USER_NAME) {
     // logged in: the header's "Log In / Sign Up" becomes the player's name (links to the profile)
     html = html.replace('<a id="login-btn" class="btn btn-secondary" href="/login">Log In / Sign Up</a>', `<a id="login-btn" class="btn btn-secondary" href="/profile">${esc(vars.USER_NAME)}</a>`)

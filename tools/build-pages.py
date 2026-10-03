@@ -52,6 +52,8 @@ def groups(h):
     return h[:a] + '\n{{GROUPS_LIST}}\n                    ' + h[b:]
 page('groups-real.html', 'groups.html', groups)
 def home(h):
+    # the captured page came from a failed game lookup; the real homepage has no banner
+    h = re.sub(r'<div class="msg msg-warning">\s*Sorry\. Unable to find the game[\s\S]*?</div>', '', h)
     # Play Now goes straight to the matchmaking queue; live queue status under the button
     h = h.replace('<a id="play-now" class="btn btn-primary" href="/games/select">', '<a id="play-now" class="btn btn-primary" href="/games/find">')
     widget = '''
