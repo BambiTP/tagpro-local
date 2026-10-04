@@ -2,6 +2,7 @@
 // real group server (ref/group-capture-*.ndjson, ref/live*/group.ndjson) and global-group.js.
 const defaults = require('./groupDefaults.json');
 const sessions = require('./sessions');
+const presets = require('./preset');
 const { TRUST_GHOST } = require('../engine/game');
 
 const TEAM = { PLAYING: 0, RED: 1, BLUE: 2, SPECTATING: 3, WAITING: 4 };
@@ -30,7 +31,9 @@ function coerce(name, value, current) {
   if (typeof ref === 'boolean') return value === true || value === 'true';
   if (typeof ref === 'number') { const n = Number(value); return Number.isFinite(n) ? n : ref; }
   if (ref === null && (value === '' || value === 'null')) return null;
-  // the three powerup durations are strings on the real server
+  // the three powerup durations default to strings on the real server but are stored as numbers once
+  // set (so a preset still includes them after being set back to 20 seconds)
+  if (/^powerup\w+Duration$/.test(name)) { const n = Number(value); return Number.isFinite(n) ? n : current; }
   return value == null ? value : String(value);
 }
 
@@ -45,6 +48,7 @@ class Group {
     this.members = new Map(); // sessionId -> member
     this.game = { gameServer: null, gameId: null };
     this.nsp = null;
+    this.modeMap = null; // eggball / ice hockey switch to their own map without broadcasting it (presets save it)
     groups.set(this.id, this);
   }
 
@@ -125,6 +129,13 @@ class Group {
       if (name === 'isPrivate') {
         for (const o of this.members.values()) { o.team = this.defaultTeam(o.leader); this.broadcastMember(o); }
       }
+      // mode side effects, as on the real server: eggball / ice hockey quietly use their own map,
+      // gravity resets the map to random; picking a map afterwards overrides either
+      if (name === 'mode') {
+        this.modeMap = presets.MODE_MAPS[this.settings.mode] || null;
+        if (this.settings.mode === 'gravity' && this.settings.map !== 'random') { this.settings.map = 'random'; this.broadcastSetting('map'); }
+      }
+      if (name === 'map') this.modeMap = null;
       if (name === 'map' && String(this.settings.map).startsWith('fm_id/')) {
         this.settings.mapId = String(this.settings.map).slice(6);
         this.broadcastSetting('mapId');
@@ -197,24 +208,20 @@ class Group {
     this.nsp.emit('game', this.game);
   }
 
-  // Not the official preset format (unknown); a base64 of the settings that differ from default.
-  preset() {
-    const diff = {};
-    for (const [k, v] of defaults.settings) {
-      if (['name', 'groupId', 'isPrivate', 'discoverable', 'mapId'].includes(k)) continue;
-      if (JSON.stringify(this.settings[k]) !== JSON.stringify(v)) diff[k] = this.settings[k];
-    }
-    return Object.keys(diff).length ? Buffer.from(JSON.stringify(diff)).toString('base64url') : '';
-  }
+  // Official TagPro preset format (see preset.js).
+  preset() { return presets.encode(this.settings, this.modeMap); }
 
   applyPreset(p) {
-    try {
-      const s = String(p || '');
-      const code = s.includes('preset=') ? decodeURIComponent(s.split('preset=')[1]) : s;
-      const diff = JSON.parse(Buffer.from(code, 'base64url').toString());
-      for (const [k, v] of Object.entries(diff)) if (k in this.settings) { this.settings[k] = v; this.broadcastSetting(k); }
-      return true;
-    } catch (e) { return false; }
+    const parsed = presets.parse(p);
+    if (!parsed) return false;
+    const { changed, modeMap } = presets.apply(this.settings, parsed);
+    this.modeMap = modeMap;
+    if (changed.includes('map') && String(this.settings.map).startsWith('fm_id/')) {
+      this.settings.mapId = String(this.settings.map).slice(6);
+      changed.push('mapId');
+    }
+    if (this.nsp) for (const name of changed) this.broadcastSetting(name);
+    return true;
   }
 }
 
