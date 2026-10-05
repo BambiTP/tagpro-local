@@ -13,3 +13,5 @@ bin/
 server.pid
 # accounts/logins (created at runtime)
 data/
+# replay repro: Fortunate Maps logic cache (re-fetched by tools/repro/fetch-fm.js)
+tools/repro/fm-cache/
