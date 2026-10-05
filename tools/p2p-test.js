@@ -34,7 +34,7 @@ let failures = 0;
 const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (!ok) failures++; };
 
 (async () => {
-  run(['server/index.js'], { PORT: '3100', HOST: '127.0.0.1' });
+  run(['server/index.js'], { PORT: '3100', HOST: '127.0.0.1', P2P_ALLOW_HTTP: process.env.TUNNEL ? '0' : '1' });
   const hub = jar(HUB);
   for (let i = 0; ; i++) { try { await hub.get('/'); break; } catch (e) { if (i > 100) throw e; await wait(200); } }
   await hub.get('/local/name', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: 'name=P2PTester' });
@@ -80,8 +80,10 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   await bob.get('/');
   await bob.get('/local/name', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: 'name=Bob' });
   const warn = await (await bob.get('/groups/' + gid)).text();
-  check(warn.includes('Peer to Peer Group') && warn.includes('?p2p=agree') && warn.includes('?p2p=watch') && !warn.includes('id="p2p-panel"'), 'joining a P2P group shows the warning page first');
-  const watch = await bob.get('/groups/' + gid + '?p2p=watch');
+  check(warn.includes('Peer to Peer Group') && warn.includes('value="agree"') && warn.includes('value="watch"') && !warn.includes('id="p2p-panel"'), 'joining a P2P group shows the warning page first');
+  const sneaky = await (await bob.get('/groups/' + gid + '?p2p=agree')).text();
+  check(sneaky.includes('value="agree"') && !sneaky.includes('id="p2p-panel"'), 'a crafted ?p2p=agree link still shows the warning');
+  const watch = await bob.get('/groups/' + gid + '/p2p', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: 'choice=watch' });
   check(watch.status === 302, 'Join, but don\'t send me to games');
   check((await (await bob.get('/groups/' + gid)).text()).includes('id="p2p-panel"'), 'after choosing, the group page opens');
   const b = bob.sock('/groups/' + gid);

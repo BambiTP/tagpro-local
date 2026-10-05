@@ -33,7 +33,8 @@ for (const sig of ['SIGTERM', 'SIGINT']) process.once(sig, () => process.exit(0)
 const flairByKey = Object.fromEntries(flairs.map((f) => [f.key, f]));
 const PRINTABLE = /^[\x20-\x7E]+$/;
 
-function hash(password, salt) { return crypto.scryptSync(password, salt, 64).toString('hex'); }
+// async: hashing runs off the main thread, so log in attempts don't stall games
+const hash = (password, salt) => new Promise((ok, fail) => crypto.scrypt(password, salt, 64, (e, k) => (e ? fail(e) : ok(k.toString('hex')))));
 
 function validName(n, max) {
   n = String(n || '').trim();
@@ -41,25 +42,30 @@ function validName(n, max) {
   return n;
 }
 
-function register(username, password) {
+async function register(username, password) {
   const u = validName(username, 16);
   if (!u || !/^[A-Za-z0-9_ -]+$/.test(u)) return { error: 'Usernames are 1-16 letters, numbers, spaces, _ or -.' };
   if (String(password || '').length < 6) return { error: 'Passwords need at least 6 characters.' };
   const key = u.toLowerCase();
   if (accounts[key]) return { error: 'That username is taken.' };
   const salt = crypto.randomBytes(16).toString('hex');
-  accounts[key] = { id: crypto.randomBytes(12).toString('hex'), username: u, salt, hash: hash(String(password), salt), displayName: u.slice(0, 12), flair: null, created: Date.now() };
+  const h = await hash(String(password), salt);
+  if (accounts[key]) return { error: 'That username is taken.' };
+  accounts[key] = { id: crypto.randomBytes(12).toString('hex'), username: u, salt, hash: h, displayName: u.slice(0, 12), flair: null, created: Date.now() };
   save();
   return { account: accounts[key] };
 }
 
-function login(username, password) {
+async function login(username, password) {
   const a = accounts[String(username || '').trim().toLowerCase()];
   if (!a) return { error: 'Wrong username or password.' };
-  const h = hash(String(password || ''), a.salt);
+  const h = await hash(String(password || ''), a.salt);
   if (!crypto.timingSafeEqual(Buffer.from(h, 'hex'), Buffer.from(a.hash, 'hex'))) return { error: 'Wrong username or password.' };
   return { account: a };
 }
+
+// a cookie that is logged in to an account (still valid after a restart)
+const knownSession = (id) => Object.prototype.hasOwnProperty.call(logins, id);
 
 // attach / detach an account to a browser session (tpid)
 function bind(session, account) {
@@ -140,4 +146,4 @@ function search(q) {
 }
 function byId(id) { return Object.values(accounts).find((a) => a.id === id) || null; }
 
-module.exports = { recordGame, degreeFor, winsForDegree, emptyStats, STAT_KEYS, setTextures, search, byId, register, login, bind, unbind, apply, setDisplayName, setFlair, flairs, flairByKey };
+module.exports = { recordGame, degreeFor, winsForDegree, emptyStats, STAT_KEYS, setTextures, search, byId, register, login, knownSession, bind, unbind, apply, setDisplayName, setFlair, flairs, flairByKey };

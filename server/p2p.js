@@ -17,10 +17,20 @@ const isP2P = (g) => g.settings.server === 'p2p';
 
 function state(g) {
   if (!g.p2p) {
-    g.p2p = { code: crypto.randomBytes(9).toString('base64url'), host: null, launching: false };
+    g.p2p = { code: crypto.randomBytes(9).toString('base64url'), host: null, launching: false, lastUrl: null };
     byCode.set(g.p2p.code, g);
   }
   return g.p2p;
+}
+
+// a new leader gets a new host code, so a former leader can't take over hosting
+function leaderChanged(g) {
+  if (g.p2p) {
+    byCode.delete(g.p2p.code);
+    g.p2p.code = crypto.randomBytes(9).toString('base64url');
+    byCode.set(g.p2p.code, g);
+  }
+  broadcastStatus(g);
 }
 
 // what the group page's Peer to Peer box shows member m; only the leader is given the host code
@@ -115,7 +125,7 @@ async function launch(g) {
 // someone joining a P2P game already in progress (Join Game button, or a reload)
 async function lateTicket(g, session) {
   const host = g.p2p && g.p2p.host;
-  const m = g.members.get(session.id);
+  const m = g.members.get(session.publicId);
   if (!host || g.game.gameServer !== 'p2p' || !m || !m.p2pOk) return null;
   const t = ticket(session, null, false);
   const res = await ask(host.socket, 'ticket', { gameId: g.game.gameId, ticket: t });
@@ -140,7 +150,7 @@ function groupGone(g) {
 async function reachable(url) {
   for (let i = 0; i < 5; i++) {
     try {
-      const r = await fetch(url + '/p2p/ping', { signal: AbortSignal.timeout(5000) });
+      const r = await fetch(url + '/p2p/ping', { signal: AbortSignal.timeout(5000), redirect: 'error' });
       if (r.ok && (await r.json()).tagproLocalHost) return true;
     } catch (e) { /* retry */ }
     await new Promise((ok) => setTimeout(ok, 3000));
@@ -152,12 +162,21 @@ function attach(io, groups) {
   io.of('/p2p-host').on('connection', async (socket) => {
     const a = socket.handshake.auth || {};
     const reject = (why) => { socket.emit('rejected', why); socket.disconnect(); };
-    const g = byCode.get(String(a.code || ''));
-    if (!g || !groups.has(g.id)) return reject('Unknown host code. The group may have closed; copy a fresh command from the group page.');
+    const code = String(a.code || '');
+    const g = byCode.get(code);
+    if (!g || !groups.has(g.id)) return reject('Unknown host code. The group may have closed or changed leader; copy a fresh command from the group page.');
     const url = String(a.url || '').replace(/\/+$/, '');
-    if (!/^https?:\/\/[^\s"'<>/]+$/.test(url)) return reject('No public address for this PC.');
+    // players' game traffic goes to this address: it must be encrypted (plain http only for local tests)
+    const scheme = process.env.P2P_ALLOW_HTTP === '1' ? 'https?' : 'https';
+    if (!new RegExp(`^${scheme}:\\/\\/[^\\s"'<>/?#@\\\\]+$`).test(url)) return reject('The public address must start with https:// (the built-in tunnel gives one).');
     if (!(await reachable(url))) return reject(`This site couldn't reach ${url}, so players couldn't either.`);
-    if (socket.disconnected || !groups.has(g.id)) return;
+    if (socket.disconnected || !groups.has(g.id) || byCode.get(code) !== g) return reject('The host code changed while connecting; copy a fresh command from the group page.');
+    // players agreed to trust the host they saw: a different PC taking over asks everyone again
+    if (g.p2p.lastUrl && g.p2p.lastUrl !== url) {
+      for (const m of g.members.values()) if (!m.leader) { m.p2pOk = false; if (m.session.p2pConsent === g.id) m.session.p2pConsent = null; }
+      g.systemChat('A different PC is now hosting, so everyone needs to agree again before being sent to games.');
+    }
+    g.p2p.lastUrl = url;
     const old = g.p2p.host;
     if (old) { old.socket.emit('rejected', 'Another PC took over hosting this group.'); old.socket.disconnect(); }
     const leader = g.memberList().find((m) => m.leader);
@@ -176,4 +195,4 @@ function attach(io, groups) {
   });
 }
 
-module.exports = { isP2P, state, status, sendStatus, broadcastStatus, agree, serverChanged, launch, lateTicket, endGame, groupGone, attach };
+module.exports = { isP2P, state, status, sendStatus, broadcastStatus, leaderChanged, agree, serverChanged, launch, lateTicket, endGame, groupGone, attach };

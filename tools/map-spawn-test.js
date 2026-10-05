@@ -37,7 +37,7 @@ const run = (args, env) => { const p = spawn(process.execPath, args, { cwd: root
   if (before) fs.writeFileSync(file, before); else fs.unlinkSync(file);
 
   // ---- group launch on this server, upload, and a P2P host ----
-  run(['server/index.js'], { PORT: '3110', HOST: '127.0.0.1' });
+  run(['server/index.js'], { PORT: '3110', HOST: '127.0.0.1', P2P_ALLOW_HTTP: '1' });
   let cookie = '';
   const get = async (p, o = {}) => { const res = await fetch(HUB + p, { redirect: 'manual', ...o, headers: { cookie, ...(o.headers || {}) } }); for (const c of res.headers.getSetCookie()) cookie = c.split(';')[0]; return res; };
   for (let i = 0; ; i++) { try { await get('/'); break; } catch (e) { if (i > 100) throw e; await wait(200); } }

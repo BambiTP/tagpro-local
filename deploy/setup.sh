@@ -69,6 +69,8 @@ DOMAIN="${DOMAIN:-${IP//./-}.sslip.io}"
 cat > /etc/caddy/Caddyfile <<CADDY
 $DOMAIN {
   encode gzip
+  # browsers always use https here after the first visit (no unencrypted first request to intercept)
+  header Strict-Transport-Security "max-age=31536000"
   reverse_proxy localhost:3000
 }
 

@@ -22,11 +22,40 @@ const music = require(path.join(PUBLIC, 'music.json'));
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { transports: ['websocket', 'polling'], cors: { origin: true, credentials: true } });
+// Anything that acts for a visitor must come from this site's own pages. Browsers count every
+// other *.sslip.io address as the same "site", so SameSite cookies alone don't stop those.
+function fromOtherSite(req) {
+  const site = req.headers['sec-fetch-site'];
+  if (site === 'cross-site' || site === 'same-site') return true;
+  const o = req.headers.origin;
+  if (!o) return false; // not a browser page (bots, P2P hosts, tests)
+  try { return new URL(o).host !== (req.headers['x-forwarded-host'] || req.headers.host); } catch (e) { return true; }
+}
+const io = new Server(server, { transports: ['websocket', 'polling'], allowRequest: (req, ok) => ok(null, !fromOtherSite(req)) });
 
 app.use(require('compression')());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: '50kb' }));
+app.use((req, res, next) => (req.method !== 'GET' && req.method !== 'HEAD' && fromOtherSite(req) ? res.status(403).send('Requests from other sites are not allowed.') : next()));
 app.use(sessions.middleware);
+// links that change something (log out, leave group): ignored when another site sends the visitor
+const ownLink = (req) => !fromOtherSite(req);
+
+// log in / sign up attempts: per address (and per username for log ins), failures only
+const attempts = new Map(); // key -> [timestamps]
+function limited(key, max, ms) {
+  const now = Date.now(), list = (attempts.get(key) || []).filter((t) => now - t < ms);
+  attempts.set(key, list);
+  return list.length >= max;
+}
+const note = (key) => attempts.set(key, (attempts.get(key) || []).concat(Date.now()));
+setInterval(() => { const now = Date.now(); for (const [k, l] of attempts) if (!l.some((t) => now - t < 3600000)) attempts.delete(k); }, 600000).unref();
+// the visitor's address: Caddy (on this machine) passes it in X-Forwarded-For
+function clientIp(req) {
+  const ip = req.socket.remoteAddress || '';
+  if (!/^(::ffff:)?127\.|^::1$/.test(ip)) return ip;
+  const fwd = String(req.headers['x-forwarded-for'] || '').split(',').map((x) => x.trim()).filter(Boolean);
+  return fwd.length ? fwd[fwd.length - 1] : ip;
+}
 
 // started by `npm run host` (server/host.js): this PC runs a peer-to-peer group's games
 if (process.env.P2P_CODE) {
@@ -77,19 +106,25 @@ const card = (title, content, script) => pages.render('card.html', { TITLE: titl
 
 // ---- accounts (local username/password instead of the real site's OAuth logins) ----
 app.get('/login', (req, res) => req.session.account ? res.redirect('/profile') : html(res, card('TagPro Log In', pages.loginCard())));
-app.post('/login', (req, res) => {
-  const r = accounts.login(req.body.username, req.body.password);
-  if (r.error) return html(res, card('TagPro Log In', pages.loginCard(r.error)));
-  accounts.bind(req.session, r.account);
+const TOO_MANY = 'Too many tries. Wait a few minutes and try again.';
+app.post('/login', async (req, res) => {
+  const ipKey = 'login-ip:' + clientIp(req), userKey = 'login-user:' + String(req.body.username || '').trim().toLowerCase();
+  if (limited(ipKey, 10, 600000) || limited(userKey, 10, 600000)) return html(res, card('TagPro Log In', pages.loginCard(TOO_MANY)));
+  const r = await accounts.login(req.body.username, req.body.password);
+  if (r.error) { note(ipKey); note(userKey); return html(res, card('TagPro Log In', pages.loginCard(r.error))); }
+  accounts.bind(sessions.rotate(req, res), r.account); // new cookie: an id seen before log in is worthless
   res.redirect('/');
 });
-app.post('/register', (req, res) => {
-  const r = accounts.register(req.body.username, req.body.password);
+app.post('/register', async (req, res) => {
+  const ipKey = 'register-ip:' + clientIp(req);
+  if (limited(ipKey, 5, 3600000)) return html(res, card('TagPro Log In', pages.loginCard(TOO_MANY)));
+  const r = await accounts.register(req.body.username, req.body.password);
   if (r.error) return html(res, card('TagPro Log In', pages.loginCard(r.error)));
-  accounts.bind(req.session, r.account);
+  note(ipKey);
+  accounts.bind(sessions.rotate(req, res), r.account);
   res.redirect('/profile');
 });
-app.get('/logout', (req, res) => { accounts.unbind(req.session); res.redirect('/'); });
+app.get('/logout', (req, res) => { if (ownLink(req)) { accounts.unbind(req.session); sessions.rotate(req, res); } res.redirect('/'); });
 app.get('/profile', (req, res) => {
   if (!req.session.account) return res.redirect('/login');
   html(res, card('TagPro Profile', pages.profileCard(req.session.account, accounts.flairs), '/R-965af4e7a4b8-z/compact/global-profile.js'));
@@ -196,11 +231,11 @@ function p2pWarning(g) {
                         ${host ? `Right now they're hosted by <b>${pages.esc(host.name)}</b>.` : 'Nobody is hosting it yet.'}</p>
                         <p>${P2P_RISKS}</p>
                         <p>You can also join just to chat: you won't be sent to any game until you agree, and you can change your mind on the group page.</p>
-                        <div style="margin-top:18px">
-                            <a class="btn btn-primary" href="/groups/${id}?p2p=agree">I trust the host: join and play</a>
-                            <a class="btn btn-default" href="/groups/${id}?p2p=watch">Join, but don't send me to games</a>
+                        <form method="post" action="/groups/${id}/p2p" style="margin-top:18px">
+                            <button class="btn btn-primary" name="choice" value="agree">I trust the host: join and play</button>
+                            <button class="btn btn-default" name="choice" value="watch">Join, but don't send me to games</button>
                             <a class="btn btn-default" href="/groups">No thanks</a>
-                        </div>`;
+                        </form>`;
 }
 const P2P_PANEL_AT = '    <div class="row">\n\n        <!-- start player list area -->';
 const P2P_PANEL = `    <div class="row" id="p2p-panel" style="display:none">
@@ -272,35 +307,42 @@ app.post('/groups/create', (req, res) => createGroup(req, res, groupForm(req, fa
 // games on a player's own PC instead of this server (see p2p.js)
 app.post('/groups/create-p2p', (req, res) => createGroup(req, res, groupForm(req, true)));
 app.get('/groups/create', (req, res) => createGroup(req, res, { name: '', isPrivate: true, discoverable: false, preset: req.query.preset }));
-app.get('/groups/leave', (req, res) => { groups.leave(req.session); res.redirect('/groups'); });
+app.get('/groups/leave', (req, res) => { if (ownLink(req)) groups.leave(req.session); res.redirect('/groups'); });
 
 app.get('/groups/:id', (req, res, next) => {
   if (!/^[a-z]{8}$/.test(req.params.id)) return next();
   const g = groups.groups.get(req.params.id);
   if (!g) return res.redirect('/groups');
-  // peer to peer: warn before joining; agreeing (or joining only to chat) is remembered for this group
-  if (p2p.isP2P(g) && !g.members.has(req.session.id)) {
-    if (req.query.p2p === 'agree' || req.query.p2p === 'watch') {
-      req.session.p2pConsent = req.query.p2p === 'agree' ? g.id : null;
-      req.session.p2pSeen = g.id;
-      return res.redirect('/groups/' + g.id);
-    }
+  // peer to peer: warn before joining; the choice (a button on the warning page, never a link, so
+  // nobody can be signed up by a crafted URL) is remembered for this group
+  if (p2p.isP2P(g) && !g.members.has(req.session.publicId)) {
     if (req.session.p2pSeen !== g.id && req.session.p2pConsent !== g.id) return html(res, card('Peer to Peer Group', p2pWarning(g)));
   }
   if (req.session.groupId && req.session.groupId !== g.id) groups.leave(req.session);
   html(res, pages.render('group.html', { GROUP_ID: g.id, GROUP_NAME: pages.esc(g.settings.name) }).replace(P2P_PANEL_AT, P2P_PANEL + P2P_PANEL_AT));
 });
 
+app.post('/groups/:id/p2p', (req, res) => {
+  const g = /^[a-z]{8}$/.test(req.params.id) && groups.groups.get(req.params.id);
+  if (!g) return res.redirect('/groups');
+  if (req.body.choice === 'agree' || req.body.choice === 'watch') {
+    req.session.p2pConsent = req.body.choice === 'agree' ? g.id : null;
+    req.session.p2pSeen = g.id;
+  }
+  res.redirect('/groups/' + g.id);
+});
+
 // group map upload (layout png + logic json), like tagpro.koalabeast.com/groups/testmap
-const upload = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
-app.post('/groups/testmap', upload.fields([{ name: 'layout' }, { name: 'logic' }]), (req, res) => {
+const upload = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 2, fields: 10, parts: 12 } });
+app.post('/groups/testmap', upload.fields([{ name: 'layout', maxCount: 1 }, { name: 'logic', maxCount: 1 }]), (req, res) => {
   const g = req.session.groupId && groups.groups.get(req.session.groupId);
-  const m = g && g.members.get(req.session.id);
+  const m = g && g.members.get(req.session.publicId);
   if (!m || !m.leader) return res.json({ success: false, error: 'Only the group leader can upload a map.' });
   const layout = req.files && req.files.layout && req.files.layout[0], logic = req.files && req.files.logic && req.files.logic[0];
   if (!layout || !logic) return res.json({ success: false, error: 'You must upload both layout and logic files' });
   try {
     const json = JSON.parse(logic.buffer.toString('utf8'));
+    games.checkPngSize(layout.buffer); // before decoding: a small file can decode to a huge image
     require('pngjs').PNG.sync.read(require('../engine/mapLoader').trimPng(layout.buffer));
     const key = 'upload-' + g.id + '-' + Date.now();
     require('fs').writeFileSync(path.join(__dirname, '..', 'maps', key + '.png'), layout.buffer);
@@ -312,7 +354,7 @@ app.post('/groups/testmap', upload.fields([{ name: 'layout' }, { name: 'logic' }
     }
     g.settings.map = 'upload/' + key; g.broadcastSetting('map');
     res.json({ success: true });
-  } catch (e) { res.json({ success: false, error: 'Invalid map files' }); }
+  } catch (e) { res.json({ success: false, error: e instanceof games.MapError ? e.message : 'Invalid map files' }); }
 });
 
 app.get('/games/find', (req, res) => {
@@ -385,9 +427,10 @@ app.use('/R-62bb0909b74c-z', express.static(path.join(PUBLIC, 'R-62bb0909b74c-z'
 app.use('/events', express.static(path.join(PUBLIC, 'R-62bb0909b74c-z', 'events'), { index: false, maxAge: '7d' }));
 app.use(express.static(PUBLIC, { index: false, maxAge: '7d' }));
 
-p2p.attach(io, groups.groups);
-groups.attach(io, { launchGroupGame: (g) => games.launchGroupGame(g).catch((e) => console.error('launch failed', e)), endGame: games.endGame });
-games.attachJoiner(io);
+if (!process.env.P2P_CODE) p2p.attach(io, groups.groups);
+// a P2P host's PC only runs the games the main site sends it: no groups or Play Now queue of its own
+if (!process.env.P2P_CODE) groups.attach(io, { launchGroupGame: (g) => games.launchGroupGame(g).catch((e) => console.error('launch failed', e)), endGame: games.endGame });
+if (!process.env.P2P_CODE) games.attachJoiner(io);
 mapstats.attach(io, replays.index);
 games.attachGames(io);
 

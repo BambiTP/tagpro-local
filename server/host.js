@@ -69,6 +69,7 @@ function tunnel(exe, port) {
   }
   const port = Number(o.port || process.env.PORT || 3000);
   let url = o.url;
+  if (url && !/^https:\/\//.test(url)) console.log('Note: the main site only accepts https:// addresses, so players\' game traffic is encrypted.');
   if (!url) {
     console.log('Opening a public address for this PC ...');
     url = await tunnel(await cloudflared(), port);

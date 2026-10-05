@@ -25,20 +25,40 @@ function mapKeys() {
     .filter((k) => fs.existsSync(path.join(MAPS_DIR, k + '.json')));
 }
 
+// a map image's size from its PNG header, checked before decoding (a 2 MB file can decode to gigabytes)
+const MAX_MAP_TILES = 256; // real maps are well under 100 x 100
+function checkPngSize(buf) {
+  if (buf.length < 24 || buf.toString('latin1', 12, 16) !== 'IHDR') throw new MapError('That map image is not a PNG.');
+  const w = buf.readUInt32BE(16), h = buf.readUInt32BE(20);
+  if (w > MAX_MAP_TILES || h > MAX_MAP_TILES) throw new MapError(`That map is ${w} x ${h} tiles; the most is ${MAX_MAP_TILES} x ${MAX_MAP_TILES}.`);
+}
+
 function readMap(key) {
-  const png = PNG.sync.read(trimPng(fs.readFileSync(path.join(MAPS_DIR, key + '.png'))));
+  const file = fs.readFileSync(path.join(MAPS_DIR, key + '.png'));
+  checkPngSize(file);
+  const png = PNG.sync.read(trimPng(file));
   const json = JSON.parse(fs.readFileSync(path.join(MAPS_DIR, key + '.json'), 'utf8'));
   return loadMap(png, json);
 }
 
+// Fortunate Maps ids are numbers. Anything else could point the saved file outside maps/ (and the
+// site answers unknown ids with a page, not an error), so it is refused outright.
 async function fetchFortunateMap(id) {
+  id = String(id);
+  if (!/^\d{1,9}$/.test(id)) throw new Error('not a Fortunate Maps id: ' + id.slice(0, 40));
   if (fs.existsSync(path.join(MAPS_DIR, id + '.png'))) return id;
+  const files = {};
   for (const ext of ['png', 'json']) {
-    const r = await fetch(`https://fortunatemaps.herokuapp.com/${ext}/${id}`);
+    const r = await fetch(`https://fortunatemaps.herokuapp.com/${ext}/${id}`, { signal: AbortSignal.timeout(15000) });
     if (!r.ok) throw new Error('map ' + id + ' not found');
-    fs.writeFileSync(path.join(MAPS_DIR, `${id}.${ext}`), Buffer.from(await r.arrayBuffer()));
+    const body = Buffer.from(await r.arrayBuffer());
+    if (body.length > 2 * 1024 * 1024) throw new Error('map ' + id + ' is too big');
+    if (ext === 'png') checkPngSize(body); // also rejects the page it sends for ids that don't exist
+    else JSON.parse(body.toString('utf8'));
+    files[ext] = body;
   }
-  return String(id);
+  for (const ext of ['json', 'png']) fs.writeFileSync(path.join(MAPS_DIR, `${id}.${ext}`), files[ext]); // .png last: it marks the map installed
+  return id;
 }
 
 // a team with no spawn points and no flag has nowhere to spawn: such a map can't be played
@@ -173,7 +193,7 @@ function attachJoiner(io) {
       // peer-to-peer group: the game is on a player's PC
       if (g && g.game.gameServer === 'p2p') {
         sent = true;
-        const mem = g.members.get(session.id);
+        const mem = g.members.get(session.publicId);
         if (!mem || !mem.p2pOk) return socket.emit('SendToPage', { url: '/groups/' + g.id, reason: "You haven't agreed to play this group's peer-to-peer games" });
         if (!pg || !pg.p2p || pg.id !== g.game.gameId) pg = await require('./p2p').lateTicket(g, session);
         if (!pg) return socket.emit('SendToPage', { url: '/groups/' + g.id, reason: 'No game running for your group' });
@@ -208,4 +228,4 @@ function attachGames(io) {
 
 queue.init({ createGame, resolveMap, games });
 
-module.exports = { games, MapError, mapProblem, createGame, launchGroupGame, endGame, attachJoiner, attachGames, resolveMap, fetchFortunateMap, mapKeys };
+module.exports = { games, MapError, mapProblem, checkPngSize, createGame, launchGroupGame, endGame, attachJoiner, attachGames, resolveMap, fetchFortunateMap, mapKeys };

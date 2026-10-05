@@ -308,7 +308,7 @@ class GameRoom {
   newPlayer(session, team) {
     const id = this.nextPlayerId++;
     const p = {
-      id, sessionId: session.id, name: session.auth ? session.name : (session.name === 'Some Ball' || !session.name ? 'Some Ball ' + id : session.name),
+      id, sessionId: session.publicId, name: session.auth ? session.name : (session.name === 'Some Ball' || !session.name ? 'Some Ball ' + id : session.name),
       newPlayer: !session.auth, team, flag: null, potatoFlag: null, selfDestructSoon: null,
       jukeJuice: false, grip: false, speed: false, tagpro: false, bomb: false, dead: true, directSet: false,
       's-tags': 0, 's-pops': 0, 's-grabs': 0, 's-returns': 0, 's-captures': 0, 's-drops': 0, 's-support': 0,
@@ -392,6 +392,11 @@ class GameRoom {
         if (!d || typeof d.message !== 'string') return;
         const msg = d.message.slice(0, 120);
         if (!msg.trim()) return;
+        // more than 20 messages in 5 seconds are dropped (spam)
+        const now = Date.now();
+        client.chatTimes = (client.chatTimes || []).filter((t) => now - t < 5000);
+        if (client.chatTimes.length >= 20) return;
+        client.chatTimes.push(now);
         if (!p) { if (d.toAll) this.broadcast('chat', { from: client.session.name, message: msg, to: 'all' }); return; }
         if (d.toAll) this.broadcast('chat', { from: p.id, message: msg, to: 'all' });
         else this.broadcast('chat', { from: p.id, message: msg, to: 'team' }, (c) => c.playerId && this.players[c.playerId] && this.players[c.playerId].team === p.team);

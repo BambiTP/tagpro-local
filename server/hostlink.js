@@ -24,7 +24,12 @@ function setup(app, { hub, code, url, name }) {
     req.session.pendingGame = { id: t.gameId, team: t.team, spectate: t.spectate };
     res.redirect('/game');
   });
-  app.use((req, res, next) => (req.method === 'GET' && HUB_PAGES.test(req.path) ? res.redirect(hub + req.originalUrl) : next()));
+  app.use((req, res, next) => {
+    if (req.method === 'GET' && HUB_PAGES.test(req.path)) return res.redirect(hub + req.originalUrl);
+    // nothing on this PC is changed through web forms (log ins, groups, uploads all live on the main site)
+    if (req.method !== 'GET' && req.method !== 'HEAD' && !req.path.startsWith('/socket.io/')) return res.status(403).send('This is a peer-to-peer game host.');
+    next();
+  });
 
   // a new tunnel address can take a minute to answer; only introduce ourselves once it does
   waitReachable(url).then(() => connect({ hub, code, url, name, tickets }));

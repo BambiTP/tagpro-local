@@ -13,6 +13,15 @@ const LEAVE_GRACE_MS = 30000; // member kept while navigating group -> joiner ->
 const SERVERS = [{ name: 'Chicago, IL', value: 'chicago', key: 'ch' }, { name: 'Peer to Peer (a player hosts)', value: 'p2p', key: 'p2p' }];
 
 const groups = new Map();
+
+// more than 20 chat messages in 5 seconds are dropped (spam)
+function chatFlood(who) {
+  const now = Date.now();
+  who.chatTimes = (who.chatTimes || []).filter((t) => now - t < 5000);
+  if (who.chatTimes.length >= 20) return true;
+  who.chatTimes.push(now);
+  return false;
+}
 let gamesApi = null; // set by index.js: { launchGroupGame(group), endGame(gameId) }
 
 function groupId() {
@@ -48,7 +57,7 @@ class Group {
     this.settings.isPrivate = !!isPrivate;
     this.settings.discoverable = !!discoverable;
     this.settings.groupId = this.id;
-    this.members = new Map(); // sessionId -> member
+    this.members = new Map(); // session.publicId -> member (never the cookie value)
     this.game = { gameServer: null, gameId: null };
     this.nsp = null;
     this.modeMap = null; // eggball / ice hockey switch to their own map without broadcasting it (presets save it)
@@ -74,13 +83,13 @@ class Group {
   }
 
   join(socket, session) {
-    let m = this.members.get(session.id);
+    let m = this.members.get(session.publicId);
     const isNew = !m;
     if (isNew) {
       if (this.members.size >= MAX_MEMBERS) { socket.emit('full'); socket.disconnect(); return; }
       const leader = this.members.size === 0;
       m = {
-        id: session.id, session, name: session.name, auth: session.auth, lastSeen: Date.now(),
+        id: session.publicId, session, name: session.name, auth: session.auth, lastSeen: Date.now(),
         leader, team: this.defaultTeam(leader), location: '???', flair: session.flair,
         mutedGroupIds: {}, sockets: new Set(), leaveTimer: null,
         p2pOk: session.p2pConsent === this.id, // agreed on the warning page before joining (p2p.js)
@@ -111,7 +120,7 @@ class Group {
       this.broadcastMember(m);
     });
     socket.on('chat', (message) => {
-      if (typeof message !== 'string' || !message.trim()) return;
+      if (typeof message !== 'string' || !message.trim() || chatFlood(m)) return;
       this.nsp.emit('chat', { from: m.name, message: message.slice(0, 120), to: 'group', auth: m.auth });
     });
     socket.on('team', (d) => {
@@ -157,7 +166,7 @@ class Group {
       m.leader = false; target.leader = true;
       this.broadcastMember(m); this.broadcastMember(target);
       this.systemChat(`${target.name} is now the leader.`);
-      p2p.broadcastStatus(this);
+      p2p.leaderChanged(this);
     });
     socket.on('kick', (id) => {
       const target = this.members.get(id);
@@ -214,7 +223,7 @@ class Group {
     if (announce !== false) this.systemChat(`${m.name} has left the group.`);
     if (m.leader) {
       const next = this.members.values().next().value;
-      if (next) { next.leader = true; this.broadcastMember(next); this.systemChat(`${next.name} is now the leader.`); p2p.broadcastStatus(this); }
+      if (next) { next.leader = true; this.broadcastMember(next); this.systemChat(`${next.name} is now the leader.`); p2p.leaderChanged(this); }
     }
     if (this.members.size === 0) { groups.delete(this.id); p2p.groupGone(this); } else if (p2p.isP2P(this)) p2p.broadcastStatus(this);
   }
@@ -256,8 +265,8 @@ function attach(io, api) {
 
 function leave(session) {
   const g = session.groupId && groups.get(session.groupId);
-  const m = g && g.members.get(session.id);
+  const m = g && g.members.get(session.publicId);
   if (m) g.remove(m, true);
 }
 
-module.exports = { Group, groups, attach, leave, TEAM };
+module.exports = { Group, groups, attach, leave, TEAM, chatFlood };
