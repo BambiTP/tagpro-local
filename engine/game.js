@@ -986,6 +986,12 @@ class GameRoom {
   pressButton(key, p) {
     (this.buttonsHeld[key] || (this.buttonsHeld[key] = new Set())).add(p.id);
     this.updateGates(key);
+    // a button can be wired to bombs too (e.g. Carrera NFC): stepping on it sets off the ready ones
+    const sw = this.map.switches && this.map.switches[key];
+    if (sw && sw.toggle) for (const t of sw.toggle) {
+      const x = t.pos.x, y = t.pos.y;
+      if (this.tiles[x] && this.tiles[x][y] === T.BOMB) this.detonateBomb(x, y);
+    }
   }
 
   releaseButton(key, p) {
