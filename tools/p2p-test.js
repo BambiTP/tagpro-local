@@ -28,7 +28,7 @@ function jar(base) {
     for (const c of r.headers.getSetCookie?.() || []) cookie = c.split(';')[0];
     return r;
   };
-  return { get, sock: (nsp) => io(base + nsp, { transports: ['websocket'], extraHeaders: { cookie }, reconnection: false }) };
+  return { get, sock: (nsp) => io(base + nsp, { transports: ['websocket'], extraHeaders: { cookie }, reconnection: false, forceNew: true }) };
 }
 let failures = 0;
 const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (!ok) failures++; };
@@ -41,7 +41,7 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   const list = await (await hub.get('/groups')).text();
   check(list.includes('Create Peer to Peer Group') && list.includes('formaction="/groups/create-p2p"'), '/groups has the Create Peer to Peer Group button');
 
-  const r = await hub.get('/groups/create-p2p', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: 'name=P2P+Test&private=on' });
+  const r = await hub.get('/groups/create-p2p', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: 'name=P2P+Test&private=on&public=on' });
   const gid = r.headers.get('location').split('/').pop();
   const page = await (await hub.get('/groups/' + gid)).text();
   check(page.includes('id="p2p-panel"'), 'group page has the Peer to Peer box');
@@ -72,10 +72,52 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   const hostHome = await fetch(HOST_URL + '/', { redirect: 'manual' });
   check(hostHome.status === 302 && hostHome.headers.get('location') === HUB + '/', 'host sends its home page back to the main site');
 
+  const listed = await (await hub.get('/groups')).text();
+  check(/PEER TO PEER<\/b> &middot; Private Games/.test(listed), 'groups list marks the group PEER TO PEER');
+
+  // a second player: warned before joining, joins only to chat, isn't sent to the game
+  const bob = jar(HUB);
+  await bob.get('/');
+  await bob.get('/local/name', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: 'name=Bob' });
+  const warn = await (await bob.get('/groups/' + gid)).text();
+  check(warn.includes('Peer to Peer Group') && warn.includes('?p2p=agree') && warn.includes('?p2p=watch') && !warn.includes('id="p2p-panel"'), 'joining a P2P group shows the warning page first');
+  const watch = await bob.get('/groups/' + gid + '?p2p=watch');
+  check(watch.status === 302, 'Join, but don\'t send me to games');
+  check((await (await bob.get('/groups/' + gid)).text()).includes('id="p2p-panel"'), 'after choosing, the group page opens');
+  const b = bob.sock('/groups/' + gid);
+  let bStatus = null, bId = null, bPlay = false;
+  const bChat = [];
+  b.on('p2p', (x) => { bStatus = x; });
+  b.on('you', (id) => { bId = id; });
+  b.on('play', () => { bPlay = true; });
+  b.on('chat', (c) => bChat.push(c.message));
+  await new Promise((ok) => b.on('loaded', ok));
+  await until(() => bStatus && bId);
+  check(bStatus.agreed === false && bStatus.code === null, 'Bob has not agreed and gets no host code');
+  await until(() => status.notAgreed && status.notAgreed.includes('Bob'));
+  check(true, 'leader sees Bob in the not-agreed list');
+  g.emit('team', { id: bId, team: '2' });
+  await wait(200);
+
   g.emit('setting', { name: 'time', value: '1' });
   await wait(200);
   g.emit('groupPlay');
   await new Promise((ok) => g.on('play', ok));
+  await until(() => bChat.some((m) => /weren't sent/.test(m)));
+  check(!bPlay, 'Bob (not agreed) was not sent to the game and was told why');
+  check(chat.some((m) => /Not sent to the game .*Bob/.test(m)), 'group is told who was not sent');
+  const bj = bob.sock('/games/find');
+  bj.on('ready', () => bj.emit('JoinerSelections', { regions: [], gameModes: ['classic'] }));
+  const bounced = await new Promise((ok) => { bj.on('SendToPage', ok); bj.on('FoundWorld', () => ok(null)); });
+  check(bounced && /haven't agreed/.test(bounced.reason), 'Join Game without agreeing goes back to the group: ' + JSON.stringify(bounced));
+  bj.disconnect();
+  b.emit('p2pAgree', true);
+  await until(() => bStatus.agreed);
+  const bj2 = bob.sock('/games/find');
+  bj2.on('ready', () => bj2.emit('JoinerSelections', { regions: [], gameModes: ['classic'] }));
+  const bFound = await new Promise((ok) => bj2.on('FoundWorld', ok));
+  check(bFound.url.includes('/p2p/join?t='), 'after agreeing, Bob can join the running game');
+  bj2.disconnect();
   check(game && game.gameServer === 'p2p' && /^[a-z]{8}$/.test(game.gameId), 'group shows a game running on the P2P server');
 
   const j = hub.sock('/games/find');
@@ -89,6 +131,7 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   const gamePage = await (await player.get('/game')).text();
   const sockPath = (gamePage.match(/gameSocket = location.origin \+ "([^"]+)"/) || [])[1];
   check(sockPath === '/game/' + game.gameId, 'host serves the game page for that game');
+  check(gamePage.includes("PEER TO PEER GAME: hosted on Tester's PC"), 'game page itself is labelled peer to peer');
   const gs = player.sock(sockPath);
   let me = null, names = {};
   gs.on('id', (id) => { me = id; });
@@ -102,6 +145,15 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   g.emit('endGame');
   await until(() => game && game.gameId === null);
   check(true, 'leader ended the game; the group no longer shows it running');
+
+  g.emit('setting', { name: 'server', value: 'chicago' });
+  await until(() => !status.on);
+  g.emit('setting', { name: 'server', value: 'p2p' });
+  await until(() => status.on && bStatus.on);
+  await wait(200);
+  check(bStatus.agreed === false && status.agreed === true, 'switching to P2P again resets everyone but the leader who switched');
+  check(chat.some((m) => /now plays PEER TO PEER/.test(m)), 'switching to P2P is announced in chat');
+  b.disconnect();
 
   gs.disconnect(); j.disconnect(); g.disconnect();
   console.log(failures ? `\n${failures} FAILED` : '\nall passed');

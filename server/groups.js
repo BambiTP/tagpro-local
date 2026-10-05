@@ -83,6 +83,7 @@ class Group {
         id: session.id, session, name: session.name, auth: session.auth, lastSeen: Date.now(),
         leader, team: this.defaultTeam(leader), location: '???', flair: session.flair,
         mutedGroupIds: {}, sockets: new Set(), leaveTimer: null,
+        p2pOk: session.p2pConsent === this.id, // agreed on the warning page before joining (p2p.js)
       };
       for (const o of this.members.values()) { o.mutedGroupIds[m.id] = false; m.mutedGroupIds[o.id] = false; }
       this.members.set(m.id, m);
@@ -99,10 +100,11 @@ class Group {
     socket.emit('servers', SERVERS);
     for (const o of this.members.values()) socket.emit('member', this.publicMember(o));
     socket.emit('loaded');
-    socket.emit('p2p', p2p.status(this, m.leader));
-    if (isNew) this.systemChat(`${m.name} has joined the group.`);
+    socket.emit('p2p', p2p.status(this, m));
+    if (isNew) { this.systemChat(`${m.name} has joined the group.`); if (p2p.isP2P(this)) p2p.broadcastStatus(this); }
 
-    socket.on('p2pStatus', () => socket.emit('p2p', p2p.status(this, m.leader)));
+    socket.on('p2pStatus', () => socket.emit('p2p', p2p.status(this, m)));
+    socket.on('p2pAgree', (ok) => p2p.agree(this, m, ok === true));
     socket.on('touch', (location) => {
       m.lastSeen = Date.now();
       if (typeof location === 'string' || location === null) m.location = location || m.location;
@@ -124,6 +126,7 @@ class Group {
       if (!m.leader || !d || typeof d.name !== 'string') return;
       let name = d.name === 'groupName' ? 'name' : d.name;
       if (!(name in this.settings)) return;
+      const was = this.settings[name];
       this.settings[name] = coerce(name, d.value, this.settings[name]);
       // local trust only works when players can't bump each other
       if (this.settings.localTrust && !TRUST_GHOST.has(this.settings.ghostMode)) {
@@ -146,7 +149,7 @@ class Group {
         this.broadcastSetting('mapId');
       }
       this.broadcastSetting(name);
-      if (name === 'server') p2p.broadcastStatus(this);
+      if (name === 'server') p2p.serverChanged(this, m, was);
     });
     socket.on('leader', (id) => {
       const target = this.members.get(id);
@@ -213,7 +216,7 @@ class Group {
       const next = this.members.values().next().value;
       if (next) { next.leader = true; this.broadcastMember(next); this.systemChat(`${next.name} is now the leader.`); p2p.broadcastStatus(this); }
     }
-    if (this.members.size === 0) { groups.delete(this.id); p2p.groupGone(this); }
+    if (this.members.size === 0) { groups.delete(this.id); p2p.groupGone(this); } else if (p2p.isP2P(this)) p2p.broadcastStatus(this);
   }
 
   setGame(gameId, server = 'local') {
@@ -227,6 +230,7 @@ class Group {
   applyPreset(p) {
     const parsed = presets.parse(p);
     if (!parsed) return false;
+    const wasServer = this.settings.server;
     const { changed, modeMap } = presets.apply(this.settings, parsed);
     this.modeMap = modeMap;
     if (changed.includes('map') && String(this.settings.map).startsWith('fm_id/')) {
@@ -234,6 +238,7 @@ class Group {
       changed.push('mapId');
     }
     if (this.nsp) for (const name of changed) this.broadcastSetting(name);
+    if (this.nsp && changed.includes('server')) p2p.serverChanged(this, null, wasServer);
     return true;
   }
 }

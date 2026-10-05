@@ -8,6 +8,7 @@ const { io } = require('socket.io-client');
 const games = require('./games');
 
 const MAPS_DIR = path.join(__dirname, '..', 'maps');
+let acceptedName = null; // this host's name as the main site shows it
 const HUB_PAGES = /^\/(?:$|groups|games\/find|login|register|logout|profile|feedback|playersearch|admin)/;
 
 // called before the site's own routes
@@ -42,6 +43,7 @@ async function waitReachable(url) {
 function connect({ hub, code, url, name, tickets }) {
   const socket = io(hub + '/p2p-host', { auth: { code, url, name }, transports: ['websocket'], reconnectionDelayMax: 10000 });
   socket.on('connect', () => console.log(`Connected to ${hub}; checking that players can reach ${url} ...`));
+  socket.on('accepted', (d) => { acceptedName = d.hostName; }); // shown on the game page
   socket.on('accepted', (d) => console.log(`\nHosting games for the group "${d.groupName}" (${hub}/groups/${d.groupId}).\nLeave this window open while you play; close it to stop hosting.\n`));
   socket.on('rejected', (why) => { console.error('\nHosting stopped: ' + why); process.exit(1); });
   socket.on('disconnect', (reason) => { if (reason !== 'io server disconnect') console.log('Lost the main site; reconnecting ...'); });
@@ -77,4 +79,4 @@ function connect({ hub, code, url, name, tickets }) {
   socket.on('endGame', (id) => games.endGame(id));
 }
 
-module.exports = { setup };
+module.exports = { setup, hostName: () => acceptedName };

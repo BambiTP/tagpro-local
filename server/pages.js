@@ -167,7 +167,7 @@ function groupItem(g) {
                                 <div class="row">
                                     <div class="col-md-12">
                                         <div class="pull-right group-type">
-                                            ${g.settings.isPrivate ? 'Private Games' : 'Public Games'}
+                                            ${g.settings.server === 'p2p' ? '<b style="color:#f39c12" title="Games run on a player\'s own PC, not the Chicago server">&#9888; PEER TO PEER</b> &middot; ' : ''}${g.settings.isPrivate ? 'Private Games' : 'Public Games'}
                                         </div>
                                         <div class="group-name">
                                             ${esc(g.settings.name)}

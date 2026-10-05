@@ -153,6 +153,8 @@ function attachJoiner(io) {
       // peer-to-peer group: the game is on a player's PC
       if (g && g.game.gameServer === 'p2p') {
         sent = true;
+        const mem = g.members.get(session.id);
+        if (!mem || !mem.p2pOk) return socket.emit('SendToPage', { url: '/groups/' + g.id, reason: "You haven't agreed to play this group's peer-to-peer games" });
         if (!pg || !pg.p2p || pg.id !== g.game.gameId) pg = await require('./p2p').lateTicket(g, session);
         if (!pg) return socket.emit('SendToPage', { url: '/groups/' + g.id, reason: 'No game running for your group' });
         return setTimeout(() => socket.emit('FoundWorld', { url: pg.url, spectate: pg.spectate || null }), 500);

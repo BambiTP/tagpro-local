@@ -174,22 +174,49 @@ app.post('/settings', (req, res) => res.json({ success: true }));
 
 app.get('/', (req, res) => html(res, pages.render('home.html', { GROUP_ID: req.session.groupId || 'null' })));
 
-// ---- peer-to-peer groups: a second create button, and the hosting box on the group page ----
+// ---- peer-to-peer groups: a second create button, a warning page before joining one, and the
+// orange Peer to Peer box on the group page (agree / stop / leave / move to Chicago; hosting help)
 const CREATE_BTN = '<button id="create-group-btn" class="btn btn-primary">Create Group</button>';
 const P2P_CREATE_BTN = `
                         <button id="create-p2p-group-btn" class="btn btn-secondary" formaction="/groups/create-p2p" style="margin-top:8px"
-                            title="Games run on a player's own PC instead of the Chicago server">Create Peer to Peer Group</button>`;
+                            title="Games run on a player's own PC instead of the Chicago server"
+                            onclick="return confirm('Peer to peer: this group\\'s games will run on a player\\'s own PC, not the Chicago server. Whoever hosts can see and change anything in the game.\\n\\nEveryone who joins is warned and has to agree before they are sent to a game.\\n\\nCreate a peer-to-peer group?')">Create Peer to Peer Group</button>`;
+const P2P_RISKS = `The host's PC runs the game, so the host can see and change anything in it (positions, scores, who gets
+                    tagged) and can run their own code on the game page. Your account and login on this site stay safe either way.
+                    Only play if you trust the host.`;
+function p2pWarning(g) {
+  const host = g.p2p && g.p2p.host;
+  const id = pages.esc(g.id);
+  return `
+                        <h1 style="color:#f39c12">&#9888; Peer to Peer Group</h1>
+                        <p style="font-size:17px"><b>${pages.esc(g.settings.name)}</b> plays its games on a player's own PC, <b>not the Chicago server</b>.
+                        ${host ? `Right now they're hosted by <b>${pages.esc(host.name)}</b>.` : 'Nobody is hosting it yet.'}</p>
+                        <p>${P2P_RISKS}</p>
+                        <p>You can also join just to chat: you won't be sent to any game until you agree, and you can change your mind on the group page.</p>
+                        <div style="margin-top:18px">
+                            <a class="btn btn-primary" href="/groups/${id}?p2p=agree">I trust the host: join and play</a>
+                            <a class="btn btn-default" href="/groups/${id}?p2p=watch">Join, but don't send me to games</a>
+                            <a class="btn btn-default" href="/groups">No thanks</a>
+                        </div>`;
+}
 const P2P_PANEL_AT = '    <div class="row">\n\n        <!-- start player list area -->';
 const P2P_PANEL = `    <div class="row" id="p2p-panel" style="display:none">
         <div class="col-xs-12">
-            <div style="margin:10px 0;padding:10px 14px;border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(0,0,0,.25)">
-                <b>Peer to Peer:</b> <span id="p2p-state"></span>
-                <div id="p2p-howto" style="display:none;margin-top:8px">
-                    To host this group's games on your PC, install <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a>, then run this in a terminal
-                    (Command Prompt on Windows). No router setup needed. Keep the window open while you play.
-                    <pre id="p2p-cmd" style="margin:8px 0;white-space:pre-wrap;user-select:all"></pre>
-                    <button id="p2p-copy" class="btn btn-default btn-tiny" type="button">Copy</button>
-                    <span style="opacity:.75">Already downloaded it? Run <code>git pull</code> in that folder, then just the last line. Keep the code to yourself: anyone with it can host this group.</span>
+            <div style="margin:10px 0;padding:12px 16px;border:2px solid #f39c12;border-radius:6px;background:rgba(243,156,18,.12)">
+                <div style="font-size:18px;color:#f39c12"><b>&#9888; PEER TO PEER GROUP</b>: games here don't run on the Chicago server.</div>
+                <div id="p2p-state" style="margin-top:4px"></div>
+                <div style="margin-top:6px;opacity:.85">${P2P_RISKS}</div>
+                <div id="p2p-consent" style="margin-top:10px"></div>
+                <div id="p2p-leader" style="display:none;margin-top:10px">
+                    <div id="p2p-waiting"></div>
+                    <button id="p2p-chicago" class="btn btn-default btn-tiny" type="button" style="margin-top:6px">Move this group to the Chicago server</button>
+                    <div style="margin-top:10px">
+                        To host this group's games on your PC, install <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a>, then run this in a terminal
+                        (Command Prompt on Windows). No router setup needed. Keep the window open while you play.
+                        <pre id="p2p-cmd" style="margin:8px 0;white-space:pre-wrap;user-select:all"></pre>
+                        <button id="p2p-copy" class="btn btn-default btn-tiny" type="button">Copy</button>
+                        <span style="opacity:.75">Already downloaded it? Run <code>git pull</code> in that folder, then just the last line. Keep the code to yourself: anyone with it can host this group.</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -202,11 +229,21 @@ const P2P_PANEL = `    <div class="row" id="p2p-panel" style="display:none">
         s.on('p2p', function (st) {
             $('#p2p-panel').toggle(!!st.on);
             $('#p2p-state').html(st.connected
-                ? 'games are hosted on <b>' + esc(st.hostName) + '</b>\\'s PC.'
-                : 'nobody is hosting yet.' + (st.code ? '' : ' The group leader can host from their PC.'));
-            $('#p2p-howto').toggle(!!st.code);
+                ? 'Games are hosted on <b>' + esc(st.hostName) + '</b>\\'s PC (<span style="opacity:.75">' + esc(st.url) + '</span>).'
+                : 'Nobody is hosting yet.' + (st.code ? '' : ' The group leader can host from their PC.'));
+            $('#p2p-consent').html(st.agreed
+                ? '<b style="color:#8bc34a">&#10003; You agreed to be sent to this group\\'s peer-to-peer games.</b> '
+                  + '<button class="btn btn-default btn-tiny" type="button" data-agree="false">Stop sending me to games</button>'
+                : '<b>You will not be sent to games in this group until you agree.</b><br>'
+                  + '<button class="btn btn-primary btn-tiny" type="button" data-agree="true" style="margin-top:6px">I trust the host: send me to games</button> '
+                  + '<a class="btn btn-default btn-tiny" href="/groups/leave" style="margin-top:6px">Leave group</a>');
+            $('#p2p-leader').toggle(!!st.code);
+            $('#p2p-waiting').html(st.notAgreed && st.notAgreed.length
+                ? 'Haven\\'t agreed yet (won\\'t be sent to games): <b>' + st.notAgreed.map(esc).join(', ') + '</b>' : '');
             if (st.code) $('#p2p-cmd').text('git clone https://github.com/BambiTP/tagpro-local\\ncd tagpro-local\\nnpm install\\nnpm run host -- ' + st.code);
         });
+        $('#p2p-consent').on('click', '[data-agree]', function () { s.emit('p2pAgree', $(this).data('agree') === true); });
+        $('#p2p-chicago').click(function () { s.emit('setting', { name: 'server', value: 'chicago' }); });
         $('#p2p-copy').click(function () { navigator.clipboard && navigator.clipboard.writeText($('#p2p-cmd').text()); $(this).text('Copied'); });
         s.emit('p2pStatus'); // anything sent before this script ran
     })();
@@ -222,7 +259,7 @@ function createGroup(req, res, opts) {
   groups.leave(req.session);
   const g = new groups.Group(opts);
   if (opts.preset) g.applyPreset(opts.preset);
-  if (opts.p2p) Object.assign(g.settings, { serverSelect: true, server: 'p2p' });
+  if (opts.p2p) { Object.assign(g.settings, { serverSelect: true, server: 'p2p' }); req.session.p2pConsent = g.id; } // the creator agreed in the confirm box
   res.redirect('/groups/' + g.id);
 }
 const groupForm = (req, p2pGroup) => ({
@@ -238,6 +275,15 @@ app.get('/groups/:id', (req, res, next) => {
   if (!/^[a-z]{8}$/.test(req.params.id)) return next();
   const g = groups.groups.get(req.params.id);
   if (!g) return res.redirect('/groups');
+  // peer to peer: warn before joining; agreeing (or joining only to chat) is remembered for this group
+  if (p2p.isP2P(g) && !g.members.has(req.session.id)) {
+    if (req.query.p2p === 'agree' || req.query.p2p === 'watch') {
+      req.session.p2pConsent = req.query.p2p === 'agree' ? g.id : null;
+      req.session.p2pSeen = g.id;
+      return res.redirect('/groups/' + g.id);
+    }
+    if (req.session.p2pSeen !== g.id && req.session.p2pConsent !== g.id) return html(res, card('Peer to Peer Group', p2pWarning(g)));
+  }
   if (req.session.groupId && req.session.groupId !== g.id) groups.leave(req.session);
   html(res, pages.render('group.html', { GROUP_ID: g.id, GROUP_NAME: pages.esc(g.settings.name) }).replace(P2P_PANEL_AT, P2P_PANEL + P2P_PANEL_AT));
 });
@@ -290,7 +336,13 @@ app.get('/game', (req, res) => {
   const extra = (room.egg ? EGG_CLIENT_INFO.eventScripts.map((p) => `\n        <script src="${CB + p}"></script>`).join('') : '')
     + (room.gravity ? '\n        <script src="/R-62bb0909b74c-z/scripts/gravity.js"></script>' : '')
     + (room.localTrust ? '\n        <script>tagproConfig.localTrust = ' + JSON.stringify(room.trustConfig()).replace(/</g, '\\u003c') + ';</script><script src="/localtrust.js?v=' + Math.floor(require('fs').statSync(path.join(PUBLIC, 'localtrust.js')).mtimeMs) + '"></script>' : '');
-  const page = (h) => (room.egg ? eggballPage(h) : h).replace(GG, GG + extra);
+  let page = (h) => (room.egg ? eggballPage(h) : h).replace(GG, GG + extra);
+  if (process.env.P2P_CODE) { // this PC is a peer-to-peer host: say so on the game itself
+    const who = require('./hostlink').hostName();
+    const tag = `<div style="position:fixed;top:4px;left:50%;transform:translateX(-50%);z-index:9999;pointer-events:none;padding:2px 10px;border-radius:4px;background:rgba(243,156,18,.85);color:#000;font:bold 12px sans-serif">PEER TO PEER GAME: hosted on ${pages.esc(who || 'a player')}'s PC, not the Chicago server</div>`;
+    const inner = page;
+    page = (h) => inner(h).replace(/<body[^>]*>/, (b) => b + tag);
+  }
   html(res, page(withTextures(req, pages.render('game.html', {
     GAME_SOCKET: '/game/' + room.id, GAME_SERVER: 'local', GAME_ID: room.id,
     GAME_SOCKET_LABEL: req.headers.host, GROUP_ID: room.groupId || 'null',
