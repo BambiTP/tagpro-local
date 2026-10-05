@@ -20,9 +20,12 @@ function gameId() {
 }
 
 // ---- maps: maps/<key>.png + maps/<key>.json ; key is a Fortunate Maps id or a name ----
+// never played, even if picked or downloaded again: Gumbo NFC has no spawns or flags (games on it crash)
+const BLOCKED_MAPS = new Set(['98100']);
+
 function mapKeys() {
   return fs.readdirSync(MAPS_DIR).filter((f) => f.endsWith('.png')).map((f) => f.slice(0, -4))
-    .filter((k) => fs.existsSync(path.join(MAPS_DIR, k + '.json')));
+    .filter((k) => !BLOCKED_MAPS.has(k) && fs.existsSync(path.join(MAPS_DIR, k + '.json')));
 }
 
 function readMap(key) {
@@ -32,6 +35,7 @@ function readMap(key) {
 }
 
 async function fetchFortunateMap(id) {
+  if (BLOCKED_MAPS.has(String(id))) throw new Error('map ' + id + ' is blocked');
   if (fs.existsSync(path.join(MAPS_DIR, id + '.png'))) return id;
   for (const ext of ['png', 'json']) {
     const r = await fetch(`https://fortunatemaps.herokuapp.com/${ext}/${id}`);
@@ -51,7 +55,7 @@ function rotationKeys() {
 
 async function resolveMap(setting, pool) {
   const v = String(setting || 'random');
-  if (v.startsWith('fm_id/')) return fetchFortunateMap(v.slice(6));
+  if (v.startsWith('fm_id/') && !BLOCKED_MAPS.has(v.slice(6))) return fetchFortunateMap(v.slice(6));
   if (v.startsWith('upload/') && mapKeys().includes(v.slice(7))) return v.slice(7);
   const all = mapKeys();
   // a named map from the group dropdown, if we have it locally (by file key or info.name)
