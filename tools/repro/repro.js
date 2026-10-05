@@ -229,7 +229,11 @@ function run(file, opts = {}) {
           if (ly !== undefined) {
             const realJumped = ly - p.body.GetLinearVelocity().y < -2.5;
             const left = p.jumpsLeft === undefined ? room.jumpLimit() : p.jumpsLeft;
-            if (realJumped !== left > 0) { if (tagging) results.jumpCountFixes = (results.jumpCountFixes || 0) + 1; p.jumpsLeft = realJumped ? Math.max(1, left) : 0; }
+            if (tagging) results.jumpPresses = (results.jumpPresses || 0) + 1;
+            if (realJumped !== left > 0) {
+              if (tagging) { const k = realJumped ? 'jumpRefused' : 'jumpExtra'; results[k] = (results[k] || 0) + 1; results.jumpCountFixes = (results.jumpCountFixes || 0) + 1; }
+              if (realJumped) p.jumpsLeft = Math.max(1, left); // a missed refill; never zero it (one misread press would cascade)
+            }
           }
         }
       }
