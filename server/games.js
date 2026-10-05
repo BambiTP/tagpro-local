@@ -112,7 +112,8 @@ function createGame({ mapKey, settings, isPrivate, groupId }) {
 async function launchGroupGame(group) {
   if (group.game.gameId && games.has(group.game.gameId) && !games.get(group.game.gameId).ended) return;
   const s = group.settings;
-  const mapKey = await resolveMap(s.map).catch(() => resolveMap('random'));
+  // eggball / ice hockey play on their own map (group.modeMap) unless a map was picked after the mode
+  const mapKey = await resolveMap(group.modeMap || s.map).catch(() => resolveMap('random'));
   const room = createGame({ mapKey, settings: s, isPrivate: s.isPrivate, groupId: group.id });
   for (const m of group.memberList()) {
     if (s.isPrivate) {

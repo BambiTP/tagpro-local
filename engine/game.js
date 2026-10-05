@@ -45,6 +45,31 @@ const TRUST_GHOST = new Set(['noPlayerCollisions', 'noPlayerOrMarsCollisions']);
 const TRUST_MAX_SPEED = 30;   // m/s; boost + bomb on top of each other stays under this
 const TRUST_SLACK = 0.6;      // m of extra movement allowed per report (jitter, late packets)
 
+// Eggball (the official easter-2017 event mode). Client files are the real ones, served from
+// /events; every number below was measured from 95 real eggball replays (Oct 2026).
+const EGG_CLIENT_INFO = {
+  eventTextures: { tiles: '/textures/musclescupog/tiles.png', splats: '/images/events/easter/splats.png' },
+  eventSounds: [{ id: 'throw', src: '/events/easter-2016/sounds/throw' }],
+  eventGraphics: [{ id: 'egg', src: '/events/easter-2016/images/egg.png' }]
+    .concat(Array.from({ length: 17 }, (_, i) => ({ id: 'raptor' + (i + 1), src: `/events/easter-2017/images/raptor${i + 1}.png` })))
+    .concat([{ id: 'field', src: '/events/easter-2017/images/field.png' }]),
+  eventScripts: ['/events/easter-2017/scripts/easter-2017.js'],
+  eventSplats: '/images/events/easter/splats.png',
+};
+const EGG = {
+  RADIUS: 0.115, DENSITY: 2, FRICTION: 0.5, RESTITUTION: 0.6, LINEAR_DAMPING: 0.75, ANGULAR_DAMPING: 0.5, // the client's egg body
+  CATEGORY: 1 << 4, MASK: 1 << 3,   // walls only
+  SPAWN_OFFSET: 0.32,               // egg appears this far from the thrower's centre, toward the click
+  THROW_IMPULSE: 0.5,               // 6.017 m/s with the egg's mass (replays: 6.017, every throw)
+  HOLDER_SPEED: 0.9,                // top speed while holding (2.25 of 2.5)
+  THROWER_SPEED: 0.5, THROWER_SLOW_MS: 1000, // after a throw (1.25 for exactly 1 s)
+  INTERCEPT_MS: 3000,               // an enemy catch this soon after the throw pops the thrower
+  BOAT_MS: 1500,                    // Raptor Boat: wall bounce, teammate catches in the endzone this soon after the throw
+  SELF_SPLAT_MS: 50,                // the thrower catching it straight back off a wall leaves a splat
+  WAITING_MS: 3000, PLAY_AFTER_HUDDLE_MS: 5000,
+  CHAT: '#A654CC', TIP: '#BFFF00', RAPTORS: 17,
+};
+
 class GameRoom {
   // opts: { id, uuid, map (from mapLoader), mapName, settings, isPrivate, groupId, onEmpty, onEnd, now }
   constructor(opts) {
@@ -74,7 +99,11 @@ class GameRoom {
     this.timers = [];
 
     this.gravity = this.settings.mode === 'gravity' || !!this.map.gravity;
-    this.localTrust = !!this.settings.localTrust && TRUST_GHOST.has(this.settings.ghostMode);
+    // eggball: the group's eggball mode, or its map picked directly
+    this.egg = (this.settings.mode === 'eggball' || this.mapName === 'eggball')
+      ? { state: '', holder: null, body: null, nextId: 0, thrower: null, throwTeam: null, throwAt: -Infinity, bounced: false, lastScoredOn: null, kicked: false, sync: false }
+      : null;
+    this.localTrust = !this.egg && !!this.settings.localTrust && TRUST_GHOST.has(this.settings.ghostMode);
     this.trust = new WeakMap(); // player -> last accepted report { x, y, at }
     this.trusted = new WeakSet(); // players whose client runs /localtrust.js (they've sent a report)
     this.W = this.map.tiles.length;
@@ -151,6 +180,8 @@ class GameRoom {
     listener.BeginContact = (c) => {
       const ba = c.GetFixtureA().GetBody(), bb = c.GetFixtureB().GetBody();
       const a = ba.player, b = bb.player;
+      // the egg only collides with walls; a wall hit counts for a Raptor Boat and is sent at once
+      if (ba.egg || bb.egg) { this.egg.bounced = true; this.egg.sync = true; return; }
       // the real server sends a ball's position the moment it hits something (replays: extra position
       // packets at landings/bounces); clients then correct their own prediction at once, which is
       // what keeps gravity.js's bouncier prediction (restitution 0.3) from showing a bounce
@@ -221,6 +252,7 @@ class GameRoom {
       gameMode: 'classic', classicGameMode: 'ctf', scoreAlgorithm: 'IPMv1.1', worldStarted: true,
       ...(s.mapTestingMode ? { mapTestingMode: true } : {}),
       ...(this.gravity ? { eventScripts: ['/scripts/gravity.js'] } : {}),
+      ...(this.egg ? EGG_CLIENT_INFO : {}),
     });
     this.send(client, 'teamNames', { redTeamName: s.redTeamName, blueTeamName: s.blueTeamName });
     this.send(client, 'time', { time: Math.max(0, this.stateEndsAt - this.now()), state: this.state });
@@ -237,6 +269,7 @@ class GameRoom {
       return;
     }
     if (client.spectator) {
+      if (this.egg) { this.send(client, 'eggBall', { state: this.egg.state, holder: this.egg.holder }); if (this.egg.body) this.send(client, 'object', this.eggPacket()); }
       this.send(client, 'arrivedInGame', { gameId: this.id, spectateType: 'watching', reconnect: false });
       this.send(client, 'chat', { from: null, message: "You've joined a game as a spectator. Once enough players come online, you'll be redirected to a game. Q/W=Rotate through players. A=Red's flag carrier. S=Blue's flag carrier. C=Center. Z=Toggle auto-zoom. +/-=Zoom in/out.", to: 'all' });
       if (this.groupId) this.send(client, 'chat', { from: null, message: "Press 'g' to chat with your group!", to: 'all' });
@@ -265,9 +298,11 @@ class GameRoom {
     this.send(client, 'p', [this.fullPlayer(p)]);
     this.broadcast('score', this.score);
     this.broadcast('chat', { from: null, message: `${p.name} has joined the ${team === 1 ? 'Red' : 'Blue'} team.`, to: 'all', for: p.id, icon: team === 1 ? 'join1' : 'join2' });
-    this.spawnPlayer(p, 0);
+    if (this.egg) this.broadcast('eggBall', { state: this.egg.state, holder: this.egg.holder });
+    this.spawnPlayer(p, this.egg && this.state !== STATES.COUNTDOWN ? this.respawnDelay() : 0);
     this.broadcastP([this.fullPlayer(p)], (c) => c !== client);
     this.bindClient(client);
+    if (this.egg) this.eggWelcome(client, p);
   }
 
   newPlayer(session, team) {
@@ -323,6 +358,7 @@ class GameRoom {
     const p = client.playerId && this.players[client.playerId];
     if (p) {
       if (p.flag) this.returnFlag(p, null, true);
+      if (this.egg && this.egg.holder === p.id) this.eggHolderLeft(p);
       this.world.DestroyBody(p.body);
       delete this.players[p.id];
       if (this.playerHistory && this.playerHistory[p.id]) this.playerHistory[p.id].left = this.now();
@@ -389,6 +425,7 @@ class GameRoom {
       case 'mark': if (p) this.broadcast('mark', p.id); break;
       case 'resetMap': if (p && this.settings.mapTestingMode) this.resetMap(); break;
       case 'lt': if (p && this.localTrust) this.trustedMove(p, d); break;
+      case 'click': if (p && this.egg) this.eggThrow(p, d); break;
       default: break;
     }
   }
@@ -546,11 +583,12 @@ class GameRoom {
   }
 
   spawnPlayer(p, wait) {
-    const t = this.pickSpawn(p.team);
+    const t = this.egg ? this.eggSpawnTile(p.team) : this.pickSpawn(p.team);
+    const gen = p.spawnGen = (p.spawnGen || 0) + 1; // a newer spawn (eggball huddle) replaces this one
     const px = t.x * PH.TILE, py = t.y * PH.TILE;
     this.broadcast('spawn', { x: px * PH.SCALE, y: py * PH.SCALE, t: p.team, w: wait });
     const done = () => {
-      if (!this.players[p.id] || this.ended) return;
+      if (!this.players[p.id] || this.ended || p.spawnGen !== gen) return;
       p.dead = false;
       p.body.SetActive(true);
       p.body.SetPosition(new V(px, py));
@@ -576,7 +614,8 @@ class GameRoom {
 
   later(ms, fn) { const h = setTimeout(() => { if (!this.closed) fn(); }, ms); this.timers.push(h); return h; }
 
-  // killer: player or null; opts.silent: no stats/sounds (team switch)
+  // killer: player or null; opts.silent: no stats/sounds (team switch); opts.huddle: eggball reset
+  // (no explosion, the caller respawns everyone)
   pop(p, killer, opts = {}) {
     if (p.dead) return;
     // a rolling bomb takes the hit: it goes off and the ball survives (replays: 196 of 197 spike, gate
@@ -598,10 +637,14 @@ class GameRoom {
     if (!opts.silent) {
       p['s-pops']++; this.queue(p, 's-pops');
       if (killer) { killer['s-tags']++; this.queue(killer, 's-tags'); }
-      this.broadcast('splat', { x: Math.round(at.x * PH.SCALE), y: Math.round(at.y * PH.SCALE), t: p.team, temp: false });
+      // eggball: a splat on an endzone is temporary (replays: temp exactly when it lands on one)
+      const tile = this.egg && this.tileAt(at.x, at.y), temp = !!tile && (tile.t === T.RED_ENDZONE || tile.t === T.BLUE_ENDZONE);
+      this.broadcast('splat', { x: Math.round(at.x * PH.SCALE), y: Math.round(at.y * PH.SCALE), t: p.team, temp });
       this.broadcast('sound', { s: 'pop', v: 1 });
-      if (this.settings.poosts) this.explode(at, TU.POP_RADIUS, TU.POP_STRENGTH, p);
+      if (this.settings.poosts && !opts.huddle) this.explode(at, TU.POP_RADIUS, TU.POP_STRENGTH, p);
     }
+    if (opts.huddle) return;
+    if (this.egg && this.egg.holder === p.id) this.eggHolderPopped(p, killer, at);
     if (p.flag === 3 && killer && !killer.flag && !killer.dead) this.stealFlag(p, killer);
     else if (p.flag) this.returnFlag(p, killer);
     if (this.state === STATES.OVERTIME && !opts.silent) this.overtimePops = (this.overtimePops || 0) + 1;
@@ -918,7 +961,8 @@ class GameRoom {
     // team tiles speed the owner team up
     const ac = (PH.ACCEL + (p.jukeJuice ? TU.JUKE_JUICE_BONUS : 0) + (onTeamTile ? TU.TEAM_TILE_BONUS : 0)) * this.settings.accel;
     if (Math.abs(ac - p.ac) > 1e-9) { p.ac = ac; this.queue(p, 'ac'); }
-    const ms = (p.speed ? TU.TOP_SPEED_MAX : onTeamTile ? TU.TEAM_TILE_MAX_SPEED : PH.MAX_SPEED) * this.settings.topspeed;
+    let ms = (p.speed ? TU.TOP_SPEED_MAX : onTeamTile ? TU.TEAM_TILE_MAX_SPEED : PH.MAX_SPEED) * this.settings.topspeed;
+    if (this.egg) ms = this.eggTopSpeed(p, ms);
     if (Math.abs(ms - p.ms) > 1e-9) { p.ms = ms; this.queue(p, 'ms'); }
   }
 
@@ -1127,6 +1171,7 @@ class GameRoom {
     const s = this.settings;
     if (s.rollingBombBehavior === 'classic') for (const x of [a, b]) if (x.bomb) this.detonateRollingBomb(x);
     const kills = (tagger, victim) => {
+      if (this.egg) return this.egg.state === 'play' && this.egg.holder === victim.id; // only the egg holder pops
       if (tagger.tagpro && victim.tagpro) return !!s.kissingTPs;
       if (tagger.tagpro) return true;
       if (victim.flag) return tagger.flag ? !!s.kissingFCs : true;
@@ -1185,6 +1230,217 @@ class GameRoom {
     if (pb && !pb.dead && n.y < -0.5) pb.jumpsLeft = this.jumpLimit();
   }
 
+  // ---------- eggball ----------
+  eggPacket() {
+    const e = this.egg, b = e.body, pos = b.GetPosition(), v = b.GetLinearVelocity();
+    return { id: e.id, type: 'egg', team: e.throwTeam === 2 ? 'Blue' : 'Red', directSet: false,
+      rx: r2(pos.x), ry: r2(pos.y), lx: r2(v.x), ly: r2(v.y), a: r2(b.GetAngularVelocity()), draw: true };
+  }
+
+  eggWelcome(client, p) {
+    const tip = (message) => this.send(client, 'chat', { from: null, message, to: p.id, c: EGG.TIP, for: p.id });
+    tip('Play Egg Ball! Bring the egg to your end zone to score. 10-point mercy rule!');
+    this.later(5000, () => this.players[p.id] && tip('You can pass the egg to your teammates by using the mouse and clicking.'));
+    this.later(10000, () => this.players[p.id] && tip('Throwing an interception or getting tagged with the egg will cause you to pop.'));
+    this.later(15000, () => this.players[p.id] && tip('You can score two points with a Raptor Boat. This occurs when you quickly bounce the egg off the wall to a teammate for the score.'));
+    if (this.egg.body) this.send(client, 'object', this.eggPacket());
+  }
+
+  // pops during play respawn back in the team's own end; huddles (and the pregame) use random tiles
+  // around the middle: red columns mid-10..mid, blue mid-1..mid+9, rows mid-6..mid+4 (replays: uniform)
+  eggSpawnTile(team) {
+    const mx = Math.floor(this.W / 2), my = Math.floor(this.H / 2);
+    if (this.egg.state === 'play') return { x: team === 1 ? 6 : this.W - 7, y: my - 1 };
+    const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+    return team === 1 ? { x: rnd(mx - 10, mx), y: rnd(my - 6, my + 4) } : { x: rnd(mx - 1, mx + 9), y: rnd(my - 6, my + 4) };
+  }
+
+  eggTopSpeed(p, base) {
+    const k = this.egg.holder === p.id ? EGG.HOLDER_SPEED : this.now() < (p.eggSlowUntil || 0) ? EGG.THROWER_SPEED : 1;
+    return Math.round(base * k * 1000) / 1000;
+  }
+
+  eggState(state, holder) {
+    this.egg.state = state; this.egg.holder = holder;
+    this.broadcast('eggBall', { state, holder });
+  }
+
+  // the new holder's team hears an alert, the rest a drop
+  eggAlert(holder) {
+    for (const c of this.clients) {
+      const viewer = c.playerId && this.players[c.playerId];
+      this.send(c, 'sound', viewer && viewer.team === holder.team ? { s: 'friendlyalert', v: 0.5 } : { s: 'drop', v: 0.5 });
+    }
+  }
+
+  eggGive(p) {
+    this.eggState(this.egg.state, p.id);
+    p.potatoFlag = false; this.queue(p, 'potatoFlag');
+    this.eggAlert(p);
+  }
+
+  eggLater(ms, fn) { const gen = this.egg.gen = (this.egg.gen || 0) + 1; this.later(ms, () => { if (!this.ended && this.egg.gen === gen) fn(); }); }
+
+  // after a score (and at the start): 3 s of "HUDDLE UP!", then everyone resets
+  eggWaiting() {
+    this.eggState('waiting', this.egg.holder);
+    this.broadcast('chat', { from: null, message: 'HUDDLE UP!', to: 'all', c: EGG.CHAT });
+    this.eggLater(EGG.WAITING_MS, () => this.eggHuddle());
+  }
+
+  eggHuddle() {
+    const e = this.egg;
+    this.destroyEgg();
+    this.eggState('huddle', e.holder);
+    const all = Object.values(this.players);
+    for (const p of all) this.pop(p, null, { huddle: true });
+    // kickoff: a random team. Later: the team behind (eggballLosingTeamStarts, the default), else / on a
+    // tie the team just scored on (replays: 1,000+ huddles, no exceptions in games with the setting)
+    let team = e.kicked ? e.lastScoredOn : (Math.random() < 0.5 ? 1 : 2);
+    if (e.kicked && this.settings.eggballLosingTeamStarts && this.score.r !== this.score.b) team = this.score.r < this.score.b ? 1 : 2;
+    e.kicked = true;
+    let pool = all.filter((p) => p.team === team);
+    if (!pool.length) pool = all;
+    if (pool.length) this.eggGive(pool[Math.floor(Math.random() * pool.length)]);
+    else this.eggState('huddle', null);
+    for (const p of all) this.spawnPlayer(p, this.respawnDelay());
+    for (let i = 1; i <= 4; i++) this.later(i * 1000, () => { if (!this.ended && e.state === 'huddle') this.broadcast('chat', { from: null, message: 5 - i, to: 'all', c: EGG.CHAT }); });
+    this.eggLater(EGG.PLAY_AFTER_HUDDLE_MS, () => {
+      this.broadcast('sound', { s: 'go', v: 1 });
+      this.eggState('play', e.holder);
+    });
+  }
+
+  createEgg(x, y, team) {
+    const e = this.egg;
+    this.destroyEgg();
+    const fd = new Box2D.Dynamics.b2FixtureDef(), bd = new Box2D.Dynamics.b2BodyDef();
+    fd.density = EGG.DENSITY; fd.friction = EGG.FRICTION; fd.restitution = EGG.RESTITUTION;
+    fd.shape = new Box2D.Collision.Shapes.b2CircleShape(EGG.RADIUS);
+    fd.filter.categoryBits = EGG.CATEGORY; fd.filter.maskBits = EGG.MASK;
+    bd.type = Box2D.Dynamics.b2Body.b2_dynamicBody;
+    bd.linearDamping = EGG.LINEAR_DAMPING; bd.angularDamping = EGG.ANGULAR_DAMPING;
+    bd.position.Set(x, y);
+    e.body = this.world.CreateBody(bd);
+    e.body.CreateFixture(fd);
+    e.body.egg = true;
+    e.id = e.nextId--; // the real server numbers eggs 0, -1, -2, ...
+    e.throwTeam = team;
+    e.bounced = false;
+    return e.body;
+  }
+
+  destroyEgg() {
+    const e = this.egg;
+    if (!e.body) return;
+    this.world.DestroyBody(e.body);
+    e.body = null;
+    this.broadcast('remove-egg', e.id);
+  }
+
+  // click: { x, y } in map pixels
+  eggThrow(p, d) {
+    const e = this.egg;
+    if (e.state !== 'play' || e.holder !== p.id || p.dead || !d || !Number.isFinite(+d.x) || !Number.isFinite(+d.y) || this.world.IsLocked()) return;
+    const pos = p.body.GetPosition();
+    let dx = d.x / PH.SCALE - pos.x, dy = d.y / PH.SCALE - pos.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-6) return;
+    dx /= len; dy /= len;
+    this.eggState('play', null);
+    this.send(p.client, 'sound', { s: 'throw', v: 1 });
+    const now = this.now();
+    p.flag = null; p.potatoFlag = null; p.selfDestructSoon = null;
+    p.eggSlowUntil = now + EGG.THROWER_SLOW_MS;
+    p.ms = this.eggTopSpeed(p, PH.MAX_SPEED * this.settings.topspeed);
+    this.queue(p, 'flag', 'potatoFlag', 'selfDestructSoon', 'ms');
+    const b = this.createEgg(pos.x + dx * EGG.SPAWN_OFFSET, pos.y + dy * EGG.SPAWN_OFFSET, p.team);
+    b.ApplyImpulse(new V(dx * EGG.THROW_IMPULSE, dy * EGG.THROW_IMPULSE), b.GetWorldCenter());
+    e.thrower = p.id; e.throwAt = now;
+    this.broadcast('object', this.eggPacket());
+  }
+
+  // a loose egg where a holder dropped it (popped by something other than an enemy, or left)
+  eggDrop(at, team) {
+    if (this.world.IsLocked()) { const a = { x: at.x, y: at.y }; this.afterStep.push(() => this.egg.state === 'play' && this.egg.holder == null && !this.egg.body && this.eggDrop(a, team)); this.eggState('play', null); return; }
+    this.eggState('play', null);
+    this.createEgg(at.x, at.y, team);
+    this.egg.thrower = null; this.egg.throwAt = -Infinity;
+    this.broadcast('object', this.eggPacket());
+  }
+
+  eggHolderPopped(p, killer, at) {
+    p.potatoFlag = null; this.queue(p, 'potatoFlag');
+    if (this.egg.state !== 'play') return;
+    if (killer && !killer.dead && killer.team !== p.team) this.eggGive(killer); // the tagger takes it
+    else this.eggDrop(at, p.team);
+  }
+
+  eggHolderLeft(p) {
+    const e = this.egg;
+    if (e.state === 'play' && !p.dead) return this.eggDrop(p.body.GetPosition(), p.team);
+    if (e.state === 'play') return this.eggDrop({ x: this.eggSpawnTile(p.team).x * PH.TILE, y: this.eggSpawnTile(p.team).y * PH.TILE }, p.team);
+    const rest = Object.values(this.players).filter((q) => q !== p);
+    const pool = rest.filter((q) => q.team === p.team).length ? rest.filter((q) => q.team === p.team) : rest;
+    if (pool.length) this.eggGive(pool[Math.floor(Math.random() * pool.length)]); else this.eggState(e.state, null);
+  }
+
+  inOwnEndzone(p) {
+    const zone = p.team === 1 ? T.RED_ENDZONE : T.BLUE_ENDZONE;
+    return this.overlappingTiles(p.body.GetPosition()).some((o) => o.t === zone && o.edge < PH.BALL_RADIUS - 0.01);
+  }
+
+  eggTick(now) {
+    const e = this.egg;
+    if (e.state !== 'play') return;
+    if (e.body) {
+      const ep = e.body.GetPosition();
+      for (const p of Object.values(this.players)) {
+        if (p.dead) continue;
+        const pos = p.body.GetPosition();
+        if (Math.hypot(pos.x - ep.x, pos.y - ep.y) < PH.BALL_RADIUS + EGG.RADIUS) { this.eggCatch(p, now); break; }
+      }
+    }
+    const h = e.holder != null && this.players[e.holder];
+    if (h && !h.dead && e.state === 'play' && this.inOwnEndzone(h)) this.eggScore(h, null);
+  }
+
+  eggCatch(p, now) {
+    const e = this.egg, thrower = e.thrower != null && this.players[e.thrower], since = now - e.throwAt;
+    const at = e.body.GetPosition();
+    if (thrower && p === thrower && since < EGG.SELF_SPLAT_MS) this.broadcast('splat', { x: Math.round(at.x * PH.SCALE), y: Math.round(at.y * PH.SCALE), t: p.team, temp: false });
+    if (thrower && !thrower.dead && p.team !== e.throwTeam && since < EGG.INTERCEPT_MS) this.pop(thrower, p); // interception
+    const boat = thrower && p !== thrower && p.team === e.throwTeam && e.bounced && since < EGG.BOAT_MS && this.inOwnEndzone(p);
+    this.eggState('play', p.id);
+    this.destroyEgg();
+    p.potatoFlag = false; this.queue(p, 'potatoFlag');
+    this.eggAlert(p);
+    if (boat) this.eggScore(p, thrower);
+  }
+
+  // boatThrower: a Raptor Boat; the thrower's point goes on the board first (replays: boat, score,
+  // then the usual huddle packets and the catcher's score; both get a capture)
+  eggScore(p, boatThrower) {
+    const add = (q) => { if (q.team === 1) this.score.r++; else this.score.b++; q['s-captures']++; this.queue(q, 's-captures'); };
+    if (boatThrower) {
+      this.broadcast('boat', Math.floor(Math.random() * EGG.RAPTORS));
+      add(boatThrower);
+      this.broadcast('score', this.score);
+    }
+    this.egg.lastScoredOn = p.team === 1 ? 2 : 1;
+    this.eggWaiting();
+    for (const c of this.clients) {
+      const viewer = c.playerId && this.players[c.playerId];
+      const friendly = viewer ? viewer.team === p.team : true;
+      this.send(c, 'sound', { s: friendly ? 'cheering' : 'sigh', v: friendly ? 1 : 0.75 });
+    }
+    add(p);
+    p.flag = null; p.potatoFlag = null; p.selfDestructSoon = null;
+    this.queue(p, 'flag', 'potatoFlag', 'selfDestructSoon');
+    this.broadcast('score', this.score);
+    this.checkWinConditions(true);
+  }
+
   // ---------- main loop ----------
   start() {
     this.startedAt = this.now();
@@ -1229,7 +1485,7 @@ class GameRoom {
       this.world.Step(PH.STEP, PH.VELOCITY_ITERATIONS, PH.POSITION_ITERATIONS);
       // the real server adds key acceleration AFTER the world step (the official client predicts it
       // before); replays only line up this way: 99.7% of 250 ms segments vs 94% (tools/repro)
-      this.applyMovement();
+      if (!this.egg || this.egg.state === 'play') this.applyMovement(); // eggball: nobody moves outside play
       // local trust: a trusted ball stays exactly where its client last put it (no drift into
       // spikes etc. between reports); contacts from this step still count
       for (const p of Object.values(this.players)) {
@@ -1238,6 +1494,7 @@ class GameRoom {
       }
       for (const fn of this.afterStep.splice(0)) fn();
       this.playerContacts();
+      if (this.egg) this.eggTick(now);
       this.afkCheck(now);
       const pt = Number(this.settings.potatoTime) || 0;
       if (pt > 0) for (const p of Object.values(this.players)) if (p.flag && p.potatoFlag && now - p.grabbedAt >= pt) this.pop(p, null);
@@ -1250,7 +1507,8 @@ class GameRoom {
     }
     this.flushDirty();
     if (this.resetDirectSet && this.resetDirectSet.size) { this.pendingDirectReset = this.resetDirectSet; this.resetDirectSet = null; }
-    if (this.tick % TU.SNAPSHOT_TICKS === 0) this.snapshot();
+    if (this.tick % TU.SNAPSHOT_TICKS === 0) { this.snapshot(); if (this.egg && this.egg.body) this.egg.sync = true; }
+    if (this.egg && this.egg.sync) { this.egg.sync = false; if (this.egg.body) this.broadcast('object', this.eggPacket()); }
   }
 
   // tiles under each ball (boosts, bombs, flags, portals...), and teleports due this tick
@@ -1332,7 +1590,8 @@ class GameRoom {
       for (const p of Object.values(this.players)) p.lastInput = now;
       this.setState(STATES.ACTIVE, this.stateEndsAt - now);
       this.startPowerups();
-      this.broadcast('sound', { s: 'go', v: 1 });
+      if (this.egg) this.eggWaiting(); // eggball starts with a huddle; "go" comes when play starts
+      else this.broadcast('sound', { s: 'go', v: 1 });
     } else if (this.state === STATES.CLUTCH) {
       if (!Object.values(this.players).some((p) => p.flag && p.clutchHolder)) this.timeUp(now, true);
     } else if (this.state === STATES.ACTIVE && now >= this.stateEndsAt) {
@@ -1398,7 +1657,7 @@ class GameRoom {
   }
 }
 
-const api = { GameRoom, PUBLIC_DEFAULTS, T, TRUST_GHOST };
+const api = { GameRoom, PUBLIC_DEFAULTS, T, TRUST_GHOST, EGG_CLIENT_INFO };
 if (isNode) module.exports = api;
 else globalThis.TPGame = api;
 })();

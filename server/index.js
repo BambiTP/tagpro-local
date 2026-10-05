@@ -222,14 +222,26 @@ app.get('/game', (req, res, next) => {
   if (req.query.replay) return html(res, withTextures(req, pages.render('replay.html', { REPLAY_KEY: pages.esc(String(req.query.replay).slice(0, 80)) })));
   next();
 });
+// eggball (an event mode): like the real site, the game page itself carries the event's script,
+// tile/splat textures, images and sounds (the live client ignores clientInfo's event lists)
+const { EGG_CLIENT_INFO } = require('../engine/game');
+const CB = '/R-62bb0909b74c-z';
+function eggballPage(h) {
+  const ci = EGG_CLIENT_INFO;
+  for (const [id, src] of Object.entries(ci.eventTextures)) h = h.replace(new RegExp(`(<img id="${id}" src=")[^"]*(")`), `$1${CB + src}$2`);
+  const assets = ci.eventGraphics.map((g) => `\n        <img id="${g.id}" src="${CB + g.src}" class="asset">`).join('')
+    + ci.eventSounds.map((a) => `\n        <audio id="${a.id}" preload="auto">` + ['mp3', 'm4a', 'ogg'].map((e) => `<source src="${CB + a.src}.${e}" type="audio/${e}">`).join('') + '</audio>').join('');
+  return h.replace('<div id="assets">', '<div id="assets">' + assets);
+}
 app.get('/game', (req, res) => {
   const pg = req.session.pendingGame;
   const room = pg && games.games.get(pg.id);
   if (!room || room.closed) return res.redirect('/');
   const GG = '<script src="/R-62bb0909b74c-z/compact/global-game.js"></script>';
-  const extra = (room.gravity ? '\n        <script src="/R-62bb0909b74c-z/scripts/gravity.js"></script>' : '')
+  const extra = (room.egg ? EGG_CLIENT_INFO.eventScripts.map((p) => `\n        <script src="${CB + p}"></script>`).join('') : '')
+    + (room.gravity ? '\n        <script src="/R-62bb0909b74c-z/scripts/gravity.js"></script>' : '')
     + (room.localTrust ? '\n        <script>tagproConfig.localTrust = ' + JSON.stringify(room.trustConfig()).replace(/</g, '\\u003c') + ';</script><script src="/localtrust.js?v=' + Math.floor(require('fs').statSync(path.join(PUBLIC, 'localtrust.js')).mtimeMs) + '"></script>' : '');
-  const page = (h) => h.replace(GG, GG + extra);
+  const page = (h) => (room.egg ? eggballPage(h) : h).replace(GG, GG + extra);
   html(res, page(withTextures(req, pages.render('game.html', {
     GAME_SOCKET: '/game/' + room.id, GAME_SERVER: 'local', GAME_ID: room.id,
     GAME_SOCKET_LABEL: req.headers.host, GROUP_ID: room.groupId || 'null',
@@ -260,6 +272,8 @@ app.get('/music', (req, res) => res.jsonp(music));
 // real client + assets
 // cache-busted paths (/R-<hash>/...) never change; textures/sounds/music change only with the mirror
 app.use('/R-62bb0909b74c-z', express.static(path.join(PUBLIC, 'R-62bb0909b74c-z'), { index: false, maxAge: '365d', immutable: true }));
+// event scripts (eggball) load some images by page-relative paths, e.g. "events/easter-2016/images/egg.png"
+app.use('/events', express.static(path.join(PUBLIC, 'R-62bb0909b74c-z', 'events'), { index: false, maxAge: '7d' }));
 app.use(express.static(PUBLIC, { index: false, maxAge: '7d' }));
 
 groups.attach(io, { launchGroupGame: (g) => games.launchGroupGame(g).catch((e) => console.error('launch failed', e)), endGame: games.endGame });
