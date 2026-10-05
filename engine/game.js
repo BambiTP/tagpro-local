@@ -501,6 +501,7 @@ class GameRoom {
       R: PH.BALL_RADIUS, tile: PH.TILE, ac: PH.ACCEL * s.accel, ms: PH.MAX_SPEED * s.topspeed,
       jjAc: TU.JUKE_JUICE_BONUS * s.accel, teamAc: TU.TEAM_TILE_BONUS * s.accel, teamMs: TU.TEAM_TILE_MAX_SPEED * s.topspeed,
       topMs: TU.TOP_SPEED_MAX * s.topspeed, touch: TU.TOUCH_RADIUS, portals,
+      boostPerMs: TU.BOOST_SPEED / PH.MAX_SPEED, bombR: TU.BOMB_RADIUS, bombS: TU.BOMB_STRENGTH,
       gravity: this.gravity ? {
         jump: TU.JUMP_SPEED, restitution: TU.GRAVITY_RESTITUTION, playerReset: !!s.isPlayerJumpResetEnabled,
         jumps: Number.isFinite(this.jumpLimit()) ? this.jumpLimit() : null, // null = unlimited
@@ -866,7 +867,7 @@ class GameRoom {
         case T.BOOST: case T.RED_BOOST: case T.BLUE_BOOST: {
           if (!this.touches(o, 'boost')) break;
           if ((base === T.RED_BOOST && p.team !== 1) || (base === T.BLUE_BOOST && p.team !== 2)) break;
-          this.boost(p);
+          this.boost(p, 1, this.isTrusted(p)); // trusted: its client already boosted itself
           const empty = base + 0.1;
           this.setTile(o.x, o.y, String(Number(empty.toFixed(1))));
           this.timedRespawn(o.x, o.y, this.settings.speedPadRespawnTime, base, (i) => Number(empty.toFixed(1) + String(i).padStart(2, '0')));
@@ -880,7 +881,7 @@ class GameRoom {
         }
         case T.BOMB: {
           if (!this.touches(o, 'bomb')) break;
-          this.detonateBomb(o.x, o.y);
+          this.detonateBomb(o.x, o.y, this.isTrusted(p) ? p : null); // trusted: its client kicked itself
           break;
         }
         case T.BUTTON: if (this.touches(o, 'button')) nowTouching.add(key); break;
@@ -920,7 +921,9 @@ class GameRoom {
     if (Math.abs(ms - p.ms) > 1e-9) { p.ms = ms; this.queue(p, 'ms'); }
   }
 
-  boost(p, power = 1) {
+  // clientDid: a local-trust ball that boosted itself (only the sound and the tile are left to do)
+  boost(p, power = 1, clientDid = false) {
+    if (clientDid) { this.broadcast('sound', { s: 'burst', v: 1 }); return; }
     const v = p.body.GetLinearVelocity();
     let dx = v.x, dy = v.y;
     const k = p.keys;
@@ -938,12 +941,13 @@ class GameRoom {
     this.queue(p, 'pos');
   }
 
-  detonateBomb(x, y) {
+  // selfKicked: the local-trust ball that set it off and already applied its own kick
+  detonateBomb(x, y, selfKicked = null) {
     const at = { x: x * PH.TILE, y: y * PH.TILE };
     this.setTile(x, y, '10.1');
     this.broadcast('bomb', { x: x * 40, y: y * 40, type: 2 });
     this.explosionSound(at);
-    this.explode(at, TU.BOMB_RADIUS, TU.BOMB_STRENGTH, null);
+    this.explode(at, TU.BOMB_RADIUS, TU.BOMB_STRENGTH, selfKicked);
     this.timedRespawn(x, y, this.settings.dynamiteRespawnTime, T.BOMB, (i) => Number('10.1' + String(i).padStart(2, '0')));
   }
 

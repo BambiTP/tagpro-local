@@ -97,8 +97,8 @@ place(bx, 0.5); place(bx + 1, 0.5);                 // off and back on
 check('fires again after leaving and coming back', bp.body.GetLinearVelocity().x > 5);
 close(broom);
 
-// boosts and bombs stay server side: a trusted ball touching one in a single report sets it off,
-// and its client gets the result (ltKick / ltVel)
+// boosts and bombs of a trusted ball are predicted by its client: the server sets the tile off (for
+// everyone else) but sends nothing back to that ball, which already moved itself
 const mroom = mk(map, {});
 const mc = join(mroom, 'M'); mroom.state = 1; mroom.step();
 const mp = mroom.players[mc.playerId];
@@ -110,9 +110,9 @@ mrep((mx - 1) * 0.4, 2); mroom.step();
 mc.got.length = 0;
 mrep(mx * 0.4 - 0.25, 2); mrep(mx * 0.4 + 0.5, 2);      // on the bomb, then past it, same tick
 check('bomb touched in one report is set off', String(mroom.tiles[mx][my]) === '10.1');
-check('the client that hit it gets the kick', mc.got.some(([ev, d]) => ev === 'ltKick' && d.vx < 0));
+check('the client that hit it is not kicked again', !mc.got.some(([ev]) => ev === 'ltKick'));
 mroom.setTile(mx + 1, my, 5, true); mc.got.length = 0;
 mrep((mx + 1) * 0.4 - 0.25, 2);
-check('boost touched by a trusted ball sends its new velocity', mc.got.some(([ev, d]) => ev === 'ltVel' && d.vx > 5) && String(mroom.tiles[mx + 1][my]) === '5.1');
+check('boost touched by a trusted ball is used up, no velocity sent back', !mc.got.some(([ev]) => ev === 'ltVel') && String(mroom.tiles[mx + 1][my]) === '5.1');
 close(mroom);
 process.exit(fails ? 1 : 0);
