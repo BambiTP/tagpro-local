@@ -85,9 +85,12 @@ function recordStats(room, winner) {
 }
 
 // ---- rooms ----
-function createGame({ mapKey, settings, isPrivate, groupId }) {
+// onFinish: called once when the game ends or empties (a peer-to-peer host tells the main site)
+function createGame({ mapKey, settings, isPrivate, groupId, onFinish }) {
   const map = readMap(mapKey);
   const id = gameId();
+  let finished = false;
+  const finish = () => { if (!finished && onFinish) { finished = true; onFinish(id); } };
   const room = new GameRoom({
     id, uuid: crypto.randomUUID(), map, mapName: map.info.name, settings, isPrivate, groupId,
     onEnd: (r, winner) => {
@@ -95,9 +98,10 @@ function createGame({ mapKey, settings, isPrivate, groupId }) {
       if (r.countsForStats) recordStats(r, winner);
       const g = groupId && groups.groups.get(groupId);
       if (g && g.game.gameId === id) g.setGame(null);
+      finish();
     },
     onEmpty: (r) => {
-      if (r.closed || r.ended) { games.delete(id); const g = groupId && groups.groups.get(groupId); if (g && g.game.gameId === id) g.setGame(null); }
+      if (r.closed || r.ended) { games.delete(id); const g = groupId && groups.groups.get(groupId); if (g && g.game.gameId === id) g.setGame(null); finish(); }
     },
   });
   room.onMapRating = (session, mapName, value) => require('./mapstats').rate(session, mapName, value);
@@ -146,7 +150,14 @@ function attachJoiner(io) {
     const go = async () => {
       if (sent) return;
       let pg = session.pendingGame;
-      if (!pg || !games.has(pg.id) || games.get(pg.id).ended) {
+      // peer-to-peer group: the game is on a player's PC
+      if (g && g.game.gameServer === 'p2p') {
+        sent = true;
+        if (!pg || !pg.p2p || pg.id !== g.game.gameId) pg = await require('./p2p').lateTicket(g, session);
+        if (!pg) return socket.emit('SendToPage', { url: '/groups/' + g.id, reason: 'No game running for your group' });
+        return setTimeout(() => socket.emit('FoundWorld', { url: pg.url, spectate: pg.spectate || null }), 500);
+      }
+      if (!pg || pg.p2p || !games.has(pg.id) || games.get(pg.id).ended) {
         if (g && g.game.gameId && games.has(g.game.gameId)) pg = session.pendingGame = { id: g.game.gameId, team: null, spectate: false };
         else if (!g) { sent = true; socket.emit('serverStatsUpdated', queue.statsPacket()); return queue.join(session, socket); }
         else return socket.emit('SendToPage', { url: '/groups/' + g.id, reason: 'No game running for your group' });

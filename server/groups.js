@@ -3,11 +3,14 @@
 const defaults = require('./groupDefaults.json');
 const sessions = require('./sessions');
 const presets = require('./preset');
+const p2p = require('./p2p');
 const { TRUST_GHOST } = require('../engine/game');
 
 const TEAM = { PLAYING: 0, RED: 1, BLUE: 2, SPECTATING: 3, WAITING: 4 };
 const MAX_MEMBERS = 32;
 const LEAVE_GRACE_MS = 30000; // member kept while navigating group -> joiner -> game pages
+// Region Select: this site's own server, or a player's PC (peer to peer, see p2p.js)
+const SERVERS = [{ name: 'Chicago, IL', value: 'chicago', key: 'ch' }, { name: 'Peer to Peer (a player hosts)', value: 'p2p', key: 'p2p' }];
 
 const groups = new Map();
 let gamesApi = null; // set by index.js: { launchGroupGame(group), endGame(gameId) }
@@ -93,11 +96,13 @@ class Group {
     socket.emit('you', m.id);
     for (const [name] of defaults.settings) socket.emit('setting', { name, value: this.settings[name] });
     socket.emit('game', this.game);
-    socket.emit('servers', defaults.servers.slice(0, 1).map((s) => ({ ...s, name: 'Local', key: 'local' })));
+    socket.emit('servers', SERVERS);
     for (const o of this.members.values()) socket.emit('member', this.publicMember(o));
     socket.emit('loaded');
+    socket.emit('p2p', p2p.status(this, m.leader));
     if (isNew) this.systemChat(`${m.name} has joined the group.`);
 
+    socket.on('p2pStatus', () => socket.emit('p2p', p2p.status(this, m.leader)));
     socket.on('touch', (location) => {
       m.lastSeen = Date.now();
       if (typeof location === 'string' || location === null) m.location = location || m.location;
@@ -141,6 +146,7 @@ class Group {
         this.broadcastSetting('mapId');
       }
       this.broadcastSetting(name);
+      if (name === 'server') p2p.broadcastStatus(this);
     });
     socket.on('leader', (id) => {
       const target = this.members.get(id);
@@ -148,6 +154,7 @@ class Group {
       m.leader = false; target.leader = true;
       this.broadcastMember(m); this.broadcastMember(target);
       this.systemChat(`${target.name} is now the leader.`);
+      p2p.broadcastStatus(this);
     });
     socket.on('kick', (id) => {
       const target = this.members.get(id);
@@ -167,8 +174,14 @@ class Group {
       for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
       pool.forEach((o, i) => { o.team = i % 2 === 0 ? TEAM.RED : TEAM.BLUE; this.broadcastMember(o); });
     });
-    socket.on('groupPlay', () => { if (m.leader && gamesApi) gamesApi.launchGroupGame(this); });
-    socket.on('endGame', () => { if (m.leader && gamesApi && this.game.gameId) gamesApi.endGame(this.game.gameId); });
+    socket.on('groupPlay', () => {
+      if (!m.leader || !gamesApi) return;
+      if (p2p.isP2P(this)) p2p.launch(this); else gamesApi.launchGroupGame(this);
+    });
+    socket.on('endGame', () => {
+      if (!m.leader || !gamesApi || !this.game.gameId) return;
+      if (this.game.gameServer === 'p2p') p2p.endGame(this); else gamesApi.endGame(this.game.gameId);
+    });
     socket.on('groupPresetGenerate', () => socket.emit('groupPreset', this.preset()));
     socket.on('groupPresetApply', (p) => socket.emit('groupPresetResult', m.leader && this.applyPreset(p)));
     socket.on('applyPersonalMute', (d) => { if (d && this.members.has(d.playerId)) { m.mutedGroupIds[d.playerId] = true; this.broadcastMember(m); } });
@@ -198,13 +211,13 @@ class Group {
     if (announce !== false) this.systemChat(`${m.name} has left the group.`);
     if (m.leader) {
       const next = this.members.values().next().value;
-      if (next) { next.leader = true; this.broadcastMember(next); this.systemChat(`${next.name} is now the leader.`); }
+      if (next) { next.leader = true; this.broadcastMember(next); this.systemChat(`${next.name} is now the leader.`); p2p.broadcastStatus(this); }
     }
-    if (this.members.size === 0) groups.delete(this.id);
+    if (this.members.size === 0) { groups.delete(this.id); p2p.groupGone(this); }
   }
 
-  setGame(gameId) {
-    this.game = { gameServer: gameId ? 'local' : null, gameId: gameId || null };
+  setGame(gameId, server = 'local') {
+    this.game = { gameServer: gameId ? server : null, gameId: gameId || null };
     this.nsp.emit('game', this.game);
   }
 

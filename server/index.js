@@ -13,6 +13,7 @@ const replays = require('./replays');
 const community = require('./community');
 const mapstats = require('./mapstats');
 const admin = require('./admin');
+const p2p = require('./p2p');
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0'; // the VPS service sets 127.0.0.1 so only Caddy is public
@@ -26,6 +27,11 @@ const io = new Server(server, { transports: ['websocket', 'polling'], cors: { or
 app.use(require('compression')());
 app.use(express.urlencoded({ extended: true }));
 app.use(sessions.middleware);
+
+// started by `npm run host` (server/host.js): this PC runs a peer-to-peer group's games
+if (process.env.P2P_CODE) {
+  require('./hostlink').setup(app, { hub: process.env.P2P_HUB, code: process.env.P2P_CODE, url: process.env.P2P_URL, name: process.env.P2P_NAME });
+}
 
 pages.setStatsProvider(() => {
   const live = [...games.games.values()].filter((r) => !r.closed);
@@ -168,20 +174,63 @@ app.post('/settings', (req, res) => res.json({ success: true }));
 
 app.get('/', (req, res) => html(res, pages.render('home.html', { GROUP_ID: req.session.groupId || 'null' })));
 
+// ---- peer-to-peer groups: a second create button, and the hosting box on the group page ----
+const CREATE_BTN = '<button id="create-group-btn" class="btn btn-primary">Create Group</button>';
+const P2P_CREATE_BTN = `
+                        <button id="create-p2p-group-btn" class="btn btn-secondary" formaction="/groups/create-p2p" style="margin-top:8px"
+                            title="Games run on a player's own PC instead of the Chicago server">Create Peer to Peer Group</button>`;
+const P2P_PANEL_AT = '    <div class="row">\n\n        <!-- start player list area -->';
+const P2P_PANEL = `    <div class="row" id="p2p-panel" style="display:none">
+        <div class="col-xs-12">
+            <div style="margin:10px 0;padding:10px 14px;border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(0,0,0,.25)">
+                <b>Peer to Peer:</b> <span id="p2p-state"></span>
+                <div id="p2p-howto" style="display:none;margin-top:8px">
+                    To host this group's games on your PC, install <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a>, then run this in a terminal
+                    (Command Prompt on Windows). No router setup needed. Keep the window open while you play.
+                    <pre id="p2p-cmd" style="margin:8px 0;white-space:pre-wrap;user-select:all"></pre>
+                    <button id="p2p-copy" class="btn btn-default btn-tiny" type="button">Copy</button>
+                    <span style="opacity:.75">Already downloaded it? Run <code>git pull</code> in that folder, then just the last line. Keep the code to yourself: anyone with it can host this group.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+    (function p2p() {
+        var s = window.tagpro && tagpro.group && tagpro.group.socket;
+        if (!s) return setTimeout(p2p, 200);
+        var esc = function (t) { return $('<div>').text(t).html(); };
+        s.on('p2p', function (st) {
+            $('#p2p-panel').toggle(!!st.on);
+            $('#p2p-state').html(st.connected
+                ? 'games are hosted on <b>' + esc(st.hostName) + '</b>\\'s PC.'
+                : 'nobody is hosting yet.' + (st.code ? '' : ' The group leader can host from their PC.'));
+            $('#p2p-howto').toggle(!!st.code);
+            if (st.code) $('#p2p-cmd').text('git clone https://github.com/BambiTP/tagpro-local\\ncd tagpro-local\\nnpm install\\nnpm run host -- ' + st.code);
+        });
+        $('#p2p-copy').click(function () { navigator.clipboard && navigator.clipboard.writeText($('#p2p-cmd').text()); $(this).text('Copied'); });
+        s.emit('p2pStatus'); // anything sent before this script ran
+    })();
+    </script>
+`;
+
 app.get(['/groups', '/groups/'], (req, res) => {
   const list = [...groups.groups.values()].filter((g) => g.settings.discoverable && g.members.size).map(pages.groupItem).join('\n');
-  html(res, pages.render('groups.html', { GROUPS_LIST: list }));
+  html(res, pages.render('groups.html', { GROUPS_LIST: list }).replace(CREATE_BTN, CREATE_BTN + P2P_CREATE_BTN));
 });
 
 function createGroup(req, res, opts) {
   groups.leave(req.session);
   const g = new groups.Group(opts);
   if (opts.preset) g.applyPreset(opts.preset);
+  if (opts.p2p) Object.assign(g.settings, { serverSelect: true, server: 'p2p' });
   res.redirect('/groups/' + g.id);
 }
-app.post('/groups/create', (req, res) => createGroup(req, res, {
-  name: req.body.name, discoverable: req.body.public === 'on', isPrivate: req.body.private === 'on', preset: req.body.preset,
-}));
+const groupForm = (req, p2pGroup) => ({
+  name: req.body.name, discoverable: req.body.public === 'on', isPrivate: req.body.private === 'on', preset: req.body.preset, p2p: p2pGroup,
+});
+app.post('/groups/create', (req, res) => createGroup(req, res, groupForm(req, false)));
+// games on a player's own PC instead of this server (see p2p.js)
+app.post('/groups/create-p2p', (req, res) => createGroup(req, res, groupForm(req, true)));
 app.get('/groups/create', (req, res) => createGroup(req, res, { name: '', isPrivate: true, discoverable: false, preset: req.query.preset }));
 app.get('/groups/leave', (req, res) => { groups.leave(req.session); res.redirect('/groups'); });
 
@@ -190,7 +239,7 @@ app.get('/groups/:id', (req, res, next) => {
   const g = groups.groups.get(req.params.id);
   if (!g) return res.redirect('/groups');
   if (req.session.groupId && req.session.groupId !== g.id) groups.leave(req.session);
-  html(res, pages.render('group.html', { GROUP_ID: g.id, GROUP_NAME: pages.esc(g.settings.name) }));
+  html(res, pages.render('group.html', { GROUP_ID: g.id, GROUP_NAME: pages.esc(g.settings.name) }).replace(P2P_PANEL_AT, P2P_PANEL + P2P_PANEL_AT));
 });
 
 // group map upload (layout png + logic json), like tagpro.koalabeast.com/groups/testmap
@@ -276,6 +325,7 @@ app.use('/R-62bb0909b74c-z', express.static(path.join(PUBLIC, 'R-62bb0909b74c-z'
 app.use('/events', express.static(path.join(PUBLIC, 'R-62bb0909b74c-z', 'events'), { index: false, maxAge: '7d' }));
 app.use(express.static(PUBLIC, { index: false, maxAge: '7d' }));
 
+p2p.attach(io, groups.groups);
 groups.attach(io, { launchGroupGame: (g) => games.launchGroupGame(g).catch((e) => console.error('launch failed', e)), endGame: games.endGame });
 games.attachJoiner(io);
 mapstats.attach(io, replays.index);
