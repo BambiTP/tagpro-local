@@ -97,7 +97,8 @@ async function ensureMaps(ids, fetchFortunateMap) {
   return failed;
 }
 
-async function update(body, fetchFortunateMap) {
+// returns { failed: ids that couldn't be downloaded, invalid: messages for maps that can't be played }
+async function update(body, fetchFortunateMap, mapProblem) {
   const rotIds = parseIds(body.rotation);
   const mapId = String(body.map || '').trim().toLowerCase() === 'random' || !String(body.map || '').trim() ? 'random' : parseIds(body.map)[0];
   const failed = await ensureMaps(rotIds.concat(mapId && mapId !== 'random' ? [mapId] : []), fetchFortunateMap);
@@ -106,13 +107,18 @@ async function update(body, fetchFortunateMap) {
   // keep only values that differ from the public defaults
   state.settings = Object.fromEntries(Object.entries(settings).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify(DEFAULT_VALUES[k])));
   const keys = new Set(installedMaps().map((m) => m.key));
+  const invalid = [];
+  for (const k of new Set(rotIds.concat(mapId !== 'random' ? [mapId] : []))) {
+    const problem = keys.has(k) && mapProblem(k);
+    if (problem) { invalid.push(problem); keys.delete(k); }
+  }
   state.map = mapId && keys.has(mapId) ? mapId : 'random';
   const rot = [...new Set(rotIds)].filter((k) => keys.has(k));
   state.rotation = rot.length ? rot : null;
   const n = Number(body.gameSize);
   state.gameSize = [2, 4, 6, 8, 10, 12, 14, 16].includes(n) ? n : 8;
   save();
-  return failed;
+  return { failed, invalid };
 }
 
 function reset() { state = { settings: {}, map: 'random', rotation: null, gameSize: 8 }; save(); }

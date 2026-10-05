@@ -145,12 +145,15 @@ app.get('/profile/:id', (req, res) => {
 app.get('/admin', (req, res) => {
   if (!admin.isAdmin(req.session)) return req.session.account ? res.status(403).send('Not an admin') : res.redirect('/login');
   const failed = req.query.failed ? String(req.query.failed) : '';
-  html(res, card('TagPro Admin', admin.panel(req.query.saved ? 'Saved. The next public game uses these settings.' : '', failed ? `Couldn't download from Fortunate Maps: ${failed}` : '')));
+  const invalid = req.query.invalid ? String(req.query.invalid) : '';
+  const errors = [failed ? `Couldn't download from Fortunate Maps: ${failed}` : '', invalid ? `Not saved: ${invalid}` : ''].filter(Boolean).join(' ');
+  html(res, card('TagPro Admin', admin.panel(req.query.saved ? 'Saved. The next public game uses these settings.' : '', errors)));
 });
 app.post('/admin', async (req, res) => {
   if (!admin.isAdmin(req.session)) return res.status(403).send('Not an admin');
-  const failed = await admin.update(req.body, games.fetchFortunateMap);
-  res.redirect('/admin?saved=1' + (failed.length ? '&failed=' + encodeURIComponent(failed.join(', ')) : ''));
+  const { failed, invalid } = await admin.update(req.body, games.fetchFortunateMap, games.mapProblem);
+  res.redirect('/admin?saved=1' + (failed.length ? '&failed=' + encodeURIComponent(failed.join(', ')) : '')
+    + (invalid.length ? '&invalid=' + encodeURIComponent(invalid.join(' ')) : ''));
 });
 app.post('/admin/reset', (req, res) => {
   if (!admin.isAdmin(req.session)) return res.status(403).send('Not an admin');
@@ -302,6 +305,11 @@ app.post('/groups/testmap', upload.fields([{ name: 'layout' }, { name: 'logic' }
     const key = 'upload-' + g.id + '-' + Date.now();
     require('fs').writeFileSync(path.join(__dirname, '..', 'maps', key + '.png'), layout.buffer);
     require('fs').writeFileSync(path.join(__dirname, '..', 'maps', key + '.json'), JSON.stringify(json));
+    const problem = games.mapProblem(key);
+    if (problem) {
+      for (const ext of ['png', 'json']) require('fs').unlinkSync(path.join(__dirname, '..', 'maps', key + '.' + ext));
+      return res.json({ success: false, error: problem });
+    }
     g.settings.map = 'upload/' + key; g.broadcastSetting('map');
     res.json({ success: true });
   } catch (e) { res.json({ success: false, error: 'Invalid map files' }); }

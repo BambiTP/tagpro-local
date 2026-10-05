@@ -31,8 +31,13 @@ function broadcast() {
 async function tryStart() {
   while (queue.length >= GAME_SIZE()) {
     const batch = queue.splice(0, GAME_SIZE());
-    const mapKey = await gamesApi.resolveMap(admin.mapChoice(), admin.rotationPool());
-    const room = gamesApi.createGame({ mapKey, settings: admin.publicSettings(), isPrivate: false, groupId: null });
+    // the admin panel refuses maps with no valid spawns; if one still gets picked, try another
+    let room = null;
+    for (let i = 0; !room && i < 5; i++) {
+      const mapKey = await gamesApi.resolveMap(i ? 'random' : admin.mapChoice(), admin.rotationPool());
+      try { room = gamesApi.createGame({ mapKey, settings: admin.publicSettings(), isPrivate: false, groupId: null }); } catch (e) { console.error('Play Now:', e.message); }
+    }
+    if (!room) { queue.unshift(...batch); break; }
     room.fixedTeams = true;
     room.countsForStats = true; // Play Now games feed profile stats and degrees
     batch.forEach((q, i) => {

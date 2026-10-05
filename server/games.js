@@ -20,12 +20,9 @@ function gameId() {
 }
 
 // ---- maps: maps/<key>.png + maps/<key>.json ; key is a Fortunate Maps id or a name ----
-// never played, even if picked or downloaded again: Gumbo NFC has no spawns or flags (games on it crash)
-const BLOCKED_MAPS = new Set(['98100']);
-
 function mapKeys() {
   return fs.readdirSync(MAPS_DIR).filter((f) => f.endsWith('.png')).map((f) => f.slice(0, -4))
-    .filter((k) => !BLOCKED_MAPS.has(k) && fs.existsSync(path.join(MAPS_DIR, k + '.json')));
+    .filter((k) => fs.existsSync(path.join(MAPS_DIR, k + '.json')));
 }
 
 function readMap(key) {
@@ -35,7 +32,6 @@ function readMap(key) {
 }
 
 async function fetchFortunateMap(id) {
-  if (BLOCKED_MAPS.has(String(id))) throw new Error('map ' + id + ' is blocked');
   if (fs.existsSync(path.join(MAPS_DIR, id + '.png'))) return id;
   for (const ext of ['png', 'json']) {
     const r = await fetch(`https://fortunatemaps.herokuapp.com/${ext}/${id}`);
@@ -43,6 +39,21 @@ async function fetchFortunateMap(id) {
     fs.writeFileSync(path.join(MAPS_DIR, `${id}.${ext}`), Buffer.from(await r.arrayBuffer()));
   }
   return String(id);
+}
+
+// a team with no spawn points and no flag has nowhere to spawn: such a map can't be played
+// (eggball spawns players its own way)
+class MapError extends Error {}
+function checkSpawns(room) {
+  if (!room.egg && [1, 2].some((t) => !room.spawnTiles[t].length)) throw new MapError(`The map "${room.mapName}" has no valid spawns, so it can't be played.`);
+}
+// the error message if map `key` can't be played, else null (for uploads and the admin panel)
+function mapProblem(key, settings = {}) {
+  try {
+    const map = readMap(key);
+    checkSpawns(new GameRoom({ id: 'check', uuid: 'check', map, mapName: map.info.name, settings: { ...settings }, isPrivate: true, onEnd() {}, onEmpty() {} }));
+    return null;
+  } catch (e) { return e instanceof MapError ? e.message : `The map ${key} couldn't be read.`; }
 }
 
 function rotationKeys() {
@@ -55,7 +66,7 @@ function rotationKeys() {
 
 async function resolveMap(setting, pool) {
   const v = String(setting || 'random');
-  if (v.startsWith('fm_id/') && !BLOCKED_MAPS.has(v.slice(6))) return fetchFortunateMap(v.slice(6));
+  if (v.startsWith('fm_id/')) return fetchFortunateMap(v.slice(6));
   if (v.startsWith('upload/') && mapKeys().includes(v.slice(7))) return v.slice(7);
   const all = mapKeys();
   // a named map from the group dropdown, if we have it locally (by file key or info.name)
@@ -108,6 +119,7 @@ function createGame({ mapKey, settings, isPrivate, groupId, onFinish }) {
       if (r.closed || r.ended) { games.delete(id); const g = groupId && groups.groups.get(groupId); if (g && g.game.gameId === id) g.setGame(null); finish(); }
     },
   });
+  checkSpawns(room); // before anything starts or is recorded
   room.onMapRating = (session, mapName, value) => require('./mapstats').rate(session, mapName, value);
   games.set(id, room);
   room.recorder = new replays.Recorder(room);
@@ -122,7 +134,11 @@ async function launchGroupGame(group) {
   const s = group.settings;
   // eggball / ice hockey play on their own map (group.modeMap) unless a map was picked after the mode
   const mapKey = await resolveMap(group.modeMap || s.map).catch(() => resolveMap('random'));
-  const room = createGame({ mapKey, settings: s, isPrivate: s.isPrivate, groupId: group.id });
+  let room;
+  try { room = createGame({ mapKey, settings: s, isPrivate: s.isPrivate, groupId: group.id }); } catch (e) {
+    if (!(e instanceof MapError)) throw e;
+    return group.systemChat(e.message + ' Pick another map.');
+  }
   for (const m of group.memberList()) {
     if (s.isPrivate) {
       if (m.team >= 4) continue;
@@ -192,4 +208,4 @@ function attachGames(io) {
 
 queue.init({ createGame, resolveMap, games });
 
-module.exports = { games, createGame, launchGroupGame, endGame, attachJoiner, attachGames, resolveMap, fetchFortunateMap, mapKeys };
+module.exports = { games, MapError, mapProblem, createGame, launchGroupGame, endGame, attachJoiner, attachGames, resolveMap, fetchFortunateMap, mapKeys };
