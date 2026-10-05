@@ -146,6 +146,19 @@ function groupGone(g) {
   if (host) { host.socket.emit('rejected', 'The group closed (everyone left).'); host.socket.disconnect(); }
 }
 
+// a host address must be on the public internet: otherwise this site could be made to probe its own
+// machine or network (an internal address can't be a real player's host anyway)
+const PRIVATE = [/^127\./, /^10\./, /^192\.168\./, /^172\.(1[6-9]|2\d|3[01])\./, /^169\.254\./, /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, /^0\./,
+  /^::1$/, /^::$/, /^f[cd]/i, /^fe80/i, /^::ffff:/i];
+async function publicAddress(url) {
+  if (process.env.P2P_ALLOW_HTTP === '1') return true; // local tests host on 127.0.0.1
+  try {
+    const host = new URL(url).hostname.replace(/^\[|\]$/g, '');
+    const addrs = await require('dns').promises.lookup(host, { all: true });
+    return addrs.length > 0 && addrs.every((a) => !PRIVATE.some((re) => re.test(a.address)));
+  } catch (e) { return false; }
+}
+
 // the host must be reachable by players' browsers; tunnels can take a few seconds to come up
 async function reachable(url) {
   for (let i = 0; i < 5; i++) {
@@ -169,6 +182,7 @@ function attach(io, groups) {
     // players' game traffic goes to this address: it must be encrypted (plain http only for local tests)
     const scheme = process.env.P2P_ALLOW_HTTP === '1' ? 'https?' : 'https';
     if (!new RegExp(`^${scheme}:\\/\\/[^\\s"'<>/?#@\\\\]+$`).test(url)) return reject('The public address must start with https:// (the built-in tunnel gives one).');
+    if (!(await publicAddress(url))) return reject('The public address must be on the internet, not a private or local network.');
     if (!(await reachable(url))) return reject(`This site couldn't reach ${url}, so players couldn't either.`);
     if (socket.disconnected || !groups.has(g.id) || byCode.get(code) !== g) return reject('The host code changed while connecting; copy a fresh command from the group page.');
     // players agreed to trust the host they saw: a different PC taking over asks everyone again

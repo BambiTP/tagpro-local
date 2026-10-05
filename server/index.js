@@ -92,15 +92,20 @@ function withTextures(req, page) {
   }
   return page;
 }
-// every page shows the logged-in name in the header
+// every page shows the logged-in name in the header. The request is tracked per request chain
+// (AsyncLocalStorage), not in a shared variable: with async handlers (log in) another visitor's
+// request could otherwise land in between and their name would be shown.
 const _render = pages.render;
-let currentReq = null;
+const requestStore = new (require('async_hooks').AsyncLocalStorage)();
 const origin = (req) => req ? `${req.headers['x-forwarded-proto'] || req.protocol}://${req.headers['x-forwarded-host'] || req.headers.host}` : '';
-pages.render = (name, vars = {}) => _render(name, Object.assign({
-  USER_NAME: currentReq && currentReq.session.account ? currentReq.session.account.displayName : '',
-  ORIGIN: origin(currentReq),
-}, vars));
-app.use((req, res, next) => { currentReq = req; next(); });
+pages.render = (name, vars = {}) => {
+  const req = requestStore.getStore();
+  return _render(name, Object.assign({
+    USER_NAME: req && req.session.account ? req.session.account.displayName : '',
+    ORIGIN: pages.esc(origin(req)),
+  }, vars));
+};
+app.use((req, res, next) => requestStore.run(req, next));
 
 const card = (title, content, script) => pages.render('card.html', { TITLE: title, CARD: content, PAGE_SCRIPT: script || '/R-965af4e7a4b8-z/compact/global-settings.js' });
 

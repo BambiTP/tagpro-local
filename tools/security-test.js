@@ -59,6 +59,18 @@ function hugePng(w, h) {
   const prof = await a.get('/profile');
   check(tpid(a) !== b4login && prof.status === 200, 'logging in issues a new cookie and works');
 
+  // ---- pages: no third-party tracker; nobody else's name in your header ----
+  check(!/redditstatic|rdt\(/.test(await (await a.get('/')).text()), 'pages no longer load the Reddit ad tracker');
+  const guest = jar(HUB); await guest.get('/');
+  // wrong passwords for a real account, so each log in really waits on the password check
+  const other = jar(HUB); await other.get('/');
+  const user2 = 'r' + user;
+  await other.get('/register', { method: 'POST', headers: { ...form, 'x-forwarded-for': '10.9.8.1' }, body: `username=${user2}&password=hunter22` });
+  const guestPages = Array.from({ length: 8 }, (_, i) => guest.get('/login', { method: 'POST', headers: { ...form, 'x-forwarded-for': '10.9.9.' + i }, body: `username=${user2}&password=wrong${i}` }).then((r) => r.text()));
+  for (let i = 0; i < 40; i++) { a.get('/groups'); await wait(5); } // the logged-in player keeps loading pages meanwhile
+  const pagesSeen = (await Promise.all(guestPages)).map((t) => ({ guest: true, t }));
+  check(pagesSeen.filter((x) => x.guest).every((x) => !x.t.includes('>' + user + '<')), 'a guest\'s page never shows another player\'s name (requests at the same time)');
+
   // ---- requests from other sites ----
   const evil = await a.get('/profile', { method: 'POST', headers: { ...form, origin: 'https://1-2-3-4.sslip.io' }, body: 'displayedName=pwned' });
   check(evil.status === 403, 'a form posted from another sslip.io site is refused');
@@ -143,6 +155,17 @@ function hugePng(w, h) {
   flood = chat.slice(seen).filter((m) => /^spam/.test(m)).length;
   check(flood === 20, `chat spam is cut off at 20 per 5 seconds (${flood} of 30 got through)`);
 
+  // ---- Play Now: one address can't fill the queue ----
+  const qs = [];
+  for (let i = 0; i < 5; i++) {
+    const p = jar(HUB); await p.get('/');
+    const sk = p.sock('/games/find');
+    qs.push(new Promise((ok) => { sk.on('ready', () => sk.emit('JoinerSelections', {})); sk.on('SendToPage', (d) => ok(d.reason)); setTimeout(() => ok(null), 2500); }).then((r) => { sk.close(); return r; }));
+    await wait(150);
+  }
+  const reasons = await Promise.all(qs);
+  check(reasons.filter((r) => /Too many players from your network/.test(r || '')).length === 1, 'the 5th queue entry from one address is turned away');
+
   // ---- peer to peer ----
   let status = null;
   lead.on('p2p', (s) => { status = s; });
@@ -154,6 +177,7 @@ function hugePng(w, h) {
     h.on('accepted', () => { h.close(); ok('accepted'); });
   });
   check(/https/.test(await hostSock(status.code, 'http://127.0.0.1:3131')), 'a host with a plain http:// address is refused');
+  check(/private or local/.test(await hostSock(status.code, 'https://localhost:3131')), 'a host address on a private or local network is refused');
 
   // leadership passes to Bob: the old code stops working
   const bob = jar(HUB); await bob.get('/');

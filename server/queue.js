@@ -48,8 +48,19 @@ async function tryStart() {
   broadcast();
 }
 
+// one address can't fill Play Now games with fake players (a few allowed: friends on one network)
+const PER_ADDRESS = 4;
+function address(socket) {
+  const ip = socket.handshake.address || '';
+  if (!/^(::ffff:)?127\.|^::1$/.test(ip)) return ip;
+  const fwd = String(socket.handshake.headers['x-forwarded-for'] || '').split(',').map((x) => x.trim()).filter(Boolean);
+  return fwd.length ? fwd[fwd.length - 1] : ip;
+}
 function join(session, socket) {
   if (queue.some((q) => q.session === session)) return;
+  if (queue.filter((q) => address(q.socket) === address(socket)).length >= PER_ADDRESS) {
+    return socket.emit('SendToPage', { url: '/', reason: 'Too many players from your network are already in the queue' });
+  }
   queue.push({ session, socket });
   socket.on('disconnect', () => leave(socket));
   socket.on('leaveJoiner', () => leave(socket));

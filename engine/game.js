@@ -425,10 +425,12 @@ class GameRoom {
       }
       case 'p': if (d && d.id != null) this.send(client, 'pr', d.id); break;
       case 'spectate': case 'modSpectate': break;
-      case 'mapRating': if (this.onMapRating) this.onMapRating(client.session, this.mapName, d); break;
+      case 'mapRating': if (this.onMapRating && client.session.account) this.onMapRating(client.session, this.mapName, d); break; // logged in only, like the Maps page
       case 'preferredServer': case 'tips': case 'touch': case 'pings': break;
       case 'mark': if (p) this.broadcast('mark', p.id); break;
-      case 'resetMap': if (p && this.settings.mapTestingMode) this.resetMap(); break;
+      case 'resetMap': // at most once a second (rebuilding the map is heavy)
+        if (p && this.settings.mapTestingMode && !(this.lastReset > Date.now() - 1000)) { this.lastReset = Date.now(); this.resetMap(); }
+        break;
       case 'lt': if (p && this.localTrust) this.trustedMove(p, d); break;
       case 'click': if (p && this.egg) this.eggThrow(p, d); break;
       default: break;

@@ -53,9 +53,12 @@ function disableDeadLinks(html) {
     DEAD_LINKS.includes(href) ? `<a${pre}${post} aria-disabled="true" style="pointer-events:none;opacity:.4;cursor:default">` : m);
 }
 
+// the saved real pages report every visit to TagPro's own Reddit ad account: never sent from here
+const REDDIT_PIXEL = /<script>\s*!function \(w, d\) \{\s*if \(w\.rdt\) return;[\s\S]*?<\/script>/g;
+
 function render(name, vars = {}) {
   vars = Object.assign({}, statsProvider(), vars);
-  let html = tpl(name).replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => (k in vars ? vars[k] : m));
+  let html = tpl(name).replace(REDDIT_PIXEL, '').replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => (Object.hasOwn(vars, k) ? vars[k] : m));
   html = disableDeadLinks(rebrand(html));
   // redrawn images: version the URLs so cached copies of the old ones aren't shown
   html = html.replace(/\/images\/(logo|KoalaBeast)\.png(?=")/g, '/images/$1.png?v=bambi1');
