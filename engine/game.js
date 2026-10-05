@@ -151,6 +151,11 @@ class GameRoom {
     listener.BeginContact = (c) => {
       const ba = c.GetFixtureA().GetBody(), bb = c.GetFixtureB().GetBody();
       const a = ba.player, b = bb.player;
+      // the real server sends a ball's position the moment it hits something (replays: extra position
+      // packets at landings/bounces); clients then correct their own prediction at once, which is
+      // what keeps gravity.js's bouncier prediction (restitution 0.3) from showing a bounce
+      if (a && !a.dead) this.queue(a, 'pos');
+      if (b && !b.dead) this.queue(b, 'pos');
       if (a && b && !a.dead && !b.dead && a.team !== b.team) this.enemyContact(a, b);
       if (a && bb.spike && !a.dead) this.pop(a, null);
       if (b && ba.spike && !b.dead) this.pop(b, null);
@@ -1079,7 +1084,7 @@ class GameRoom {
         continue; // tie: keep current
       }
       if (this.gateTimers[gk] || this.tiles[gx][gy] === defTile) continue;
-      const sticky = Number(sw.timer) || 0;
+      const sticky = (Number(sw.timer) || 0) * 1000; // map files give seconds (replays: gate reverts exactly timer s after release)
       if (sticky < 0) continue;               // -1: never goes back (stays the last team's colour)
       if (sticky === 0) { set(defTile); continue; }
       this.gateTimers[gk] = this.later(sticky, () => { delete this.gateTimers[gk]; set(defTile); });
