@@ -342,7 +342,8 @@ class GameRoom {
         const seq = Number(d.t) || 0;
         p[d.k] = down ? seq : -seq;
         this.queue(p, d.k);
-        if (this.gravity && down && d.k === 'up' && !this.isTrusted(p)) this.jump(p); // trusted: the client jumps itself
+        // applied with the other per-tick input, after the world step (trusted: the client jumps itself)
+        if (this.gravity && down && d.k === 'up' && !this.isTrusted(p)) p.wantJump = true;
         break;
       }
       case 'chat': {
@@ -571,10 +572,13 @@ class GameRoom {
   // killer: player or null; opts.silent: no stats/sounds (team switch)
   pop(p, killer, opts = {}) {
     if (p.dead) return;
-    if (p.bomb && this.settings.rollingBombBehavior !== 'classic' && !opts.silent) this.detonateRollingBomb(p);
+    // a rolling bomb takes the hit: it goes off and the ball survives (replays: 196 of 197 spike, gate
+    // and tag "pops" of a ball holding one were survived)
+    if (p.bomb && this.settings.rollingBombBehavior !== 'classic' && !opts.silent) { this.detonateRollingBomb(p); return; }
     const pos = p.body.GetPosition();
     const at = { x: pos.x, y: pos.y };
     p.dead = true;
+    p.wantJump = false;
     p.collected = [];
     p.draw = false;
     const removeBody = () => { p.body.SetLinearVelocity(new V(0, 0)); p.body.SetActive(false); };
@@ -877,6 +881,11 @@ class GameRoom {
         case T.BUTTON: if (this.touches(o, 'button')) nowTouching.add(key); break;
         case T.GATE_ON: case T.GATE_RED: case T.GATE_BLUE: {
           if (o.edge >= PH.BALL_RADIUS - 0.02) break;
+          // pops on first contact only: a ball that survived it (rolling bomb) can roll on through;
+          // a gate that switches on around a ball still pops it (replays: 98.2% vs 97.9% of gate segments)
+          const gk = 'g' + this.gateGroup(o.x, o.y); // the whole connected gate counts as one thing
+          if (wasOn.has(gk)) { nowOn.add(gk); break; }
+          nowOn.add(gk);
           if (base === T.GATE_ON || (base === T.GATE_RED && p.team === 2) || (base === T.GATE_BLUE && p.team === 1)) this.pop(p, null);
           break;
         }
@@ -886,7 +895,8 @@ class GameRoom {
           if (this.isTrusted(p)) break; // the client teleports itself; see trustedMove
           if (typeof t === 'string') break;
           if ((base === T.RED_PORTAL && p.team !== 1) || (base === T.BLUE_PORTAL && p.team !== 2)) break;
-          this.teleport(p, o.x, o.y, base);
+          // the teleport lands the next tick (replays: 91.8% vs 87.3% of portal segments)
+          if (!p.portalPending) p.portalPending = { x: o.x, y: o.y, base, tick: this.tick };
           break;
         }
         default: break;
@@ -912,7 +922,11 @@ class GameRoom {
     if (Math.hypot(dx, dy) < 1e-3) { dx = (k.right ? 1 : 0) - (k.left ? 1 : 0); dy = (k.down ? 1 : 0) - (k.up ? 1 : 0); }
     const m = Math.max(Math.abs(dx), Math.abs(dy));
     if (m < 1e-6) return;
-    const k2 = TU.BOOST_SPEED * power / m; // straight: 7.5 m/s, diagonal: up to 7.5 * sqrt(2)
+    // a boost is 3x the ball's current top speed: 7.5 normally, 15 on a team tile, and scaled by the
+    // group's top speed setting (replays: 95.7% vs 89.0% of boost segments on team-tile maps; 82% vs
+    // 12% on maps with a changed top speed)
+    const speed = TU.BOOST_SPEED * p.ms / PH.MAX_SPEED;
+    const k2 = speed * power / m; // straight: 7.5 m/s, diagonal: up to 7.5 * sqrt(2)
     p.body.SetLinearVelocity(new V(dx * k2, dy * k2));
     if (this.isTrusted(p)) this.send(p.client, 'ltVel', { vx: dx * k2, vy: dy * k2 }); // its client owns the ball
     this.broadcast('sound', { s: 'burst', v: 1 });
@@ -997,6 +1011,26 @@ class GameRoom {
       }
     }
     return (this.gateFieldCache[key] = out);
+  }
+
+  // id of the 8-connected group of gate tiles (x, y) belongs to
+  gateGroup(x, y) {
+    if (!this.gateGroups) {
+      this.gateGroups = {};
+      let id = 0;
+      const isGate = (a, b) => a >= 0 && b >= 0 && a < this.W && b < this.H && Math.floor(parseFloat(this.map.tiles[a][b])) === T.GATE_OFF;
+      for (let a = 0; a < this.W; a++) for (let b = 0; b < this.H; b++) {
+        if (!isGate(a, b) || this.gateGroups[a + ',' + b] !== undefined) continue;
+        const stack = [[a, b]]; id++;
+        while (stack.length) {
+          const [u, v] = stack.pop(), k = u + ',' + v;
+          if (this.gateGroups[k] !== undefined || !isGate(u, v)) continue;
+          this.gateGroups[k] = id;
+          for (let du = -1; du <= 1; du++) for (let dv = -1; dv <= 1; dv++) if (du || dv) stack.push([u + du, v + dv]);
+        }
+      }
+    }
+    return this.gateGroups[x + ',' + y] ?? (x + ',' + y);
   }
 
   // every button that controls a gate tile (a gate can be wired to several buttons)
@@ -1131,10 +1165,12 @@ class GameRoom {
       if (pa && pb && !this.settings.isPlayerJumpResetEnabled) continue;
       c.GetWorldManifold(wm);
       // normal points from A to B; the ball is "on top" when the other body is below it
-      // only a landing counts: a ball still leaving the ground after a jump keeps its count
-      const landed = (q) => q.body.GetLinearVelocity().y > -0.5;
-      if (pa && wm.m_normal.y > 0.5 && landed(pa)) pa.jumpsLeft = this.jumpLimit();
-      if (pb && wm.m_normal.y < -0.5 && landed(pb)) pb.jumpsLeft = this.jumpLimit();
+      // ground = a surface under the ball (normal mostly up); it counts unless the ball is moving away
+      // from it (just jumped), so rolling up a 45 degree slope keeps refilling jumps (replays: 96.3% vs
+      // 96.0% of jump segments with the old "vertical speed > -0.5" test)
+      const n = wm.m_normal, away = (q, sign) => { const v = q.body.GetLinearVelocity(); return sign * (v.x * n.x + v.y * n.y) < -0.5; };
+      if (pa && n.y > 0.5 && !away(pa, 1)) pa.jumpsLeft = this.jumpLimit();
+      if (pb && n.y < -0.5 && !away(pb, -1)) pb.jumpsLeft = this.jumpLimit();
     }
   }
 
@@ -1163,18 +1199,10 @@ class GameRoom {
     const now = this.now();
     this.updateClock(now);
     if (this.playing()) {
-      for (const p of Object.values(this.players)) {
-        if (p.dead) continue;
-        p.body.SetAwake(true);
-        if (this.isTrusted(p) && this.trust.has(p)) continue; // its client moves it
-        const v = p.body.GetLinearVelocity();
-        const ms = p.ms, ac = p.ac, k = p.keys;
-        if (k.left && v.x > -ms) v.x -= ac;
-        if (k.right && v.x < ms) v.x += ac;
-        if (k.up && v.y > -ms) v.y -= ac;
-        if (k.down && v.y < ms) v.y += ac;
-        p.body.SetLinearVelocity(v);
-      }
+      // the real server checks tiles at the start of the tick, before the step, and its position
+      // snapshot goes out before the next tick's checks (a boost is announced right after a snapshot)
+      this.interactions();
+      for (const p of Object.values(this.players)) if (!p.dead) p.body.SetAwake(true);
       for (const w of this.gravityWells) {
         for (const p of Object.values(this.players)) {
           if (p.dead) continue;
@@ -1188,6 +1216,9 @@ class GameRoom {
         }
       }
       this.world.Step(PH.STEP, PH.VELOCITY_ITERATIONS, PH.POSITION_ITERATIONS);
+      // the real server adds key acceleration AFTER the world step (the official client predicts it
+      // before); replays only line up this way: 99.7% of 250 ms segments vs 94% (tools/repro)
+      this.applyMovement();
       // local trust: a trusted ball stays exactly where its client last put it (no drift into
       // spikes etc. between reports); contacts from this step still count
       for (const p of Object.values(this.players)) {
@@ -1196,7 +1227,6 @@ class GameRoom {
       }
       for (const fn of this.afterStep.splice(0)) fn();
       if (this.gravity) this.groundContacts();
-      for (const p of Object.values(this.players)) if (!p.dead) this.tileInteractions(p);
       this.playerContacts();
       this.afkCheck(now);
       const pt = Number(this.settings.potatoTime) || 0;
@@ -1211,6 +1241,34 @@ class GameRoom {
     this.flushDirty();
     if (this.resetDirectSet && this.resetDirectSet.size) { this.pendingDirectReset = this.resetDirectSet; this.resetDirectSet = null; }
     if (this.tick % TU.SNAPSHOT_TICKS === 0) this.snapshot();
+  }
+
+  // tiles under each ball (boosts, bombs, flags, portals...), and teleports due this tick
+  interactions() {
+    for (const p of Object.values(this.players)) {
+      const q = p.portalPending;
+      if (!q || q.tick >= this.tick) continue;
+      p.portalPending = null;
+      if (!p.dead && String(this.tiles[q.x][q.y]) === String(q.base)) this.teleport(p, q.x, q.y, q.base);
+    }
+    for (const p of Object.values(this.players)) if (!p.dead) this.tileInteractions(p);
+  }
+
+  // arrow keys: add ac per tick up to ms on each axis
+  applyMovement() {
+    for (const p of Object.values(this.players)) {
+      if (p.dead) continue;
+      p.body.SetAwake(true);
+      if (this.isTrusted(p) && this.trust.has(p)) continue; // its client moves it
+      if (p.wantJump) { p.wantJump = false; this.jump(p); }
+      const v = p.body.GetLinearVelocity();
+      const ms = p.ms, ac = p.ac, k = p.keys;
+      if (k.left && v.x > -ms) v.x -= ac;
+      if (k.right && v.x < ms) v.x += ac;
+      if (k.up && v.y > -ms) v.y -= ac;
+      if (k.down && v.y < ms) v.y += ac;
+      p.body.SetLinearVelocity(v);
+    }
   }
 
   secondTick(now) {
