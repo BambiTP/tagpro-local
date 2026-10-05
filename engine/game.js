@@ -375,7 +375,7 @@ class GameRoom {
     const p = client.playerId && this.players[client.playerId];
     switch (ev) {
       case 'keydown': case 'keyup': {
-        if (!p || !d || !(d.k in p.keys || d.k === 'space')) return;
+        if (!p || !d || !(Object.hasOwn(p.keys, d.k) || d.k === 'space')) return; // not `in`: that also matches toString etc.
         const down = ev === 'keydown';
         if (d.k === 'space') { p.lastInput = this.now(); if (down) this.spacebar(p); return; }
         p.keys[d.k] = down;

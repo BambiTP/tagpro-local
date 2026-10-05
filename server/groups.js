@@ -37,8 +37,8 @@ function coerce(name, value, current) {
   const def = defaults.settings.find(([k]) => k === name);
   const ref = def ? def[1] : current;
   if (Array.isArray(ref)) {
-    if (Array.isArray(value)) return value.map(String);
-    return String(value || '').split(',').map((s) => s.trim()).filter(Boolean);
+    const list = Array.isArray(value) ? value.map(String) : String(value || '').split(',').map((s) => s.trim()).filter(Boolean);
+    return list.slice(0, 20).map((s) => s.slice(0, 64)); // settings are sent to every member: keep them small
   }
   if (typeof ref === 'boolean') return value === true || value === 'true';
   if (typeof ref === 'number') { const n = Number(value); return Number.isFinite(n) ? n : ref; }
@@ -46,7 +46,7 @@ function coerce(name, value, current) {
   // the three powerup durations default to strings on the real server but are stored as numbers once
   // set (so a preset still includes them after being set back to 20 seconds)
   if (/^powerup\w+Duration$/.test(name)) { const n = Number(value); return Number.isFinite(n) ? n : current; }
-  return value == null ? value : String(value);
+  return value == null ? value : String(value).slice(0, 300);
 }
 
 class Group {
@@ -116,7 +116,7 @@ class Group {
     socket.on('p2pAgree', (ok) => p2p.agree(this, m, ok === true));
     socket.on('touch', (location) => {
       m.lastSeen = Date.now();
-      if (typeof location === 'string' || location === null) m.location = location || m.location;
+      if (typeof location === 'string' || location === null) m.location = (location || m.location).slice(0, 64);
       this.broadcastMember(m);
     });
     socket.on('chat', (message) => {
@@ -134,7 +134,7 @@ class Group {
     socket.on('setting', (d) => {
       if (!m.leader || !d || typeof d.name !== 'string') return;
       let name = d.name === 'groupName' ? 'name' : d.name;
-      if (!(name in this.settings)) return;
+      if (!Object.hasOwn(this.settings, name)) return; // not `in`: that also matches toString etc.
       const was = this.settings[name];
       this.settings[name] = coerce(name, d.value, this.settings[name]);
       // local trust only works when players can't bump each other

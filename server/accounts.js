@@ -57,7 +57,8 @@ async function register(username, password) {
 }
 
 async function login(username, password) {
-  const a = accounts[String(username || '').trim().toLowerCase()];
+  const key = String(username || '').trim().toLowerCase();
+  const a = Object.hasOwn(accounts, key) ? accounts[key] : null; // not "constructor" etc.
   if (!a) return { error: 'Wrong username or password.' };
   const h = await hash(String(password || ''), a.salt);
   if (!crypto.timingSafeEqual(Buffer.from(h, 'hex'), Buffer.from(a.hash, 'hex'))) return { error: 'Wrong username or password.' };

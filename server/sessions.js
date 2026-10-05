@@ -38,8 +38,16 @@ function get(id) {
     };
     sessions.set(id, s);
   }
+  s.lastSeen = Date.now();
   return s;
 }
+
+// guest sessions idle for a day are dropped (otherwise every cookie-less request is kept forever);
+// a logged-in cookie still works afterwards (accounts.js keeps those)
+setInterval(() => {
+  const cutoff = Date.now() - 24 * 3600 * 1000;
+  for (const [id, s] of sessions) if (s.lastSeen < cutoff && !s.groupId) sessions.delete(id);
+}, 3600 * 1000).unref();
 
 const https = (req) => (req.headers['x-forwarded-proto'] || req.protocol) === 'https';
 function setCookie(req, res, id) {
@@ -74,6 +82,7 @@ function rotate(req, res) {
 function fromSocket(socket) {
   const id = parseCookies(socket.handshake.headers.cookie).tpid;
   const s = id && sessions.has(id) ? sessions.get(id) : null;
+  if (s) s.lastSeen = Date.now();
   if (s) (accounts || (accounts = require('./accounts'))).apply(s);
   return s;
 }

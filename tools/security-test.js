@@ -109,6 +109,9 @@ function hugePng(w, h) {
   gs.onAny((ev, d) => raw.push(JSON.stringify(d)));
   await wait(1500);
   check(raw.length > 0 && !raw.some((x) => x.includes(tpid(a))), 'game packets never contain the login cookie');
+  for (const k of ['toString', 'constructor', 'hasOwnProperty', '__proto__']) gs.emit('keydown', { k, t: 7 });
+  await wait(800);
+  check(!raw.some((x) => /"(toString|constructor|hasOwnProperty)":/.test(x)), 'key names like toString are ignored, not sent to other players');
   gs.close(); j.close();
 
   const fd = new FormData();
@@ -120,6 +123,18 @@ function hugePng(w, h) {
   for (let i = 0; i < 6; i++) many.append('layout', new Blob([Buffer.alloc(1000)]), 'x.png');
   const manyRes = await a.get('/groups/testmap', { method: 'POST', body: many });
   check(manyRes.status >= 400, 'an upload with extra files is refused');
+
+  const settingsSeen = {};
+  lead.on('setting', (x) => { settingsSeen[x.name] = x.value; });
+  lead.emit('setting', { name: 'toString', value: 'x' });
+  lead.emit('setting', { name: 'map', value: 'y'.repeat(500000) });
+  lead.emit('touch', 'z'.repeat(500000));
+  await wait(500);
+  check(!Object.hasOwn(settingsSeen, 'toString') && String(settingsSeen.map).length <= 300, 'built-in setting names are ignored and huge setting values are cut short (map: ' + String(settingsSeen.map).length + ' chars, toString: ' + settingsSeen.toString + ')');
+  check(Object.values(members).every((m) => String(m.location).length <= 64), 'a huge location message is cut short');
+  const ms = require('../server/mapstats');
+  ms.rate({ id: 'x', account: null }, '__proto__', 1);
+  check(({}).hasOwnProperty('s:x') === false && ({})['s:x'] === undefined, 'rating a map named __proto__ doesn\'t change built-in objects');
 
   let flood = 0;
   const seen = chat.length;

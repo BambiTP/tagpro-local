@@ -113,7 +113,7 @@ async function launch(g) {
   const host = p.host;
   const res = await ask(host.socket, 'launch', { groupId: g.id, settings: s, modeMap: g.modeMap, mapFiles, tickets: sent.map((x) => x.t) });
   p.launching = false;
-  if (!res || res.error) return g.systemChat(`The host couldn't start the game (${(res && res.error) || 'no answer'}).`);
+  if (!res || res.error || !/^[a-z]{8}$/.test(String(res.gameId))) return g.systemChat(`The host couldn't start the game (${String((res && res.error) || 'no answer').slice(0, 200)}).`);
   if (p.host !== host || !g.nsp) return;
   for (const { m, t } of sent) m.session.pendingGame = { p2p: true, id: res.gameId, url: `${host.url}/p2p/join?t=${t.ticket}`, spectate: t.spectate };
   g.setGame(res.gameId, 'p2p');

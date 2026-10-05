@@ -6,8 +6,11 @@ const sessions = require('./sessions');
 
 const MAPS = path.join(__dirname, '..', 'maps');
 const RATINGS = path.join(__dirname, '..', 'data', 'mapratings.json');
-let ratings = {}; // mapName -> { voterId: -1 | 0 | 1 }
-try { ratings = JSON.parse(fs.readFileSync(RATINGS, 'utf8')); } catch (e) { ratings = {}; }
+// mapName -> { voterId: -1 | 0 | 1 }. Map names come from map files anyone can upload, so these are
+// objects without a prototype: a map called "__proto__" is just a name.
+const bare = (o) => Object.assign(Object.create(null), o);
+let ratings = Object.create(null);
+try { ratings = bare(JSON.parse(fs.readFileSync(RATINGS, 'utf8'))); for (const k in ratings) ratings[k] = bare(ratings[k]); } catch (e) { ratings = Object.create(null); }
 const save = () => { fs.writeFileSync(RATINGS + '.tmp', JSON.stringify(ratings)); fs.renameSync(RATINGS + '.tmp', RATINGS); };
 
 let replaysIndex = () => [];
@@ -50,7 +53,7 @@ const voterId = (session) => (session.account ? 'a:' + session.account.id : 's:'
 function rate(session, mapName, value) {
   const v = Math.max(-1, Math.min(1, Math.round(Number(value))));
   if (!mapName || !Number.isFinite(v)) return;
-  (ratings[mapName] || (ratings[mapName] = {}))[voterId(session)] = v;
+  (ratings[mapName] || (ratings[mapName] = Object.create(null)))[voterId(session)] = v;
   save();
 }
 
