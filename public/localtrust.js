@@ -12,7 +12,7 @@
 //  - the position is reported ~30 times a second; the server only overrides it with a hard snap
 //    (spawn, death, rejected report), which carries directSet
 //  - explosions caused by others arrive as 'ltKick' (a velocity change added to yours)
-//  - gravity maps: jumps happen here on the up press (engine/game.js jump/groundContacts), and
+//  - gravity maps: jumps happen here on the up press (engine/game.js jump/landed), and
 //    landings use the server's restitution instead of gravity.js's bouncier one
 (function () {
   var cfg = tagproConfig.localTrust;
@@ -45,17 +45,21 @@
       }
     };
 
-    // landing on something below (a wall, or a player with that setting on) restores jumps
+    // starting to touch something below (a wall, or a player with that setting on) restores jumps,
+    // like engine/game.js landed()
     var wm = new Box2D.Collision.b2WorldManifold();
-    function groundCheck() {
-      if (body.GetLinearVelocity().y <= -0.5) return; // still leaving the ground
-      for (var ce = body.GetContactList(); ce; ce = ce.next) {
-        var c = ce.contact;
-        if (!c.IsTouching() || (ce.other.player && !G.playerReset)) continue;
+    if (G) {
+      var listener = new Box2D.Dynamics.b2ContactListener();
+      listener.BeginContact = function (c) {
+        var a = c.GetFixtureA().GetBody(), b = c.GetFixtureB().GetBody();
+        if (!body || (a !== body && b !== body)) return;
+        var other = a === body ? b : a;
+        if (other.player && !G.playerReset) return;
         c.GetWorldManifold(wm);
-        var ny = c.GetFixtureA().GetBody() === body ? wm.m_normal.y : -wm.m_normal.y; // normal from us to the other body
-        if (ny > 0.5) { jumps = G.jumps; return; }
-      }
+        var ny = a === body ? wm.m_normal.y : -wm.m_normal.y; // normal from us to the other body
+        if (ny > 0.5) jumps = G.jumps;
+      };
+      tagpro.world._b2World.SetContactListener(listener);
     }
 
     // gravity.js gives walls and balls restitution 0.3; the server (fitted to real replays) uses 0
@@ -135,7 +139,7 @@
         var p = me();
         if (!body || !p || p.dead || !p.draw) return;
         predict(p);
-        if (G) { if (bouncy !== body) unbounce(); groundCheck(); }
+        if (G && bouncy !== body) unbounce();
         if (++frame % 2 && !hit) return;
         hit = false;
         var pos = body.GetPosition(), v = body.GetLinearVelocity();

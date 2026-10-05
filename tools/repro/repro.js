@@ -199,7 +199,7 @@ function run(file, opts = {}) {
         const d = x.delta;
         if ('dead' in d) { skip.add(d.id); if (d.dead) anyPop = true; }
         if (j === b) continue;
-        for (const k of KEYS) if (k in d) { keyAt.push([Math.max(0, Math.min(n, Math.floor((e.t - tA) / DT + kOff))), d.id, k, d[k] > 0, k === 'up' && 'ly' in d ? d.ly : undefined]); tag(d.id, 'keys'); }
+        for (const k of KEYS) if (k in d) { keyAt.push([Math.max(0, Math.min(n, Math.floor((e.t - tA) / DT + kOff))), d.id, k, d[k] > 0, k === 'up' && d[k] > 0 && room.gravity ? ('ly' in d ? d.ly : null) : undefined]); tag(d.id, 'keys'); }
         if ('flag' in d) tag(d.id, 'flag');
         if ('bomb' in d || 'tagpro' in d || 'jukeJuice' in d) tag(d.id, 'pup');
         if (d.directSet) tag(d.id, 'directSet');
@@ -227,11 +227,12 @@ function run(file, opts = {}) {
           // the real ball jumped, so the count follows it (disagreements are counted, not hidden)
           const ly = keys[k][4];
           if (ly !== undefined) {
-            const realJumped = ly - p.body.GetLinearVelocity().y < -2.5;
+            // the real server sends the ball's position with a press that jumps; a press without one didn't
+            const realJumped = ly !== null && ly - p.body.GetLinearVelocity().y < -2.5;
             const left = p.jumpsLeft === undefined ? room.jumpLimit() : p.jumpsLeft;
             if (tagging) results.jumpPresses = (results.jumpPresses || 0) + 1;
             if (realJumped !== left > 0) {
-              if (tagging) { const k = realJumped ? 'jumpRefused' : 'jumpExtra'; results[k] = (results[k] || 0) + 1; results.jumpCountFixes = (results.jumpCountFixes || 0) + 1; }
+              if (tagging) { const k = realJumped ? 'jumpRefused' : 'jumpExtra'; results[k] = (results[k] || 0) + 1; results.jumpCountFixes = (results.jumpCountFixes || 0) + 1; if (opts.onJumpDisagree) opts.onJumpDisagree({ p, room, realJumped, t: tA + tick * DT }); }
               if (realJumped) p.jumpsLeft = Math.max(1, left); // a missed refill; never zero it (one misread press would cascade)
             }
           }

@@ -157,6 +157,7 @@ class GameRoom {
       if (a && !a.dead) this.queue(a, 'pos');
       if (b && !b.dead) this.queue(b, 'pos');
       if (a && b && !a.dead && !b.dead && a.team !== b.team) this.enemyContact(a, b);
+      if (this.gravity) this.landed(c, a, b);
       if (a && bb.spike && !a.dead) this.pop(a, null);
       if (b && ba.spike && !b.dead) this.pop(b, null);
     };
@@ -1170,23 +1171,18 @@ class GameRoom {
   }
 
   // landing on the ground (a wall below the ball) restores jumps; optionally landing on a player
-  groundContacts() {
-    const wm = new Box2D.Collision.b2WorldManifold();
-    for (let c = this.world.GetContactList(); c; c = c.GetNext()) {
-      if (!c.IsTouching()) continue;
-      const fa = c.GetFixtureA(), fb = c.GetFixtureB();
-      const pa = fa.GetBody().player, pb = fb.GetBody().player;
-      if (!pa && !pb) continue;
-      if (pa && pb && !this.settings.isPlayerJumpResetEnabled) continue;
-      c.GetWorldManifold(wm);
-      // normal points from A to B; the ball is "on top" when the other body is below it
-      // ground = a surface under the ball (normal mostly up); it counts unless the ball is moving away
-      // from it (just jumped), so rolling up a 45 degree slope keeps refilling jumps (replays: 96.3% vs
-      // 96.0% of jump segments with the old "vertical speed > -0.5" test)
-      const n = wm.m_normal, away = (q, sign) => { const v = q.body.GetLinearVelocity(); return sign * (v.x * n.x + v.y * n.y) < -0.5; };
-      if (pa && n.y > 0.5 && !away(pa, 1)) pa.jumpsLeft = this.jumpLimit();
-      if (pb && n.y < -0.5 && !away(pb, -1)) pb.jumpsLeft = this.jumpLimit();
-    }
+  // Jumps come back when the ball starts touching a surface below it (normal mostly up), whatever its
+  // speed. Rolling onto a slope counts; a jump off flat ground doesn't (that contact already exists),
+  // but jumping past a ledge corner or tile seam can begin a new one, which is TagPro's triple jump.
+  // Replays: 10% fewer jump disagreements than resetting every tick the ball rests on the ground.
+  landed(c, pa, pb) {
+    if (!pa && !pb) return;
+    if (pa && pb && !this.settings.isPlayerJumpResetEnabled) return;
+    const wm = this.wm || (this.wm = new Box2D.Collision.b2WorldManifold());
+    c.GetWorldManifold(wm);
+    const n = wm.m_normal; // from A to B
+    if (pa && !pa.dead && n.y > 0.5) pa.jumpsLeft = this.jumpLimit();
+    if (pb && !pb.dead && n.y < -0.5) pb.jumpsLeft = this.jumpLimit();
   }
 
   // ---------- main loop ----------
@@ -1241,7 +1237,6 @@ class GameRoom {
         if (l) { p.body.SetPosition(new V(l.x, l.y)); p.body.SetLinearVelocity(new V(l.vx, l.vy)); }
       }
       for (const fn of this.afterStep.splice(0)) fn();
-      if (this.gravity) this.groundContacts();
       this.playerContacts();
       this.afkCheck(now);
       const pt = Number(this.settings.potatoTime) || 0;
