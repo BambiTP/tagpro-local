@@ -14,6 +14,7 @@ const community = require('./community');
 const mapstats = require('./mapstats');
 const admin = require('./admin');
 const p2p = require('./p2p');
+const gamepage = require('./gamepage');
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0'; // the VPS service sets 127.0.0.1 so only Caddy is public
@@ -73,25 +74,9 @@ pages.setStatsProvider(() => {
 
 const html = (res, s) => res.type('html').send(s);
 
-// ---- texture packs: the real picker stores the chosen pack (image URLs) in the "textures"
-// cookie; game/replay pages are rendered with those images. Default matches the real site.
-const PACKS = require(path.join(__dirname, '..', 'ref-data', 'texture-packs.json'));
-const DEFAULT_PACK = PACKS.find((p) => p.name === "Muscle's Cup Gradients") || PACKS[0];
-const ASSET_IDS = { tiles: 'tiles', splats: 'splats', speedpad: 'speedpad', speedpadRed: 'speedpadred', speedpadBlue: 'speedpadblue', portal: 'portal', portalRed: 'portalred', portalBlue: 'portalblue' };
-const okUrl = (u) => typeof u === 'string' && (/^\/textures\/[\w-]+\/[\w-]+\.png$/.test(u) || /^https:\/\/[^"'<>\s]+$/.test(u));
-function chosenPack(req) {
-  let pack = req.session.account && req.session.account.textures;
-  if (!pack) { try { pack = JSON.parse(sessions.parseCookies(req.headers.cookie).textures || 'null'); } catch (e) { pack = null; } }
-  return pack && typeof pack === 'object' ? pack : DEFAULT_PACK;
-}
-function withTextures(req, page) {
-  const pack = chosenPack(req);
-  for (const [key, id] of Object.entries(ASSET_IDS)) {
-    const url = okUrl(pack[key]) ? pack[key] : DEFAULT_PACK[key];
-    page = page.replace(new RegExp(`(<img id="${id}" src=")[^"]*(")`), `$1${pages.esc(url)}$2`);
-  }
-  return page;
-}
+// texture packs: an account's saved pack, else the "textures" cookie (see gamepage.js)
+const chosenPack = (req) => gamepage.chosenPack(sessions.parseCookies(req.headers.cookie), req.session.account && req.session.account.textures);
+const withTextures = (req, page) => gamepage.withTextures(chosenPack(req), page);
 // every page shows the logged-in name in the header. The request is tracked per request chain
 // (AsyncLocalStorage), not in a shared variable: with async handlers (log in) another visitor's
 // request could otherwise land in between and their name would be shown.
@@ -372,26 +357,11 @@ app.get('/game', (req, res, next) => {
   if (req.query.replay) return html(res, withTextures(req, pages.render('replay.html', { REPLAY_KEY: pages.esc(String(req.query.replay).slice(0, 80)) })));
   next();
 });
-// eggball (an event mode): like the real site, the game page itself carries the event's script,
-// tile/splat textures, images and sounds (the live client ignores clientInfo's event lists)
-const { EGG_CLIENT_INFO } = require('../engine/game');
-const CB = '/R-62bb0909b74c-z';
-function eggballPage(h) {
-  const ci = EGG_CLIENT_INFO;
-  for (const [id, src] of Object.entries(ci.eventTextures)) h = h.replace(new RegExp(`(<img id="${id}" src=")[^"]*(")`), `$1${CB + src}$2`);
-  const assets = ci.eventGraphics.map((g) => `\n        <img id="${g.id}" src="${CB + g.src}" class="asset">`).join('')
-    + ci.eventSounds.map((a) => `\n        <audio id="${a.id}" preload="auto">` + ['mp3', 'm4a', 'ogg'].map((e) => `<source src="${CB + a.src}.${e}" type="audio/${e}">`).join('') + '</audio>').join('');
-  return h.replace('<div id="assets">', '<div id="assets">' + assets);
-}
 app.get('/game', (req, res) => {
   const pg = req.session.pendingGame;
   const room = pg && games.games.get(pg.id);
   if (!room || room.closed) return res.redirect('/');
-  const GG = '<script src="/R-62bb0909b74c-z/compact/global-game.js"></script>';
-  const extra = (room.egg ? EGG_CLIENT_INFO.eventScripts.map((p) => `\n        <script src="${CB + p}"></script>`).join('') : '')
-    + (room.gravity ? '\n        <script src="/R-62bb0909b74c-z/scripts/gravity.js"></script>' : '')
-    + (room.localTrust ? '\n        <script>tagproConfig.localTrust = ' + JSON.stringify(room.trustConfig()).replace(/</g, '\\u003c') + ';</script><script src="/localtrust.js?v=' + Math.floor(require('fs').statSync(path.join(PUBLIC, 'localtrust.js')).mtimeMs) + '"></script>' : '');
-  let page = (h) => (room.egg ? eggballPage(h) : h).replace(GG, GG + extra);
+  let page = (h) => gamepage.forRoom(room, h);
   if (process.env.P2P_CODE) { // this PC is a peer-to-peer host: say so on the game itself
     const who = require('./hostlink').hostName();
     const tag = `<div style="position:fixed;top:4px;left:50%;transform:translateX(-50%);z-index:9999;pointer-events:none;padding:2px 10px;border-radius:4px;background:rgba(243,156,18,.85);color:#000;font:bold 12px sans-serif">PEER TO PEER GAME: hosted on ${pages.esc(who || 'a player')}'s PC, not the Chicago server</div>`;

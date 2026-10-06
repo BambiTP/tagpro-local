@@ -5,7 +5,8 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "host": "node server/host.js"
+    "host": "node server/host.js",
+    "local": "node server/local.js"
   },
   "keywords": [],
   "author": "",

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>TagPro Local</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="shortcut icon" href="/favicon.ico">
+        <link rel="stylesheet" href="/R-965af4e7a4b8-z/stylesheets/bootstrap.css">
+        <link rel="stylesheet" href="/R-965af4e7a4b8-z/stylesheets/style.css">
+        <style>
+            body { padding: 24px 16px 48px; }
+            .local { max-width: 640px; margin: 0 auto; }
+            .local .logo { text-align: center; margin-bottom: 8px; }
+            .local .logo img { max-width: 100%; }
+            .local .sub { text-align: center; opacity: .8; margin-bottom: 20px; }
+            .local .card { background: rgba(0, 0, 0, .35); border-radius: 6px; padding: 18px 20px; margin-bottom: 16px; }
+            .local label { display: block; margin: 10px 0 4px; }
+            .local label.inline { display: inline-block; margin-right: 16px; font-weight: normal; }
+            .local input[type=file] { max-width: 100%; }
+            .local .row-2 { display: flex; gap: 16px; }
+            .local .row-2 > div { flex: 1; }
+            .local .play { margin-top: 18px; font-size: 20px; width: 100%; }
+            .local .links { text-align: center; }
+            .local .links a { margin: 0 6px; }
+            .local .hint { opacity: .7; font-size: 12px; }
+        </style>
+    </head>
+    <body>
+        <div class="local">
+            <div class="logo"><a href="/"><img src="/images/logo.png" alt="TagPro"></a></div>
+            <div class="sub">Single player. This server only runs on your PC: nobody else can join.</div>
+            {{ERROR}}
+            <form class="card" method="post" action="/play">
+                <label for="name">Your name</label>
+                <input class="form-control" id="name" name="name" maxlength="12" placeholder="Some Ball" value="{{NAME}}">
+
+                <label for="map">Map</label>
+                <select class="form-control" id="map" name="map">{{MAP_OPTIONS}}</select>
+
+                <label for="mode">Mode</label>
+                <select class="form-control" id="mode" name="mode">{{MODE_OPTIONS}}</select>
+                <div class="hint">Eggball has its own map.</div>
+
+                <label>Your team</label>
+                <label class="inline"><input type="radio" name="team" value="1" {{RED}}> Red</label>
+                <label class="inline"><input type="radio" name="team" value="2" {{BLUE}}> Blue</label>
+
+                <div class="row-2">
+                    <div>
+                        <label for="allies">Bot teammates</label>
+                        <select class="form-control" id="allies" name="allies">{{ALLY_OPTIONS}}</select>
+                    </div>
+                    <div>
+                        <label for="enemies">Bot opponents</label>
+                        <select class="form-control" id="enemies" name="enemies">{{ENEMY_OPTIONS}}</select>
+                    </div>
+                </div>
+                <div class="hint">No bots: you have the map to yourself to practice.</div>
+
+                <div class="row-2">
+                    <div>
+                        <label for="time">Length (minutes)</label>
+                        <input class="form-control" id="time" name="time" type="number" min="1" max="60" value="{{TIME}}">
+                    </div>
+                    <div>
+                        <label for="caps">Cap limit (0 = none)</label>
+                        <input class="form-control" id="caps" name="caps" type="number" min="0" max="100" value="{{CAPS}}">
+                    </div>
+                </div>
+
+                <label class="inline" style="margin-top:12px"><input type="checkbox" name="mapTestingMode" {{MAPTEST}}> Map testing mode (reset the map with a key, longer AFK time)</label>
+
+                <button class="btn btn-primary play" type="submit">Play</button>
+            </form>
+
+            <form class="card" method="post" action="/upload" enctype="multipart/form-data">
+                <b>Play your own map</b>
+                <div class="row-2">
+                    <div><label for="layout">Layout (.png)</label><input id="layout" name="layout" type="file" accept=".png,image/png"></div>
+                    <div><label for="logic">Logic (.json)</label><input id="logic" name="logic" type="file" accept=".json,application/json"></div>
+                </div>
+                <button class="btn btn-default" type="submit" style="margin-top:12px">Add map</button>
+            </form>
+
+            <div class="links">
+                {{PLAYING}}
+                <a class="btn btn-default" href="/replays">Replays</a>
+                <a class="btn btn-default" href="/textures">Textures</a>
+                <a class="btn btn-default" href="/settings">Settings</a>
+            </div>
+        </div>
+    </body>
+</html>
