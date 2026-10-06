@@ -30,8 +30,11 @@ fs.cpSync(path.join(PUBLIC, 'R-62bb0909b74c-z', 'events'), path.join(out, 'event
 write('music.json', '[]'); // the music files aren't part of this repo
 
 // root-absolute URLs in the client scripts -> relative ("/sounds/x" -> "./sounds/x")
+// WebGL off by default; a choice saved on the Settings page still wins (see clientDefaults.js)
+const { CANVAS_DEFAULT } = require('../server/clientDefaults');
 const ROUTES = 'sounds|images|textures|games|music|replays|flairlog|favicon|groups|launcher|profile|cookies|vpn|banned|R-62bb0909b74c-z|R-965af4e7a4b8-z';
-const relJs = (s) => s.replace(new RegExp(`(["'\`])/(?=(${ROUTES})\\b)`, 'g'), '$1./').replace('"./music?callback=?"', '"./music.json"');
+const relJs = (s) => s.replace(new RegExp(`(["'\`])/(?=(${ROUTES})\\b)`, 'g'), '$1./').replace('"./music?callback=?"', '"./music.json"')
+  .replace(CANVAS_DEFAULT[0], CANVAS_DEFAULT[1]);
 for (const dir of ['R-62bb0909b74c-z', 'R-965af4e7a4b8-z']) {
   const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
   for (const f of walk(path.join(out, dir)).filter((f) => f.endsWith('.js'))) fs.writeFileSync(f, relJs(fs.readFileSync(f, 'utf8')));

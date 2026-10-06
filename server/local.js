@@ -221,7 +221,19 @@ app.post('/settings', (req, res) => res.json({ success: true }));
 app.get('/flairlog', (req, res) => res.status(204).end());
 app.get('/music', (req, res) => res.jsonp(music));
 
-// real client + assets
+// real client + assets. The client scripts get this version's display defaults (WebGL off, see clientDefaults.js).
+const { CANVAS_DEFAULT } = require('./clientDefaults');
+const patched = new Map(); // path -> script with the default changed (null: nothing to change)
+app.get(/^\/R-[0-9a-f]+-z\/compact\/[\w-]+\.js$/, (req, res, next) => {
+  if (!patched.has(req.path)) {
+    let js = null;
+    try { js = fs.readFileSync(path.join(PUBLIC, req.path), 'utf8'); } catch (e) { /* not there: static answers */ }
+    patched.set(req.path, js && js.includes(CANVAS_DEFAULT[0]) ? js.replace(CANVAS_DEFAULT[0], CANVAS_DEFAULT[1]) : null);
+  }
+  const js = patched.get(req.path);
+  if (!js) return next();
+  res.type('js').set('Cache-Control', 'no-cache').send(js); // not the year-long cache: the main server's copy has the other default
+});
 app.use('/R-62bb0909b74c-z', express.static(path.join(PUBLIC, 'R-62bb0909b74c-z'), { index: false, maxAge: '365d', immutable: true }));
 app.use('/events', express.static(path.join(PUBLIC, 'R-62bb0909b74c-z', 'events'), { index: false, maxAge: '7d' }));
 app.use(express.static(PUBLIC, { index: false, maxAge: '7d' }));
