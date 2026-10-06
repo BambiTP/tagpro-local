@@ -12,7 +12,7 @@ if (!process.argv[2]) { console.error('usage: node tools/build-static.js <outDir
 const ROOT = path.join(__dirname, '..');
 const PUBLIC = path.join(ROOT, 'public');
 const STATIC = path.join(ROOT, 'static');
-const KEEP = new Set(['.git', 'LICENSE', 'CNAME']); // the target repo's own files
+const KEEP = new Set(['.git', 'LICENSE', 'CNAME', 'config.json']); // the target repo's own files
 const write = (rel, text) => { fs.mkdirSync(path.dirname(path.join(out, rel)), { recursive: true }); fs.writeFileSync(path.join(out, rel), text); };
 
 // clear the old build, keeping the repo's own files and maps added there (by the Add maps workflow)
@@ -48,6 +48,8 @@ fs.mkdirSync(path.join(out, 'tools'), { recursive: true });
 fs.copyFileSync(path.join(STATIC, 'add-maps.js'), path.join(out, 'tools', 'add-maps.js'));
 fs.mkdirSync(path.join(out, '.github', 'workflows'), { recursive: true });
 fs.copyFileSync(path.join(STATIC, 'add-maps.yml'), path.join(out, '.github', 'workflows', 'add-maps.yml'));
+// the site's settings (kept between builds): sites to fetch Fortunate Maps through, see README
+if (!fs.existsSync(path.join(out, 'config.json'))) write('config.json', JSON.stringify({ fortunateMapsProxies: [] }, null, 2) + '\n');
 write('defaults.json', JSON.stringify(Object.fromEntries(require('../server/groupDefaults.json').settings)));
 
 // ---- pages: the real ones, made relative ----
