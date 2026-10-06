@@ -106,7 +106,7 @@ function startGame(choice) {
   const map = readMap(mapKey);
   const settings = Object.assign({}, DEFAULTS, {
     isPrivate: true, map: mapKey, mode: choice.mode, time: choice.time, caps: choice.caps,
-    mercyRule: 0, mapTestingMode: choice.mapTestingMode,
+    mercyRule: 0, mapTestingMode: choice.mapTestingMode, noAfkKick: true,
   });
   const id = gameId();
   const r = new GameRoom({

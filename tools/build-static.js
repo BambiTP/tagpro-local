@@ -42,6 +42,7 @@ fs.mkdirSync(path.join(out, 'engine'), { recursive: true });
 for (const f of ['box2d.js', 'constants.js', 'mapLoader.js', 'game.js']) fs.copyFileSync(path.join(ROOT, 'engine', f), path.join(out, 'engine', f));
 fs.copyFileSync(path.join(ROOT, 'server', 'botBrain.js'), path.join(out, 'engine', 'botBrain.js'));
 fs.copyFileSync(path.join(STATIC, 'local-game.js'), path.join(out, 'engine', 'local-game.js'));
+fs.copyFileSync(path.join(STATIC, 'engine-worker.js'), path.join(out, 'engine', 'worker.js'));
 for (const f of ['index.html', 'launcher.js', 'README.md']) fs.copyFileSync(path.join(STATIC, f), path.join(out, f));
 // the site's own tools: Fortunate Maps downloads (Actions tab -> Add maps) and the map list
 fs.mkdirSync(path.join(out, 'tools'), { recursive: true });
@@ -50,15 +51,14 @@ fs.mkdirSync(path.join(out, '.github', 'workflows'), { recursive: true });
 fs.copyFileSync(path.join(STATIC, 'add-maps.yml'), path.join(out, '.github', 'workflows', 'add-maps.yml'));
 // the site's settings (kept between builds): sites to fetch Fortunate Maps through, see README
 if (!fs.existsSync(path.join(out, 'config.json'))) write('config.json', JSON.stringify({ fortunateMapsProxies: ['https://cors.bambitp.workers.dev/?url='] }, null, 2) + '\n');
+write('settings.json', JSON.stringify(require('./settings-spec')()));
 write('defaults.json', JSON.stringify(Object.fromEntries(require('../server/groupDefaults.json').settings)));
 
 // ---- pages: the real ones, made relative ----
 pages.setStatsProvider(() => ({ STATS_PLAYERS: 1, STATS_GAMES: 1, STATS_ONLINE: 1 }));
 const relHtml = (h) => h.replace(/(\b(?:src|href|action)=")\/(?!\/)/g, '$1./').replace(/(url\(['"]?)\/(?!\/)/g, '$1./');
-const ENGINE = ['<script>window.tplClientBox2D = window.Box2D;</script>',
-  ...['box2d', 'constants', 'mapLoader', 'game', 'botBrain'].map((f) => `<script src="/engine/${f}.js"></script>`),
-  '<script>window.Box2D = window.tplClientBox2D;</script>', // the engine keeps its own copy; the client keeps its global
-  '<script src="/engine/local-game.js"></script>'].join('\n        ');
+// the game server runs in a Web Worker (engine/worker.js); the page only gets the fake socket
+const ENGINE = '<script src="/engine/local-game.js"></script>';
 function gamePage(mode) {
   let h = pages.render('game.html', { GAME_SOCKET: '/local', GAME_SERVER: 'local', GAME_ID: 'local', GAME_SOCKET_LABEL: 'This browser', GROUP_ID: 'null' });
   h = gamepage.withTextures(gamepage.DEFAULT_PACK, h);
