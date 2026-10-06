@@ -1,4 +1,4 @@
-# TagPro Solo
+# TagPro Offline
 
 Single-player TagPro that runs entirely in your browser. There's no server and no multiplayer:
 the game engine and the bots run in the page, so it works on GitHub Pages (or any static host).

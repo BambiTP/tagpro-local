@@ -74,10 +74,10 @@ for (const name of ['textures', 'settings']) {
 }
 
 // where the client and the real pages' links go: back home
-const HOME = (up) => `<!doctype html><meta charset="utf-8"><title>TagPro Solo</title><script>location.replace('${up}' + location.hash)</script><a href="${up}">Home</a>\n`;
+const HOME = (up) => `<!doctype html><meta charset="utf-8"><title>TagPro Offline</title><script>location.replace('${up}' + location.hash)</script><a href="${up}">Home</a>\n`;
 write('games/find/index.html', HOME('../../'));
 // GitHub Pages shows 404.html for missing pages (the real header's links: groups, log in...): home
-write('404.html', `<!doctype html><meta charset="utf-8"><title>TagPro Solo</title><script>
+write('404.html', `<!doctype html><meta charset="utf-8"><title>TagPro Offline</title><script>
 var p = location.pathname.split('/'); location.replace(location.hostname.endsWith('github.io') && p[1] ? '/' + p[1] + '/' : '/');
 </script>\n`);
 write('.nojekyll', '');
