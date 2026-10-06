@@ -24,3 +24,11 @@ after 10 seconds.
 
 The code is `server/local.js`; it shares the game engine, maps, replays and game page with
 the multiplayer server (`server/index.js`), which is unchanged.
+
+## Static version (GitHub Pages)
+
+`npm run build-static -- <folder>` builds the single-player game as a static site: the engine
+and bots run in the browser (`static/local-game.js` gives the real client a fake socket wired
+to an in-page `GameRoom`), so it needs no server at all. The output is what the GitHub Pages
+repo holds; see `static/README.md` (copied there as its README). Maps can be added from
+Fortunate Maps on its home page, or for everyone with its "Add maps" workflow.

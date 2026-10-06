@@ -1,6 +1,8 @@
 // botBrain.js - the CTF brain of a simple bot: reads game events like a client and presses keys.
 // tools/bots.js drives it over sockets; local.js plugs it straight into a GameRoom (no network).
 // Plays CTF: grab, run home, chase enemy flag carriers, defend; neutral flag: carry to the endzone.
+// Isomorphic: also runs in the browser (the static single-player site), as globalThis.TPBotBrain.
+(function () {
 const TILE = 0.4;
 
 class BotBrain {
@@ -129,4 +131,7 @@ class BotBrain {
   }
 }
 
-module.exports = { BotBrain };
+const api = { BotBrain };
+if (typeof module !== 'undefined' && module.exports) module.exports = api;
+else globalThis.TPBotBrain = api;
+})();

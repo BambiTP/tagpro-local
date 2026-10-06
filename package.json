@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server/index.js",
     "host": "node server/host.js",
-    "local": "node server/local.js"
+    "local": "node server/local.js",
+    "build-static": "node tools/build-static.js"
   },
   "keywords": [],
   "author": "",
