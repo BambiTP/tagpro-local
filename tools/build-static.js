@@ -49,7 +49,7 @@ fs.copyFileSync(path.join(STATIC, 'add-maps.js'), path.join(out, 'tools', 'add-m
 fs.mkdirSync(path.join(out, '.github', 'workflows'), { recursive: true });
 fs.copyFileSync(path.join(STATIC, 'add-maps.yml'), path.join(out, '.github', 'workflows', 'add-maps.yml'));
 // the site's settings (kept between builds): sites to fetch Fortunate Maps through, see README
-if (!fs.existsSync(path.join(out, 'config.json'))) write('config.json', JSON.stringify({ fortunateMapsProxies: [] }, null, 2) + '\n');
+if (!fs.existsSync(path.join(out, 'config.json'))) write('config.json', JSON.stringify({ fortunateMapsProxies: ['https://cors.bambitp.workers.dev/?url='] }, null, 2) + '\n');
 write('defaults.json', JSON.stringify(Object.fromEntries(require('../server/groupDefaults.json').settings)));
 
 // ---- pages: the real ones, made relative ----
