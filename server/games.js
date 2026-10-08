@@ -9,6 +9,7 @@ const sessions = require('./sessions');
 const groups = require('./groups');
 const replays = require('./replays');
 const queue = require('./queue');
+const ranked = require('./ranked');
 
 const MAPS_DIR = path.join(__dirname, '..', 'maps');
 const games = new Map();
@@ -131,6 +132,7 @@ function createGame({ mapKey, settings, isPrivate, groupId, onFinish }) {
     onEnd: (r, winner) => {
       setTimeout(() => r.recorder && r.recorder.finish(), 3000); // replay saved shortly after the end
       if (r.countsForStats) recordStats(r, winner);
+      if (r.ranked) ranked.finish(r, winner);
       const g = groupId && groups.groups.get(groupId);
       if (g && g.game.gameId === id) g.setGame(null);
       finish();
@@ -201,7 +203,7 @@ function attachJoiner(io) {
       }
       if (!pg || pg.p2p || !games.has(pg.id) || games.get(pg.id).ended) {
         if (g && g.game.gameId && games.has(g.game.gameId)) pg = session.pendingGame = { id: g.game.gameId, team: null, spectate: false };
-        else if (!g) { sent = true; socket.emit('serverStatsUpdated', queue.statsPacket()); return queue.join(session, socket); }
+        else if (!g) { sent = true; socket.emit('serverStatsUpdated', queue.statsPacket()); return (session.joinType === 'ranked' ? ranked : queue).join(session, socket); }
         else return socket.emit('SendToPage', { url: '/groups/' + g.id, reason: 'No game running for your group' });
       }
       sent = true;
@@ -227,5 +229,6 @@ function attachGames(io) {
 }
 
 queue.init({ createGame, resolveMap, games });
+ranked.init({ createGame, resolveMap, games });
 
 module.exports = { games, MapError, mapProblem, checkPngSize, createGame, launchGroupGame, endGame, attachJoiner, attachGames, resolveMap, fetchFortunateMap, mapKeys };

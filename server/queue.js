@@ -72,4 +72,4 @@ function leave(socket) {
   if (i >= 0) { queue.splice(i, 1); broadcast(); }
 }
 
-module.exports = { join, counts, statsPacket, init: (api) => { gamesApi = api; } };
+module.exports = { join, counts, statsPacket, address, PER_ADDRESS, init: (api) => { gamesApi = api; } };

@@ -132,6 +132,20 @@ function recordGame(accountId, result) {
   return { degree: after, degreeUp: after > before };
 }
 
+// Eggball Ranked record (server/ranked.js); accounts that never played read as a fresh 1500
+function rankedOf(a) { return Object.assign({ rating: 1500, games: 0, wins: 0, losses: 0, ties: 0, leaves: 0, bannedUntil: 0 }, (a && a.eggRanked) || {}); }
+function updateRanked(accountId, fn) {
+  const a = byId(accountId);
+  if (!a) return;
+  const st = a.eggRanked = rankedOf(a);
+  fn(st);
+  save();
+}
+function rankedBoard() {
+  return Object.values(accounts).filter((a) => a.id && a.eggRanked && a.eggRanked.games > 0)
+    .map((a) => ({ account: a, ...rankedOf(a) })).sort((x, y) => y.rating - x.rating);
+}
+
 function setTextures(session, body) {
   if (!session.account) return;
   const pack = {};
@@ -147,4 +161,4 @@ function search(q) {
 }
 function byId(id) { return Object.values(accounts).find((a) => a.id === id) || null; }
 
-module.exports = { recordGame, degreeFor, winsForDegree, emptyStats, STAT_KEYS, setTextures, search, byId, register, login, knownSession, bind, unbind, apply, setDisplayName, setFlair, flairs, flairByKey };
+module.exports = { rankedOf, updateRanked, rankedBoard, recordGame, degreeFor, winsForDegree, emptyStats, STAT_KEYS, setTextures, search, byId, register, login, knownSession, bind, unbind, apply, setDisplayName, setFlair, flairs, flairByKey };

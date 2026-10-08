@@ -47,7 +47,7 @@ function rebrand(html) {
 }
 
 // pages that don't exist on this server: shown greyed out and unclickable
-const DEAD_LINKS = ['/leaders', '/competitive', '/donate'];
+const DEAD_LINKS = ['/competitive', '/donate'];
 function disableDeadLinks(html) {
   return html.replace(/<a\b([^>]*?)\bhref="([^"]*)"([^>]*)>/gi, (m, pre, href, post) =>
     DEAD_LINKS.includes(href) ? `<a${pre}${post} aria-disabled="true" style="pointer-events:none;opacity:.4;cursor:default">` : m);
@@ -93,7 +93,23 @@ function statsTable(account) {
     ['Support', st.support, ''], ['Powerups', st.powerups, per(st.powerups) + ' / game'],
   ];
   return `<h3>Public Game Stats</h3><p style="opacity:.7;margin-top:-6px">Play Now games</p>
-    <table class="table table-condensed"><tbody>${rows.map(([k, v, x]) => `<tr><td>${k}</td><td class="text-right"><b>${v}</b></td><td class="text-right" style="opacity:.7">${x}</td></tr>`).join('')}</tbody></table>`;
+    <table class="table table-condensed"><tbody>${rows.map(([k, v, x]) => `<tr><td>${k}</td><td class="text-right"><b>${v}</b></td><td class="text-right" style="opacity:.7">${x}</td></tr>`).join('')}</tbody></table>${rankedTable(account)}`;
+}
+
+// Eggball Ranked (server/ranked.js), shown once the account has played a ranked game
+function rankedTable(account) {
+  const r = require('./accounts').rankedOf(account);
+  if (!r.games) return '';
+  const rows = [['Rating', r.rating], ['Games', r.games], ['Wins', r.wins], ['Losses', r.losses], ['Ties', r.ties], ['Games left early', r.leaves]];
+  return `<h3>Eggball Ranked</h3>
+    <table class="table table-condensed"><tbody>${rows.map(([k, v]) => `<tr><td>${k}</td><td class="text-right"><b>${v}</b></td></tr>`).join('')}</tbody></table>`;
+}
+
+function leadersCard(board) {
+  const rows = board.map((r, i) => `<tr><td>${i + 1}</td><td><a href="/profile/${esc(r.account.id)}">${esc(r.account.displayName)}</a></td><td class="text-right"><b>${r.rating}</b></td><td class="text-right">${r.wins}-${r.losses}-${r.ties}</td><td class="text-right">${r.games}</td></tr>`).join('');
+  return `<h1>Leaders</h1><h3>Eggball Ranked</h3><p style="opacity:.7;margin-top:-6px">Elo rating, everyone starts at 1500. <a href="/games/find?type=ranked">Play Eggball Ranked</a></p>
+    <table class="table table-condensed"><thead><tr><th>#</th><th>Player</th><th class="text-right">Rating</th><th class="text-right">W-L-T</th><th class="text-right">Games</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="5" style="opacity:.7">No ranked games yet.</td></tr>'}</tbody></table>`;
 }
 
 function loginCard(error, tab) {
@@ -202,4 +218,4 @@ ${members.map((m) => `                                            <div class="gr
                         </div>`;
 }
 
-module.exports = { render, esc, groupItem, setStatsProvider, loginCard, profileCard, statsTable };
+module.exports = { leadersCard, render, esc, groupItem, setStatsProvider, loginCard, profileCard, statsTable };

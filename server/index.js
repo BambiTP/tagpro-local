@@ -154,6 +154,7 @@ app.get('/replays/gameFile', (req, res) => {
 });
 
 // ---- feedback (login required to post) ----
+app.get('/leaders', (req, res) => html(res, card('TagPro Leaders', pages.leadersCard(accounts.rankedBoard()))));
 app.get('/feedback', (req, res) => html(res, card('TagPro Feedback', community.feedbackCard(req.session.account))));
 app.post('/feedback', (req, res) => {
   if (!req.session.account) return res.redirect('/login');
@@ -364,7 +365,16 @@ app.post('/groups/testmap', upload.fields([{ name: 'layout', maxCount: 1 }, { na
 
 app.get('/games/find', (req, res) => {
   const g = req.session.groupId && groups.groups.get(req.session.groupId);
-  html(res, pages.render('find.html', { GROUP_ID: g ? g.id : 'null', PRIVATE_GROUP: g && g.settings.isPrivate ? 'true' : '' }));
+  // ?type=ranked: the Eggball Ranked queue (logged in only); anything else is casual Play Now
+  const type = req.query.type === 'ranked' ? 'ranked' : 'casual';
+  if (type === 'ranked' && !g && !req.session.account) return res.redirect('/login');
+  req.session.joinType = type;
+  const r = req.session.account ? accounts.rankedOf(req.session.account) : null;
+  html(res, pages.render('find.html', {
+    GROUP_ID: g ? g.id : 'null', PRIVATE_GROUP: g && g.settings.isPrivate ? 'true' : '', JOIN_TYPE: type,
+    CASUAL_ACTIVE: type === 'casual' ? 'btn-primary' : 'btn-default', RANKED_ACTIVE: type === 'ranked' ? 'btn-primary' : 'btn-default',
+    RANKED_INFO: type === 'ranked' && r ? `Your eggball rating: <b>${r.rating}</b>` : '',
+  }));
 });
 
 app.get('/game', (req, res, next) => {
@@ -390,6 +400,8 @@ app.get('/game', (req, res) => {
   const GG = '<script src="/R-62bb0909b74c-z/compact/global-game.js"></script>';
   const extra = (room.egg ? EGG_CLIENT_INFO.eventScripts.map((p) => `\n        <script src="${CB + p}"></script>`).join('') : '')
     + (room.gravity ? '\n        <script src="/R-62bb0909b74c-z/scripts/gravity.js"></script>' : '')
+    // Eggball Ranked: double-tap Shift votes to keep playing after a teammate leaves
+    + (room.ranked ? '\n        <script>(function () { var last = 0; document.addEventListener("keydown", function (e) { if (e.key !== "Shift" || e.repeat) return; var n = Date.now(); if (n - last < 400) { last = 0; if (tagpro.socket) tagpro.socket.emit("rankedContinue"); } else last = n; }); })();</script>' : '')
     + (room.localTrust ? '\n        <script>tagproConfig.localTrust = ' + JSON.stringify(room.trustConfig()).replace(/</g, '\\u003c') + ';</script><script src="/localtrust.js?v=' + Math.floor(require('fs').statSync(path.join(PUBLIC, 'localtrust.js')).mtimeMs) + '"></script>' : '');
   let page = (h) => (room.egg ? eggballPage(h) : h).replace(GG, GG + extra);
   if (process.env.P2P_CODE) { // this PC is a peer-to-peer host: say so on the game itself
@@ -420,7 +432,7 @@ app.post('/local/name', (req, res) => {
 });
 
 // public queue status for the homepage (Play Now)
-app.get('/queue/status', (req, res) => res.json(require('./queue').counts()));
+app.get('/queue/status', (req, res) => res.json(require(req.query.type === 'ranked' ? './ranked' : './queue').counts()));
 
 // music list (JSONP, like tagpro.koalabeast.com/music)
 app.get('/music', (req, res) => res.jsonp(music));

@@ -298,6 +298,7 @@ class GameRoom {
     this.send(client, 'p', [this.fullPlayer(p)]);
     this.broadcast('score', this.score);
     this.broadcast('chat', { from: null, message: `${p.name} has joined the ${team === 1 ? 'Red' : 'Blue'} team.`, to: 'all', for: p.id, icon: team === 1 ? 'join1' : 'join2' });
+    if (this.onPlayerJoined) this.onPlayerJoined(p); // Eggball Ranked (server/ranked.js)
     if (this.egg) this.broadcast('eggBall', { state: this.egg.state, holder: this.egg.holder });
     this.spawnPlayer(p, this.egg && this.state !== STATES.COUNTDOWN ? this.respawnDelay() : 0);
     this.broadcastP([this.fullPlayer(p)], (c) => c !== client);
@@ -364,6 +365,7 @@ class GameRoom {
       if (this.playerHistory && this.playerHistory[p.id]) this.playerHistory[p.id].left = this.now();
       this.broadcast('playerLeft', p.id);
       this.broadcast('chat', { from: null, message: `${p.name} has left the ${p.team === 1 ? 'Red' : 'Blue'} team.`, to: 'all', for: p.id, icon: p.team === 1 ? 'leave1' : 'leave2' });
+      if (this.onPlayerLeft) this.onPlayerLeft(p);
       if (!this.ended && this.state !== STATES.COUNTDOWN && this.playerCount() === 0) this.end(this.score.r > this.score.b ? 'red' : this.score.b > this.score.r ? 'blue' : 'tie', false);
       else if (!this.ended && this.state !== STATES.COUNTDOWN && (this.playerCount(1) === 0 || this.playerCount(2) === 0) && this.isPrivate === false) { /* public: keep playing, joiner refills */ }
     } else if (client.spectator) this.broadcast('spectators', this.spectatorCount());
@@ -403,7 +405,7 @@ class GameRoom {
         break;
       }
       case 'switch': {
-        if (!p) return;
+        if (!p || this.ranked) return; // ranked teams are set by rating
         const other = p.team === 1 ? 2 : 1;
         if (this.playerCount(other) > this.playerCount(p.team) && !this.isPrivate) return;
         if (p.flag) this.returnFlag(p, null, true);
@@ -433,6 +435,7 @@ class GameRoom {
         break;
       case 'lt': if (p && this.localTrust) this.trustedMove(p, d); break;
       case 'click': if (p && this.egg) this.eggThrow(p, d); break;
+      case 'rankedContinue': if (p && this.onRankedContinue) this.onRankedContinue(p); break; // double-tapped Shift
       default: break;
     }
   }
