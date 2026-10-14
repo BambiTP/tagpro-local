@@ -40,6 +40,7 @@ def group(h):
     h = h.replace('value="hvptqfho"', 'value="{{GROUP_ID}}"')
     h = h.replace('value="Some Group" name="groupName"', 'value="{{GROUP_NAME}}" name="groupName"')
     h = local_trust(h)
+    h = disable_afk(h)
     return h
 
 # "Local trust" group setting (ours, not on the real site): a checkbox next to Ghost Mode, built
@@ -97,6 +98,59 @@ def local_trust(h):
         new MutationObserver(lock).observe(box, { attributes: true, attributeFilter: ['disabled'] });
         new MutationObserver(lock).observe($('.group.container')[0], { attributes: true, attributeFilter: ['class'] });
         lock();
+    })();
+</script>
+''' + h[i:]
+    return h
+
+# "Disable AFK kick" group setting (ours, not on the real site): a second checkbox under Map Testing
+# Mode, built from the same markup the real page uses for its other checkbox settings
+def disable_afk(h):
+    def once(old, new):
+        assert h.count(old) == 1, old
+        return h.replace(old, new)
+    h = once('''                                        <option value="mapTestingMode">Map Testing Mode</option>
+''', '''                                        <option value="mapTestingMode">Map Testing Mode</option>
+                                        <option value="disableAfk">Disable AFK Kick</option>
+''')
+    h = once('''                                                <input type="checkbox" class="js-socket-setting" name="mapTestingMode">
+                                                Enabled
+                                            </label>
+                                        </div>
+''', '''                                                <input type="checkbox" class="js-socket-setting" name="mapTestingMode">
+                                                Enabled
+                                            </label>
+                                        </div>
+                                        <div class="checkbox">
+                                            <label>
+                                                <input type="checkbox" class="js-socket-setting" name="disableAfk">
+                                                Disable AFK Kick: nobody is warned or kicked for not moving
+                                            </label>
+                                        </div>
+''')
+    h = once('''                                        <div class="col-md-12 js-display-setting" name="mapTestingMode" >''',
+             '''                                        <div class="col-md-12 js-display-setting" name="disableAfk">
+                                            <div class="extra-setting">
+                                                <span class="js-setting-clear">&times;</span>
+                                                <span class="js-setting-label">Disable AFK Kick</span>
+                                                <span class="js-setting-value"></span>
+                                                <span class="clearfix"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-12 js-display-setting" name="mapTestingMode" >''')
+    # the page's own defaults table doesn't know disableAfk, so it would always list it as changed
+    i = h.rindex('</body>')
+    h = h[:i] + '''<script>
+    (function fix() {
+        var s = window.tagpro && tagpro.group && tagpro.group.socket;
+        if (!s) return setTimeout(fix, 200);
+        var show = function (on) {
+            $('.js-display-setting[name=disableAfk]').toggleClass('non-default', on);
+            $('.extra-settings .js-display-setting.non-default:not(.hidden)').length ? $('.extra-settings').show() : $('.extra-settings').hide();
+        };
+        s.on('setting', function (e) { if (e && e.name === 'disableAfk') show(e.value === true || e.value === 'true'); });
+        show($('.js-socket-setting[name=disableAfk]').prop('checked')); // settings that arrived before this ran
     })();
 </script>
 ''' + h[i:]

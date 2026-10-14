@@ -34,7 +34,7 @@ const LABELS = {
   spacebarDetonateAll: 'Spacebar uses all powerups', tagproMaxTags: 'TagPro powerup max tags (0 = unlimited)', gravityWellForce: 'Gravity well force',
   powerupJukeJuice: 'Powerup: Juke juice', powerupTagPro: 'Powerup: TagPro', powerupRollingBomb: 'Powerup: Rolling bomb', combinejjrb: 'Combine juke juice + rolling bomb',
   jumpLimit: 'Gravity: jumps (51 = unlimited)', isPlayerJumpResetEnabled: 'Gravity: landing on players resets jumps',
-  mapTestingMode: 'Map testing mode', respawnWarnings: 'Respawn warnings', pupIndicators: 'Next powerup indicators', disableAllPups: 'Disable all powerups',
+  mapTestingMode: 'Map testing mode', disableAfk: 'Disable AFK kick', respawnWarnings: 'Respawn warnings', pupIndicators: 'Next powerup indicators', disableAllPups: 'Disable all powerups',
 };
 const FIELDS = defaults.settings.filter(([k]) => !SKIP.has(k));
 const DEFAULT_VALUES = Object.fromEntries(FIELDS);

@@ -35,7 +35,7 @@ const PUBLIC_DEFAULTS = {
   respawnWarnings: true, pupIndicators: true, disableAllPups: false, gravityWellForce: 1, tagproMaxTags: 0,
   rollingBombForceMultipler: 1, rollingBombDistanceMultipler: 1, spacebarDetonateAll: false,
   jukeJuiceBoost: false, jukeJuiceBoostPower: 70, lastPossession: 'disabled', mapTestingMode: false,
-  redTeamScore: 0, blueTeamScore: 0, maxPlayersPerTeam: 4, localTrust: false,
+  redTeamScore: 0, blueTeamScore: 0, maxPlayersPerTeam: 4, localTrust: false, disableAfk: false,
 };
 
 // "Local trust" (group setting): each player's own client is trusted for its ball's position, so
@@ -1563,6 +1563,7 @@ class GameRoom {
   }
 
   afkCheck(now) {
+    if (this.settings.disableAfk) return; // group setting: nobody gets warned or kicked for being AFK
     for (const p of Object.values(this.players)) {
       const idle = now - Math.max(p.lastInput, this.startedPlayAt || 0);
       const kickAt = this.settings.mapTestingMode ? TU.MAPTEST_AFK_KICK_MS : TU.AFK_KICK_MS;
