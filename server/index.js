@@ -167,7 +167,7 @@ app.post('/tagpro-link', async (req, res) => {
   } catch (e) {
     if (!e.user) console.error('tpauth', e);
     // the page's own every-few-seconds check can land inside the wait: not worth showing
-    if (!(req.body.auto && /Wait a few seconds/.test(e.message))) out.error = e.user ? e.message : 'Something went wrong.';
+    if (!(req.body.auto && /Wait a few seconds|TagPro is busy/.test(e.message))) out.error = e.user ? e.message : 'Something went wrong.';
   }
   out.state = tpauth.state(a);
   res.json(out);

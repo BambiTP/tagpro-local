@@ -181,8 +181,8 @@ function tagproLinkCard(state, back) {
           });
           out += '</ol>';
           if (now) out += '<p style="opacity:.8">TagPro shows: ' + icon(now) + ' ' + esc(now.name) + '</p>';
-          out += '<p><button class="btn btn-primary" data-a="check">Check</button> <button class="btn btn-default" data-a="cancel">Cancel</button> <span style="opacity:.6">checks by itself every few seconds</span></p>';
-          timer = setTimeout(function () { if (!document.hidden && !busy) post({ action: 'check', auto: '1' }); else render(); }, 5000);
+          out += '<p><button class="btn btn-primary" data-a="check">Check</button> <button class="btn btn-default" data-a="cancel">Cancel</button> <span style="opacity:.6">checks by itself every 15 seconds</span></p>';
+          timer = setTimeout(function () { if (!document.hidden && !busy) post({ action: 'check', auto: '1' }); else render(); }, 15000);
         } else {
           out += '<p>Your TagPro profile link (open your profile on <a href="https://tagpro.koalabeast.com/profile" target="_blank" rel="noopener">tagpro.koalabeast.com</a> and copy the address):</p>'
             + '<form id="tp-start" class="form-inline"><input class="form-control" name="link" placeholder="https://tagpro.koalabeast.com/profile/..." style="min-width:340px" required> <button class="btn btn-primary" type="submit">Start</button></form>';

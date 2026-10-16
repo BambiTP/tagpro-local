@@ -3,11 +3,15 @@
 // selected flair) and ask them to set their TagPro flair to a low-degree one, then to no flair,
 // then back to the one they had. Only the account's owner can change its flair, so seeing every
 // change proves it. Lookups happen only while the player is on the link page (they click Check,
-// or the page checks every few seconds), at most one per account every few seconds.
+// or the page checks every 15 seconds); one lookup per 5 s for the whole server, and a pause
+// after TagPro answers 429 (too many requests).
 const accounts = require('./accounts');
 
 const PENDING_MS = 30 * 60 * 1000;
-const CHECK_GAP_MS = 3000;
+const CHECK_GAP_MS = 3000;   // per account
+const GLOBAL_GAP_MS = 5000;  // the whole server: TagPro answers 429 when we ask too often
+const BACKOFF_MS = 60000;    // after a 429 with no Retry-After
+let nextLookup = 0;          // no TagPro lookup before this time
 // degree flairs nearly everyone has: 2°, 6°, 9°; the first one they aren't already wearing
 const CHALLENGES = ['degree.pencil', 'degree.bacon', 'degree.baseball'];
 const lastLookup = new Map(); // account id -> time
@@ -32,11 +36,19 @@ function profileId(text) {
 async function lookup(account, id) {
   const now = Date.now(), last = lastLookup.get(account.id) || 0;
   if (now - last < CHECK_GAP_MS) fail('Wait a few seconds between checks.');
+  if (now < nextLookup) fail(`TagPro is busy; trying again in ${Math.ceil((nextLookup - now) / 1000)} s.`);
   lastLookup.set(account.id, now);
+  nextLookup = now + GLOBAL_GAP_MS;
   let p;
   try {
     const r = await fetch(`https://tagpro.koalabeast.com/profiles/${id}`, { signal: AbortSignal.timeout(10000), headers: { accept: 'application/json' } });
-    if (!r.ok) fail("TagPro didn't find that profile.");
+    if (r.status === 429) {
+      const wait = Number(r.headers.get('retry-after')) * 1000;
+      nextLookup = Date.now() + (wait > 0 ? Math.min(wait, 10 * 60000) : BACKOFF_MS);
+      fail(`TagPro is limiting lookups right now; trying again in ${Math.ceil((nextLookup - Date.now()) / 1000)} s. Your progress is kept.`);
+    }
+    if (r.status === 404) fail("TagPro didn't find that profile.");
+    if (!r.ok) fail(`TagPro answered with an error (${r.status}). Try again in a minute.`);
     const j = await r.json();
     p = Array.isArray(j) ? j[0] : j;
   } catch (e) {
