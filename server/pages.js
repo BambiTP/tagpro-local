@@ -141,7 +141,7 @@ function tagproSection(account) {
 }
 
 // /tagpro-link: the whole linking flow on one page; the inline script draws it from tpauth.state
-// and checks TagPro every few seconds while a step is open. Not renamed to BambiPro: it's about
+// and asks the server to check TagPro when the player clicks Check. Not renamed to BambiPro: it's about
 // the real TagPro.
 function tagproLinkCard(state, back) {
   const data = JSON.stringify({ state, back }).replace(/</g, '\\u003c');
@@ -149,7 +149,7 @@ function tagproLinkCard(state, back) {
     <p style="opacity:.7;margin-top:-6px">Prove a TagPro account is yours by changing its flair a few times.</p>
     <div id="tp-body"></div></div><!--/norebrand-->
     <script>(function () {
-      var D = ${data}, S = D.state, busy = false, timer = null, now = null, msg = '', err = '';
+      var D = ${data}, S = D.state, busy = false, now = null, msg = '', err = '';
       var body = document.getElementById('tp-body');
       function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
       function icon(f) {
@@ -166,7 +166,6 @@ function tagproLinkCard(state, back) {
           .then(function () { busy = false; render(); });
       }
       function render() {
-        clearTimeout(timer);
         var out = (msg ? '<div class="alert alert-success">' + esc(msg) + '</div>' : '') + (err ? '<div class="alert alert-danger">' + esc(err) + '</div>' : '');
         if (S.linked) {
           out += '<p>Linked to <a href="' + esc(S.linked.url) + '" target="_blank" rel="noopener"><b>' + esc(S.linked.name || 'your TagPro account') + '</b></a> <span class="label label-success">verified</span></p>';
@@ -181,8 +180,7 @@ function tagproLinkCard(state, back) {
           });
           out += '</ol>';
           if (now) out += '<p style="opacity:.8">TagPro shows: ' + icon(now) + ' ' + esc(now.name) + '</p>';
-          out += '<p><button class="btn btn-primary" data-a="check">Check</button> <button class="btn btn-default" data-a="cancel">Cancel</button> <span style="opacity:.6">checks by itself every 15 seconds</span></p>';
-          timer = setTimeout(function () { if (!document.hidden && !busy) post({ action: 'check', auto: '1' }); else render(); }, 15000);
+          out += '<p><button class="btn btn-primary" data-a="check">Check</button> <button class="btn btn-default" data-a="cancel">Cancel</button> <span style="opacity:.6">click Check after each change</span></p>';
         } else {
           out += '<p>Your TagPro profile link (open your profile on <a href="https://tagpro.koalabeast.com/profile" target="_blank" rel="noopener">tagpro.koalabeast.com</a> and copy the address):</p>'
             + '<form id="tp-start" class="form-inline"><input class="form-control" name="link" placeholder="https://tagpro.koalabeast.com/profile/..." style="min-width:340px" required> <button class="btn btn-primary" type="submit">Start</button></form>';

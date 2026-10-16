@@ -2,16 +2,24 @@
 // pastes their TagPro profile link; we read that profile's public data (/profiles/<id>: name and
 // selected flair) and ask them to set their TagPro flair to a low-degree one, then to no flair,
 // then back to the one they had. Only the account's owner can change its flair, so seeing every
-// change proves it. Lookups happen only while the player is on the link page (they click Check,
-// or the page checks every 15 seconds); one lookup per 5 s for the whole server, and a pause
-// after TagPro answers 429 (too many requests).
+// change proves it. TagPro is only asked when the player clicks Start or Check (no automatic
+// checks); one lookup per 5 s for the whole server, and after a 429 (too many requests, which
+// blocks this server for about an hour) no lookups until the block should be over.
+const fs = require('fs');
+const path = require('path');
 const accounts = require('./accounts');
 
-const PENDING_MS = 30 * 60 * 1000;
+const PENDING_MS = 3 * 60 * 60 * 1000; // long enough to sit out a TagPro block
 const CHECK_GAP_MS = 3000;   // per account
 const GLOBAL_GAP_MS = 5000;  // the whole server: TagPro answers 429 when we ask too often
-const BACKOFF_MS = 60000;    // after a 429 with no Retry-After
-let nextLookup = 0;          // no TagPro lookup before this time
+const BACKOFF_MS = 60 * 60000; // after a 429 with no Retry-After: TagPro's blocks last about an hour
+// no TagPro lookup before this time; a block is saved so a restart doesn't run into it again
+const BLOCK_FILE = path.join(__dirname, '..', 'data', 'tagpro-block.json');
+let nextLookup = (() => { try { return Number(JSON.parse(fs.readFileSync(BLOCK_FILE, 'utf8')).until) || 0; } catch (e) { return 0; } })();
+function block(until) {
+  nextLookup = until;
+  try { fs.mkdirSync(path.dirname(BLOCK_FILE), { recursive: true }); fs.writeFileSync(BLOCK_FILE, JSON.stringify({ until })); } catch (e) { /* the in-memory pause still holds */ }
+}
 // degree flairs nearly everyone has: 2°, 6°, 9°; the first one they aren't already wearing
 const CHALLENGES = ['degree.pencil', 'degree.bacon', 'degree.baseball'];
 const lastLookup = new Map(); // account id -> time
@@ -36,7 +44,7 @@ function profileId(text) {
 async function lookup(account, id) {
   const now = Date.now(), last = lastLookup.get(account.id) || 0;
   if (now - last < CHECK_GAP_MS) fail('Wait a few seconds between checks.');
-  if (now < nextLookup) fail(`TagPro is busy; trying again in ${Math.ceil((nextLookup - now) / 1000)} s.`);
+  if (now < nextLookup) fail(nextLookup - now > GLOBAL_GAP_MS ? `TagPro is blocking lookups from this server for now. ${waitText()} Your progress is kept.` : 'TagPro is busy; try again in a few seconds.');
   lastLookup.set(account.id, now);
   nextLookup = now + GLOBAL_GAP_MS;
   let p;
@@ -44,8 +52,8 @@ async function lookup(account, id) {
     const r = await fetch(`https://tagpro.koalabeast.com/profiles/${id}`, { signal: AbortSignal.timeout(10000), headers: { accept: 'application/json' } });
     if (r.status === 429) {
       const wait = Number(r.headers.get('retry-after')) * 1000;
-      nextLookup = Date.now() + (wait > 0 ? Math.min(wait, 10 * 60000) : BACKOFF_MS);
-      fail(`TagPro is limiting lookups right now; trying again in ${Math.ceil((nextLookup - Date.now()) / 1000)} s. Your progress is kept.`);
+      block(Date.now() + (wait > 0 ? Math.min(wait, 2 * 60 * 60000) : BACKOFF_MS));
+      fail(`TagPro is blocking lookups from this server for now. ${waitText()} Your progress is kept.`);
     }
     if (r.status === 404) fail("TagPro didn't find that profile.");
     if (!r.ok) fail(`TagPro answered with an error (${r.status}). Try again in a minute.`);
@@ -59,6 +67,7 @@ async function lookup(account, id) {
   return { name: p.reservedName || null, flair: none(p.selectedFlair) };
 }
 
+const waitText = () => { const m = Math.ceil((nextLookup - Date.now()) / 60000); return m > 1 ? `Try again in about ${m} minutes.` : 'Try again in a minute.'; };
 const pendingOf = (a) => (a.tagproPending && Date.now() - a.tagproPending.started < PENDING_MS && Array.isArray(a.tagproPending.steps) ? a.tagproPending : null);
 
 // the flairs to set, in order: a low-degree one, no flair, then the original (a step that would
