@@ -157,20 +157,29 @@
     return out;
   }
 
-  // the map for each round: dropdowns (or a Fortunate Maps ID) for the organizer, a list for everyone else
+  // the map for each game of each round: dropdowns (or a Fortunate Maps ID) for the organizer, a
+  // list for everyone else
   function maps() {
     if (T.game.mode === 'eggball' || !T.rounds.length) return '';
     var out = '<h3>Maps</h3>';
-    if (!me.organizer) return out + '<ul style="padding-left:20px">' + T.rounds.map(function (r) { return '<li>' + esc(r.label) + ': ' + esc(r.mapName) + '</li>'; }).join('') + '</ul>';
-    var row = function (key, label, chosen, firstOption) {
-      return '<tr><td style="vertical-align:middle">' + esc(label) + '</td><td><select class="form-control input-sm t-roundmap" data-round="' + esc(key) + '" style="max-width:220px">' + firstOption
-        + T.maps.map(function (x) { return '<option value="' + esc(x.key) + '"' + (chosen === x.key ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('') + '</select></td>'
-        + '<td style="white-space:nowrap"><input class="form-control input-sm t-fm" data-round="' + esc(key) + '" placeholder="FM ID" style="display:inline-block;width:80px"> ' + btn('Use', { type: 'fmFromBox', round: key }, 'btn-xs') + '</td></tr>';
+    var gameLabel = function (r, i) { return r.games.length > 1 ? 'Game ' + (i + 1) : ''; };
+    if (!me.organizer) return out + '<ul style="padding-left:20px">' + T.rounds.map(function (r) {
+      return '<li>' + esc(r.label) + ': ' + r.games.map(function (g, i) { return (gameLabel(r, i) ? gameLabel(r, i) + ' ' : '') + esc(g.mapName); }).join(', ') + '</li>';
+    }).join('') + '</ul>';
+    var slot = function (key, game, chosen, firstOption) {
+      var id = key + '#' + game;
+      return '<select class="form-control input-sm t-roundmap" data-round="' + esc(key) + '" data-game="' + game + '" style="display:inline-block;width:auto;max-width:200px">' + firstOption
+        + T.maps.map(function (x) { return '<option value="' + esc(x.key) + '"' + (chosen === x.key ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('') + '</select> '
+        + '<input class="form-control input-sm t-fm" data-round="' + esc(id) + '" placeholder="FM ID" style="display:inline-block;width:75px"> ' + btn('Use', { type: 'fmFromBox', round: id }, 'btn-xs');
     };
-    return out + '<table class="table table-condensed" style="max-width:640px"><tbody>'
-      + row('default', 'Default', T.game.map, '<option value="random"' + (T.game.map === 'random' ? ' selected' : '') + '>Random (public rotation)</option>')
-      + T.rounds.map(function (r) { return row(r.key, r.label, r.map, '<option value="">Default (' + esc(T.game.mapName) + ')</option>'); }).join('')
-      + '</tbody></table>';
+    var defaultOpt = '<option value="">Default (' + esc(T.game.mapName) + ')</option>';
+    return out + '<table class="table table-condensed"><tbody>'
+      + '<tr><td style="vertical-align:middle"><b>Default</b></td><td>' + slot('default', 0, T.game.map, '<option value="random"' + (T.game.map === 'random' ? ' selected' : '') + '>Random (public rotation)</option>') + '</td></tr>'
+      + T.rounds.map(function (r) {
+        return '<tr><td style="vertical-align:middle">' + esc(r.label) + '</td><td>' + r.games.map(function (g, i) {
+          return '<div style="margin:2px 0">' + (gameLabel(r, i) ? '<span style="display:inline-block;width:56px;opacity:.7">' + gameLabel(r, i) + '</span>' : '') + slot(r.key, i, g.map, defaultOpt) + '</div>';
+        }).join('') + '</td></tr>';
+      }).join('') + '</tbody></table>';
   }
 
   function matchBox(m) {
@@ -256,13 +265,16 @@
     if (location.hash === '#signup' && !render.scrolled && document.getElementById('signup')) { render.scrolled = true; document.getElementById('signup').scrollIntoView(); }
   }
 
+  // a Fortunate Maps ID typed for one game slot ("<round>#<game>")
+  function useFm(slot, id) { var i = slot.lastIndexOf('#'); act({ type: 'setRoundMap', round: slot.slice(0, i), game: Number(slot.slice(i + 1)), map: id, fm: true }); }
+
   root.addEventListener('toggle', function (e) { if (e.target.id === 't-rules') rulesOpen = e.target.open; }, true);
   root.addEventListener('change', function (e) {
     var el = e.target;
     if (el.classList.contains('t-cap')) captainPicks = [].map.call(root.querySelectorAll('.t-cap:checked'), function (x) { return x.value; });
     if (el.classList.contains('t-move') && el.value) act({ type: 'movePlayer', player: el.getAttribute('data-player'), team: el.value === '__out' ? null : el.value });
-    if (el.classList.contains('t-roundmap')) act({ type: 'setRoundMap', round: el.getAttribute('data-round'), map: el.value });
-    if (el.classList.contains('t-fm') && el.value.trim()) { act({ type: 'setRoundMap', round: el.getAttribute('data-round'), map: el.value.trim(), fm: true }); el.value = ''; }
+    if (el.classList.contains('t-roundmap')) act({ type: 'setRoundMap', round: el.getAttribute('data-round'), game: Number(el.getAttribute('data-game')), map: el.value });
+    if (el.classList.contains('t-fm') && el.value.trim()) { useFm(el.getAttribute('data-round'), el.value.trim()); el.value = ''; }
   });
   root.addEventListener('click', function (e) {
     var b = e.target.closest('[data-act]');
@@ -281,7 +293,7 @@
     if (a.type === 'renameFromBox') a = { type: 'renameTeam', team: a.team, name: box('.t-rename[data-team="' + a.team + '"]') };
     if (a.type === 'addFromBox') { a = { type: 'addPlayer', team: a.team, username: box('.t-add[data-team="' + a.team + '"]') }; var input = root.querySelector('.t-add[data-team="' + a.team + '"]'); if (input) input.value = ''; }
     if (a.type === 'addTeamFromBox') { a = { type: 'addTeam', name: box('#t-newteam') }; document.getElementById('t-newteam').value = ''; }
-    if (a.type === 'fmFromBox') { var fmBox = root.querySelector('.t-fm[data-round="' + a.round + '"]'); if (!fmBox || !fmBox.value.trim()) return; a = { type: 'setRoundMap', round: a.round, map: fmBox.value.trim(), fm: true }; fmBox.value = ''; }
+    if (a.type === 'fmFromBox') { var fmBox = root.querySelector('.t-fm[data-round="' + a.round + '"]'); if (fmBox && fmBox.value.trim()) useFm(a.round, fmBox.value.trim()); if (fmBox) fmBox.value = ''; return; }
     if (a.type === 'captains') captainPicks = null;
     act(a);
   });

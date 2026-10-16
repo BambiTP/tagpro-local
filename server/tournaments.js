@@ -400,9 +400,14 @@ function rounds(t) {
 // maps are chosen per round, by the round's name ("W:Semifinal", "L:Losers final", "RR:Round 3"),
 // so a choice stays with the same round when the number of teams changes; the grand final
 // reset uses the grand final's map unless it has its own
-const roundMap = (t, key) => (t.roundMaps || {})[key] || (key === 'GF:Grand final (reset)' ? (t.roundMaps || {})['GF:Grand final'] : null);
-// the map for a match's next game: the organizer's choice for its round, else the default
-const mapFor = (t, m) => (t.game.mode === 'eggball' ? 'eggball' : roundMap(t, m.bracket + ':' + m.label) || t.game.map);
+// One map per game of the round (best of 3: three); an empty slot uses the default.
+// (a single map saved before per-game maps existed counts for every game of the round)
+const roundMaps = (t, key) => { const v = (t.roundMaps || {})[key]; return Array.isArray(v) ? v : v ? Array(7).fill(v) : []; };
+const roundMap = (t, key, game) => roundMaps(t, key)[game] || (key === 'GF:Grand final (reset)' ? roundMaps(t, 'GF:Grand final')[game] : null) || null;
+const roundBestOf = (t, key) => (/^(W|P):Final$|^GF:/.test(key) ? t.game.finalBestOf : t.game.bestOf);
+// the map for a match's next game: the organizer's choice for that game of its round, else the
+// default (a level game that's replayed uses the same slot)
+const mapFor = (t, m) => (t.game.mode === 'eggball' ? 'eggball' : roundMap(t, m.bracket + ':' + m.label, m.games.filter((g) => g.counted).length) || t.game.map);
 
 async function startGame(t, m) {
   if (m.live || m.starting) return;
@@ -478,14 +483,20 @@ async function chooseMap(fm, key) {
   if (problem) fail(problem);
   return key;
 }
-// the organizer picks the map for a round, or the default ('' = back to the default)
-async function setRoundMap(t, roundKey, key, fm) {
+// the organizer picks the map for one game of a round, or the default ('' = back to the default)
+async function setRoundMap(t, roundKey, game, key, fm) {
   if (t.game.mode === 'eggball') fail('Eggball has its own map.');
   if (roundKey !== 'default' && !rounds(t).some((r) => r.key === roundKey)) fail('No such round.');
+  game = Math.round(Number(game)) || 0;
+  if (roundKey !== 'default' && (game < 0 || game >= 7)) fail('No such game.');
   key = await chooseMap(fm, key);
   if (roundKey === 'default') { t.game.map = key || 'random'; return; }
   t.roundMaps = t.roundMaps || {};
-  if (key) t.roundMaps[roundKey] = key; else delete t.roundMaps[roundKey];
+  const list = roundMaps(t, roundKey).slice();
+  list[game] = key || null;
+  while (list.length && !list[list.length - 1]) list.pop();
+  for (let i = 0; i < list.length; i++) list[i] = list[i] || null;
+  if (list.length) t.roundMaps[roundKey] = list; else delete t.roundMaps[roundKey];
 }
 
 // ---- views ----
@@ -499,7 +510,9 @@ function view(t) {
     teamCount: t.teamCount, teamsWanted: teamsWanted(t), teamSize: t.teamSize, budget: t.budget, pickSeconds: t.pickSeconds, bidSeconds: t.bidSeconds, bidResetSeconds: bidReset(t),
     game: Object.assign({}, t.game, { mapName: mapName(t.game.map) }), emptyGameMinutes: EMPTY_GAME_MS / 60000, maxTeam: MAX_TEAM,
     maps: t.game.mode === 'eggball' ? [] : maps,
-    rounds: t.game.mode === 'eggball' ? [] : rounds(t).map((r) => Object.assign(r, { map: (t.roundMaps || {})[r.key] || null, mapName: mapName(roundMap(t, r.key) || t.game.map) })),
+    rounds: t.game.mode === 'eggball' ? [] : rounds(t).map((r) => Object.assign(r, {
+      games: Array.from({ length: roundBestOf(t, r.key) }, (_, i) => ({ map: roundMaps(t, r.key)[i] || null, mapName: mapName(roundMap(t, r.key, i) || t.game.map) })),
+    })),
     signups: t.signups.map(person), captains: t.captains,
     teams: t.teams.map((x) => ({ id: x.id, name: x.name, captain: x.captain, players: x.players.map(person) })),
     draft: d && {
@@ -579,7 +592,7 @@ function act(t, session, a) {
     case 'forceStart': needOrg(); if (!m || !B.playable(m) || m.live) fail("That match can't start."); return startGame(t, m);
     case 'cancelGame': needOrg(); if (!m) fail('No such match.'); return cancelGame(t, m);
     case 'award': needOrg(); if (!m) fail('No such match.'); return decide(t, m, a.side === 'b' ? 'b' : 'a');
-    case 'setRoundMap': needOrg(); return setRoundMap(t, String(a.round), a.map, !!a.fm);
+    case 'setRoundMap': needOrg(); return setRoundMap(t, String(a.round), a.game, a.map, !!a.fm);
     case 'delete': needOrg();
       clearTimeout(timers[t.id]);
       for (const x of t.matches) if (x.live) { const r = gamesApi.games.get(x.live.gameId); if (r && !r.ended) { r.tournament.cancelled = true; r.end('tie', false); } }
