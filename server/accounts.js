@@ -148,6 +148,7 @@ function updateAccount(accountId, fn) {
   fn(a);
   save();
 }
+const all = () => Object.values(accounts).filter((a) => a.id);
 // accounts linked to a TagPro profile id
 function withTagpro(id) { return Object.values(accounts).filter((a) => a.tagpro && a.tagpro.id === id); }
 function rankedBoard() {
@@ -171,4 +172,4 @@ function search(q) {
 function byUsername(u) { const k = String(u || '').trim().toLowerCase(); return Object.hasOwn(accounts, k) ? accounts[k] : null; }
 function byId(id) { return Object.values(accounts).find((a) => a.id === id) || null; }
 
-module.exports = { updateAccount, withTagpro, rankedOf, updateRanked, rankedBoard, recordGame, degreeFor, winsForDegree, emptyStats, STAT_KEYS, setTextures, search, byId, byUsername, register, login, knownSession, bind, unbind, apply, setDisplayName, setFlair, flairs, flairByKey };
+module.exports = { all, updateAccount, withTagpro, rankedOf, updateRanked, rankedBoard, recordGame, degreeFor, winsForDegree, emptyStats, STAT_KEYS, setTextures, search, byId, byUsername, register, login, knownSession, bind, unbind, apply, setDisplayName, setFlair, flairs, flairByKey };

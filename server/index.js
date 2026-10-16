@@ -151,18 +151,15 @@ app.get('/tagpro-link', (req, res) => {
   if (a.tagpro) req.session.afterLink = null;
   html(res, card('TagPro Account Link', pages.tagproLinkCard(tpauth.state(a), back)));
 });
-app.post('/tagpro-link', async (req, res) => {
+app.post('/tagpro-link', (req, res) => {
   const a = req.session.account;
-  if (!a) return res.json({ error: 'Log in first.', state: { linked: null, pending: null } });
+  if (!a) return res.json({ error: 'Log in first.', state: { linked: null, pending: null, now: Date.now() } });
   const action = String(req.body.action || '');
   const out = {};
   try {
-    if (action === 'start') await tpauth.start(a, req.body.link);
-    else if (action === 'check') {
-      const r = await tpauth.check(a);
-      out.now = r.now;
-      if (r.done) out.message = 'Linked.';
-    } else if (action === 'cancel') tpauth.cancel(a);
+    if (action === 'start') tpauth.start(a, req.body.link);
+    else if (action === 'check') tpauth.check(a);
+    else if (action === 'cancel') tpauth.cancel(a);
     else if (action === 'unlink') { tpauth.unlink(a); out.message = 'Unlinked.'; }
   } catch (e) {
     if (!e.user) console.error('tpauth', e);
@@ -171,6 +168,8 @@ app.post('/tagpro-link', async (req, res) => {
   out.state = tpauth.state(a);
   res.json(out);
 });
+// the link page asks this (not TagPro) while a shared check is waiting
+app.get('/tagpro-link/state', (req, res) => res.json({ state: req.session.account ? tpauth.state(req.session.account) : { linked: null, pending: null, now: Date.now() } }));
 app.post('/profile', (req, res) => {
   const r = accounts.setDisplayName(req.session, req.body.displayedName);
   if (r.error) return res.json(r);
