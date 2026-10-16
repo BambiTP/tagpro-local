@@ -10,7 +10,7 @@ const FORMAT = { single: 'Single elimination', double: 'Double elimination', rou
 const DRAFT = { snake: 'Snake draft', straight: 'Straight order draft', auction: 'Auction draft' };
 const STATUS = { signup: 'Sign ups open', draft: 'Drafting', ready: 'Teams set', playing: 'In progress', done: 'Finished' };
 
-const describe = (t) => `${FORMAT[t.format]}${t.format === 'roundrobin' && t.playoffTeams >= 2 ? ` + top ${t.playoffTeams} playoffs` : ''}, ${t.teamMode === 'draft' ? DRAFT[t.draftType] : 'premade teams'}, ${t.teamCount} teams of ${t.teamSize}, ${t.game.mode === 'eggball' ? 'eggball' : 'capture the flag'}`;
+const describe = (t) => `${FORMAT[t.format]}${t.format === 'roundrobin' && t.playoffTeams >= 2 ? ` + top ${t.playoffTeams} playoffs` : ''}, ${t.teamMode === 'draft' ? DRAFT[t.draftType] : 'premade teams'}, ${t.teamCount ? `${t.teamCount} teams` : 'as many teams as sign ups make'} of ${t.teamSize}, ${t.game.mode === 'eggball' ? 'eggball' : 'capture the flag'}`;
 
 function listCard(list, organizer, error, form) {
   const rows = list.map((t) => `<tr><td><a href="/competitive/${esc(t.id)}"><b>${esc(t.name)}</b></a><div style="opacity:.7;font-size:12px">${esc(describe(t))}</div></td>
@@ -48,7 +48,8 @@ function createForm(error, f) {
       ${row('Playoff teams', num('playoffTeams', 4, 0, 16), 'c-playoffs', 'After the round robin, the top teams play a single elimination bracket. 0 = no playoffs (the table decides).')}
       ${row('Teams', sel('teamMode', [['draft', 'Draft from sign ups'], ['premade', 'Premade teams']], 'draft'))}
       ${row('Draft type', sel('draftType', [['snake', 'Snake (1-2-3-4, 4-3-2-1, ...)'], ['straight', 'Straight order (1-2-3-4 every round)'], ['auction', 'Auction (captains bid)']], 'snake'), 'c-draft', 'The organizer picks the captains (or uses the highest ratings). The lowest-rated captain picks first.')}
-      ${row('Number of teams', num('teamCount', 4, 2, 32), 'c-count')}
+      ${row('Number of teams', sel('teamsFrom', [['signups', 'From sign ups (sign ups / players per team)'], ['fixed', 'Fixed number']], 'signups'), 'c-from', 'From sign ups: the team count is set when you start the draft; anyone left over after the last full team isn\'t drafted.')}
+      ${row('Fixed number of teams', num('teamCount', 4, 2, 32), 'c-count')}
       ${row('Players per team', num('teamSize', 4, 1, 8))}
       ${row('Pick timer (seconds)', num('pickSeconds', 45, 10, 600), 'c-pick', 'When it runs out, the highest-rated player left is taken.')}
       ${row('Auction budget', num('budget', 100, 1, 10000), 'c-budget', 'Each captain\'s money. Every player costs at least 1.')}
@@ -68,7 +69,7 @@ function createForm(error, f) {
       function show(id, on) { var e = document.getElementById(id); if (e) e.style.display = on ? '' : 'none'; }
       function update() {
         var draft = f.teamMode.value === 'draft', auction = draft && f.draftType.value === 'auction';
-        show('c-playoffs', f.format.value === 'roundrobin'); show('c-draft', draft); show('c-count', draft); show('c-pick', draft);
+        show('c-playoffs', f.format.value === 'roundrobin'); show('c-draft', draft); show('c-from', draft); show('c-count', draft && f.teamsFrom.value === 'fixed'); show('c-pick', draft);
         show('c-budget', auction); show('c-bid', auction); show('c-premade', !draft); show('c-map', f.mode.value !== 'eggball');
       }
       f.addEventListener('change', update); update();

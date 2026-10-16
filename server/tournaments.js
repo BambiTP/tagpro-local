@@ -45,6 +45,8 @@ const teamOf = (t, accountId) => t.teams.find((x) => x.players.includes(accountI
 const matchById = (t, id) => t.matches.find((m) => m.id === id);
 const fail = (msg) => { const e = new Error(msg); e.user = true; throw e; };
 const int = (v, lo, hi, def) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : def; };
+// teamCount 0: as many full teams as the sign ups make (fixed when the draft starts)
+const teamsWanted = (t) => t.teamCount || Math.min(32, Math.floor(t.signups.length / t.teamSize));
 const pick = (v, list, def) => (list.includes(v) ? v : def);
 
 // ---- create ----
@@ -59,7 +61,7 @@ function create(form) {
     playoffTeams: int(form.playoffTeams, 0, 16, 4),
     teamMode: pick(form.teamMode, ['draft', 'premade'], 'draft'),
     draftType: pick(form.draftType, ['snake', 'straight', 'auction'], 'snake'),
-    teamCount: int(form.teamCount, 2, 32, 4), teamSize: int(form.teamSize, 1, 8, 4),
+    teamCount: form.teamsFrom === 'signups' ? 0 : int(form.teamCount, 2, 32, 4), teamSize: int(form.teamSize, 1, 8, 4),
     budget: int(form.budget, 1, 10000, 100), pickSeconds: int(form.pickSeconds, 10, 600, 45), bidSeconds: int(form.bidSeconds, 5, 120, 12),
     game: {
       mode: pick(form.mode, ['classic', 'eggball'], 'classic'), map: String(form.map || 'random').slice(0, 80),
@@ -115,22 +117,25 @@ function withdraw(t, accountId) {
 function setCaptains(t, ids) {
   if (t.status !== 'signup') fail('Sign ups are closed.');
   ids = [...new Set((ids || []).map(String))].filter((x) => t.signups.includes(x));
-  if (ids.length > t.teamCount) fail(`Pick at most ${t.teamCount} captains.`);
+  if (ids.length > Math.max(teamsWanted(t), 2)) fail(`Pick at most ${Math.max(teamsWanted(t), 2)} captains.`);
   t.captains = ids;
 }
 // the highest Eggball Ranked ratings captain
 function autoCaptains(t) {
   if (t.status !== 'signup') fail('Sign ups are closed.');
-  t.captains = t.signups.slice().sort((a, b) => ratingOf(b) - ratingOf(a)).slice(0, t.teamCount);
+  t.captains = t.signups.slice().sort((a, b) => ratingOf(b) - ratingOf(a)).slice(0, teamsWanted(t));
 }
 
 // ---- draft ----
 // captains make the teams; the lowest-rated captain picks (or nominates) first
 function startDraft(t) {
   if (t.status !== 'signup') fail('The draft has already started.');
-  if (t.captains.length !== t.teamCount) fail(`Choose ${t.teamCount} captains first (${t.captains.length} chosen).`);
-  const need = t.teamCount * t.teamSize;
-  if (t.signups.length < need) fail(`Need ${need} sign ups for ${t.teamCount} teams of ${t.teamSize} (${t.signups.length} so far).`);
+  const count = teamsWanted(t);
+  if (count < 2) fail(`Need at least ${2 * t.teamSize} sign ups for two teams of ${t.teamSize} (${t.signups.length} so far).`);
+  if (t.captains.length !== count) fail(`Choose ${count} captains first (${t.captains.length} chosen).`);
+  const need = count * t.teamSize;
+  if (t.signups.length < need) fail(`Need ${need} sign ups for ${count} teams of ${t.teamSize} (${t.signups.length} so far).`);
+  t.teamCount = count;
   const caps = t.captains.slice().sort((a, b) => ratingOf(a) - ratingOf(b));
   t.teams = caps.map((c, i) => ({ id: 't' + i, name: 'Team ' + nameOf(c), captain: c, players: [c] }));
   t.status = 'draft';
@@ -356,7 +361,7 @@ function view(t) {
   const d = t.draft;
   return {
     id: t.id, name: t.name, status: t.status, format: t.format, playoffTeams: t.playoffTeams, teamMode: t.teamMode, draftType: t.draftType,
-    teamCount: t.teamCount, teamSize: t.teamSize, budget: t.budget, pickSeconds: t.pickSeconds, bidSeconds: t.bidSeconds, game: t.game,
+    teamCount: t.teamCount, teamsWanted: teamsWanted(t), teamSize: t.teamSize, budget: t.budget, pickSeconds: t.pickSeconds, bidSeconds: t.bidSeconds, game: t.game,
     signups: t.signups.map(person), captains: t.captains,
     teams: t.teams.map((x) => ({ id: x.id, name: x.name, captain: x.captain, players: x.players.map(person) })),
     draft: d && {

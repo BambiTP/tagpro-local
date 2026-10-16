@@ -42,7 +42,11 @@
 
   function signups() {
     var draft = T.teamMode === 'draft';
-    var out = '<h3>Sign ups (' + T.signups.length + (draft ? ' of ' + T.teamCount * T.teamSize + ' needed' : '') + ')</h3>';
+    var out = '<h3>Sign ups (' + T.signups.length + (draft && T.teamCount ? ' of ' + T.teamCount * T.teamSize + ' needed' : '') + ')</h3>';
+    if (draft && !T.teamCount) {
+      var left = T.signups.length - T.teamsWanted * T.teamSize;
+      out += '<p>' + (T.teamsWanted >= 2 ? 'Enough for <b>' + T.teamsWanted + ' teams</b> of ' + T.teamSize + (left ? '; ' + (T.teamSize - left) + ' more for another team (' + left + ' left over now).' : '.') : 'Need ' + 2 * T.teamSize + ' sign ups for two teams of ' + T.teamSize + '.') + '</p>';
+    }
     if (T.status === 'signup') {
       if (!me.id) out += '<p><a href="/login">Log in</a> to sign up.</p>';
       else out += signedUp() ? btn('Withdraw', { type: 'withdraw' }) : btn('Sign up', { type: 'signup' }, 'btn-success');
@@ -60,7 +64,7 @@
     out += '</tbody></table>';
     if (org) {
       out += '<p>' + btn('Save captains', { type: 'captainsFromBoxes' }) + btn('Highest ratings captain', { type: 'autoCaptains' })
-        + btn('Start draft', { type: 'startDraft' }, 'btn-primary') + ' <span style="opacity:.7">' + T.captains.length + ' of ' + T.teamCount + ' captains chosen</span></p>';
+        + btn('Start draft', { type: 'startDraft' }, 'btn-primary') + ' <span style="opacity:.7">' + T.captains.length + ' of ' + T.teamsWanted + ' captains chosen</span></p>';
     }
     return out;
   }
