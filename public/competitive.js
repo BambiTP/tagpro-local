@@ -5,7 +5,8 @@
 (function () {
   var root = document.getElementById('tournament');
   var socket = io('/competitive', { transports: ['websocket', 'polling'] });
-  var me = { id: null, organizer: false }, T = null, skew = 0, captainPicks = null, rulesOpen = null;
+  var me = { id: null, organizer: false }, T = null, skew = 0, captainPicks = null, rulesOpen = null, tab = 'bracket';
+  try { tab = localStorage.getItem('t-tab') || 'bracket'; } catch (e) { /* no storage */ }
 
   var FORMAT = { single: 'Single elimination', double: 'Double elimination', roundrobin: 'Round robin' };
   var SECTION = { W: 'Bracket', L: 'Losers bracket', GF: 'Grand final', RR: 'Round robin', P: 'Playoffs' };
@@ -32,7 +33,7 @@
   }
 
   // ---- rules: every setting and fixed rule, one short line each ----
-  function rules() {
+  function rules(inTab) {
     var g = T.game, r = [];
     r.push(FORMAT[T.format] + (T.format === 'double' ? ' (grand final reset if the losers bracket team wins)' : '') + (T.format === 'roundrobin' ? (T.playoffTeams >= 2 ? ', top ' + T.playoffTeams + ' to playoffs' : ', no playoffs') : ''));
     if (T.format === 'roundrobin') r.push('Table: wins, then score difference');
@@ -47,6 +48,7 @@
     r.push('Colours swap every game');
     r.push('Both captains ready up to start');
     r.push('Empty game cancelled after ' + T.emptyGameMinutes + ' min');
+    if (inTab) return '<ul style="padding-left:20px;max-width:640px">' + r.map(function (x) { return '<li style="margin:3px 0">' + esc(x) + '</li>'; }).join('') + '</ul>';
     var open = rulesOpen === null ? false : rulesOpen;
     return '<details id="t-rules" style="margin-bottom:10px"' + (open ? ' open' : '') + '><summary style="cursor:pointer;font-weight:bold">Rules</summary><ul style="margin:6px 0 0;padding-left:20px">'
       + r.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></details>';
@@ -182,62 +184,113 @@
       }).join('') + '</tbody></table>';
   }
 
+  // ---- started: the bracket drawn as a bracket ----
+  var CSS = '.t-strip{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;padding:8px 12px;border:1px solid rgba(128,128,128,.35);border-radius:6px;margin-bottom:10px}'
+    + '.t-strip b{font-size:15px}.t-tabs{margin:0 0 14px}'
+    + '.tb-wrap{overflow-x:auto;padding-bottom:10px;margin-bottom:8px}.tb{display:flex;align-items:stretch}'
+    + '.tb-col{display:flex;flex-direction:column;width:230px;flex:0 0 230px;margin-right:30px}'
+    + '.tb-head{font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;min-height:36px}'
+    + '.tb-head small{display:block;font-weight:normal;text-transform:none;letter-spacing:0;opacity:.65}'
+    + '.tb-body,.tb-pair{display:flex;flex-direction:column;justify-content:space-around;flex:1;position:relative}'
+    + '.tb-pair.joined::after{content:"";position:absolute;right:-17px;top:25%;bottom:25%;width:15px;border:2px solid rgba(128,128,128,.45);border-left:none;border-radius:0 5px 5px 0}'
+    + '.tb-cell{flex:1;display:flex;align-items:center;position:relative;padding:5px 0}'
+    + '.tb-col.fed .tb-cell::before{content:"";position:absolute;left:-15px;top:50%;width:13px;border-top:2px solid rgba(128,128,128,.45)}'
+    + '.tm{width:100%;border:1px solid rgba(128,128,128,.45);border-radius:6px;background:rgba(0,0,0,.2);overflow:hidden}'
+    + '.tm.live{border-color:#03A9F4;box-shadow:0 0 0 1px #03A9F4}.tm.mine{border-color:#8BC34A}.tm.bye{opacity:.4;border-style:dashed}'
+    + '.tm-row{display:flex;align-items:center;gap:6px;padding:4px 8px}.tm-row+.tm-row{border-top:1px solid rgba(128,128,128,.25)}'
+    + '.tm-seed{font-size:11px;opacity:.5;width:16px;text-align:right}.tm-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+    + '.tm-score{font-weight:bold;min-width:14px;text-align:right}.tm-row.win .tm-name{font-weight:bold}.tm-row.lose{opacity:.45}'
+    + '.tm-foot{font-size:11px;padding:3px 8px;border-top:1px solid rgba(128,128,128,.25);background:rgba(0,0,0,.12)}.tm-foot .btn{margin:2px 2px 2px 0}'
+    + '.tm-tag{display:inline-block;font-size:10px;font-weight:bold;padding:0 5px;border-radius:3px;margin-right:4px;text-transform:uppercase;color:#000}'
+    + '.tm-tag.live{background:#03A9F4}.tm-tag.ready{background:#8BC34A}.tm-tag.wait{background:#f0ad4e}.tm-tag.final{background:rgba(160,160,160,.8)}'
+    + '.t-section{font-size:13px;text-transform:uppercase;letter-spacing:.05em;opacity:.8;margin:14px 0 6px;border-bottom:1px solid rgba(128,128,128,.3);padding-bottom:3px}';
+  (function () { var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st); })();
+
+  function seedOf(id) { for (var i = 0; i < T.teams.length; i++) if (T.teams[i].id === id) return i + 1; return ''; }
+  function roundInfo(m) { var key = m.bracket + ':' + m.label; for (var i = 0; i < T.rounds.length; i++) if (T.rounds[i].key === key) return T.rounds[i]; return null; }
+
   function matchBox(m) {
-    var side = function (s) {
-      var id = m[s], won = m.done && m.winner === id && !m.bye;
-      return '<div style="display:flex;justify-content:space-between;' + (won ? 'font-weight:bold;' : '') + (m.done && !won ? 'opacity:.6' : '') + '"><span>' + esc(teamName(id)) + '</span><span>' + (m.bye || id === null ? '' : m.wins[s]) + '</span></div>';
-    };
-    var out = '<div class="t-match" style="border:1px solid rgba(128,128,128,.4);border-radius:4px;padding:5px 8px;margin:6px 0;min-width:190px' + (m.live ? ';border-color:#03A9F4' : '') + '">'
-      + '<div style="font-size:11px;opacity:.6">' + esc(m.label) + (m.bestOf > 1 ? ' &middot; best of ' + m.bestOf : '') + (!m.done && !m.bye ? ' &middot; ' + esc(m.mapName) : '') + '</div>' + side('a') + side('b');
-    if (m.bye) out += '<div style="font-size:11px;opacity:.6">bye</div>';
-    if (m.forfeit) out += '<div style="font-size:11px;opacity:.6">decided by the organizer</div>';
-    m.games.forEach(function (g, i) {
-      out += '<div style="font-size:11px;opacity:.7">Game ' + (i + 1) + ': ' + g.score.a + '-' + g.score.b + (g.map ? ' on ' + esc(g.map) : '') + (g.counted ? '' : ' (didn\'t count)') + (g.replay ? ' <a href="/game?replay=' + encodeURIComponent(g.replay) + '">replay</a>' : '') + '</div>';
-    });
-    if (m.note) out += '<div style="font-size:11px;color:#f0ad4e">' + esc(m.note) + '</div>';
-    if (m.live) {
-      var mine = myTeam(), playing = mine && (mine.id === m.a || mine.id === m.b);
-      out += '<div style="margin-top:4px">' + (playing ? '<a class="btn btn-xs btn-primary" href="/competitive/' + T.id + '/play">Join game</a> ' : '<a class="btn btn-xs btn-default" href="/competitive/' + T.id + '/play?match=' + esc(m.id) + '">Watch</a> ')
-        + (me.organizer ? btn('Cancel game', { type: 'cancelGame', match: m.id }, 'btn-xs btn-link', ' data-confirm="1"') : '') + '</div>';
-    } else if (m.playable && T.status === 'playing') {
-      var caps = [team(m.a), team(m.b)];
-      var myCap = caps.filter(function (t) { return t && t.captain === me.id; })[0];
-      out += '<div style="font-size:11px;margin-top:4px">' + caps.map(function (t) { return esc(t.name) + (m.ready.indexOf(t.id) >= 0 ? ' ready' : ' not ready'); }).join(', ') + '</div><div>';
-      if (myCap) out += m.ready.indexOf(myCap.id) >= 0 ? btn('Not ready', { type: 'ready', match: m.id, on: false }, 'btn-xs btn-default') : btn('Ready', { type: 'ready', match: m.id, on: true }, 'btn-xs btn-success');
-      if (me.organizer) out += btn('Start now', { type: 'forceStart', match: m.id }, 'btn-xs btn-primary') + btn(esc(teamName(m.a)) + ' wins', { type: 'award', match: m.id, side: 'a' }, 'btn-xs btn-link', ' data-confirm="1"') + btn(esc(teamName(m.b)) + ' wins', { type: 'award', match: m.id, side: 'b' }, 'btn-xs btn-link', ' data-confirm="1"');
-      out += '</div>';
+    var mine = myTeam(), isMine = mine && (m.a === mine.id || m.b === mine.id);
+    if (m.bye) {
+      var real = m.a === 'BYE' ? m.b : m.a;
+      return '<div class="tm bye"><div class="tm-row"><span class="tm-seed">' + seedOf(real) + '</span><span class="tm-name">' + esc(teamName(real)) + '</span><span style="font-size:11px">bye</span></div></div>';
     }
-    return out + '</div>';
+    var side = function (s) {
+      var id = m[s], won = m.done && m.winner === id, lost = m.done && !won;
+      return '<div class="tm-row' + (won ? ' win' : lost ? ' lose' : '') + '"><span class="tm-seed">' + (id && id !== 'BYE' ? seedOf(id) : '') + '</span><span class="tm-name" title="' + esc(teamName(id)) + '">' + esc(teamName(id)) + '</span><span class="tm-score">' + (id === null || !m.games.length && !m.done ? '' : m.wins[s]) + '</span></div>';
+    };
+    var out = '<div class="tm' + (m.live ? ' live' : isMine && !m.done ? ' mine' : '') + '">' + side('a') + side('b');
+    var foot = '';
+    if (m.live) foot += '<span class="tm-tag live">live</span>game ' + (m.games.filter(function (g) { return g.counted; }).length + 1) + ' on ' + esc(m.live.map) + ' ';
+    else if (m.done) foot += '<span class="tm-tag final">final</span>' + (m.forfeit ? 'decided by the organizer ' : '');
+    else if (m.playable && T.status === 'playing') foot += (m.ready.length ? '<span class="tm-tag ready">' + m.ready.length + '/2 ready</span>' : '<span class="tm-tag wait">waiting</span>') + 'next: ' + esc(m.mapName) + ' ';
+    else if (!m.done) foot += '<span style="opacity:.6">' + (m.bestOf > 1 ? 'best of ' + m.bestOf + ' · ' : '') + esc(m.mapName) + '</span>';
+    var games = m.games.map(function (g, i) {
+      return 'G' + (i + 1) + ' ' + g.score.a + '-' + g.score.b + (g.counted ? '' : ' (redo)') + (g.replay ? ' <a href="/game?replay=' + encodeURIComponent(g.replay) + '" title="' + esc(g.map) + '">&#9654;</a>' : '');
+    }).join(' &middot; ');
+    if (games) foot += '<div style="opacity:.75">' + games + '</div>';
+    if (m.note) foot += '<div style="color:#f0ad4e">' + esc(m.note) + '</div>';
+    if (m.live) {
+      foot += '<div>' + (isMine ? '<a class="btn btn-xs btn-primary" href="/competitive/' + T.id + '/play">Join game</a>' : '<a class="btn btn-xs btn-default" href="/competitive/' + T.id + '/play?match=' + esc(m.id) + '">Watch</a>')
+        + (me.organizer ? btn('Cancel', { type: 'cancelGame', match: m.id }, 'btn-xs btn-link', ' data-confirm="1"') : '') + '</div>';
+    } else if (m.playable && T.status === 'playing') {
+      var myCap = [team(m.a), team(m.b)].filter(function (t) { return t && t.captain === me.id; })[0];
+      var acts = '';
+      if (myCap) acts += m.ready.indexOf(myCap.id) >= 0 ? btn('Not ready', { type: 'ready', match: m.id, on: false }, 'btn-xs btn-default') : btn('Ready', { type: 'ready', match: m.id, on: true }, 'btn-xs btn-success');
+      if (me.organizer) acts += btn('Start', { type: 'forceStart', match: m.id }, 'btn-xs btn-primary') + btn(esc(teamName(m.a)).slice(0, 12) + ' wins', { type: 'award', match: m.id, side: 'a' }, 'btn-xs btn-link', ' data-confirm="1"') + btn(esc(teamName(m.b)).slice(0, 12) + ' wins', { type: 'award', match: m.id, side: 'b' }, 'btn-xs btn-link', ' data-confirm="1"');
+      if (acts) foot += '<div>' + acts + '</div>';
+    }
+    return out + (foot ? '<div class="tm-foot">' + foot + '</div>' : '') + '</div>';
+  }
+
+  // one bracket section as columns; matches feeding the same next match are joined by a line
+  function section(b) {
+    var ms = T.matches.filter(function (m) { return m.bracket === b; });
+    if (!ms.length) return '';
+    var rounds = [];
+    ms.forEach(function (m) { (rounds[m.round] = rounds[m.round] || []).push(m); });
+    rounds = rounds.filter(Boolean);
+    var out = '<div class="t-section">' + SECTION[b] + '</div><div class="tb-wrap"><div class="tb">';
+    rounds.forEach(function (list, r) {
+      var next = rounds[r + 1], halves = b !== 'RR' && next && next.length * 2 === list.length;
+      var info = roundInfo(list[0]);
+      var head = esc(b === 'L' && list[0].label !== 'Losers final' ? 'Losers round ' + list[0].round : list[0].label)
+        + '<small>' + (list[0].bestOf > 1 ? 'best of ' + list[0].bestOf : 'best of 1') + (info && T.game.mode !== 'eggball' ? ' · ' + info.games.map(function (g) { return esc(g.mapName); }).join(', ') : '') + '</small>';
+      out += '<div class="tb-col' + (r > 0 && b !== 'RR' ? ' fed' : '') + '"><div class="tb-head">' + head + '</div><div class="tb-body">';
+      if (halves) for (var i = 0; i < list.length; i += 2) out += '<div class="tb-pair joined"><div class="tb-cell">' + matchBox(list[i]) + '</div><div class="tb-cell">' + matchBox(list[i + 1]) + '</div></div>';
+      else out += list.map(function (m) { return '<div class="tb-cell">' + matchBox(m) + '</div>'; }).join('');
+      out += '</div></div>';
+    });
+    return out + '</div></div>';
+  }
+
+  function table() {
+    if (!T.standings) return '';
+    return '<div class="t-section">Table</div><table class="table table-condensed" style="max-width:640px"><thead><tr><th>#</th><th>Team</th><th class="text-right">Played</th><th class="text-right">Won</th><th class="text-right">Lost</th><th class="text-right">Score</th></tr></thead><tbody>'
+      + T.standings.map(function (r, i) {
+        var cut = T.playoffTeams >= 2 && i === T.playoffTeams - 1 ? ' style="border-bottom:2px solid #8BC34A"' : '';
+        return '<tr' + cut + '><td>' + (i + 1) + '</td><td>' + esc(teamName(r.team)) + '</td><td class="text-right">' + r.played + '</td><td class="text-right"><b>' + r.wins + '</b></td><td class="text-right">' + r.losses + '</td><td class="text-right">' + r.for + '-' + r.against + '</td></tr>';
+      }).join('') + '</tbody></table>';
   }
 
   function bracket() {
     if (!T.matches.length) return '';
-    var out = '';
-    if (T.standings) {
-      out += '<h3>Table</h3><table class="table table-condensed"><thead><tr><th>#</th><th>Team</th><th class="text-right">Played</th><th class="text-right">Won</th><th class="text-right">Lost</th><th class="text-right">Score</th></tr></thead><tbody>'
-        + T.standings.map(function (r, i) {
-          var cut = T.playoffTeams >= 2 && i === T.playoffTeams - 1 ? ' style="border-bottom:2px solid #8BC34A"' : '';
-          return '<tr' + cut + '><td>' + (i + 1) + '</td><td>' + esc(teamName(r.team)) + '</td><td class="text-right">' + r.played + '</td><td class="text-right"><b>' + r.wins + '</b></td><td class="text-right">' + r.losses + '</td><td class="text-right">' + r.for + '-' + r.against + '</td></tr>';
-        }).join('') + '</tbody></table>';
-    }
-    ['W', 'L', 'GF', 'RR', 'P'].forEach(function (b) {
-      var ms = T.matches.filter(function (m) { return m.bracket === b; });
-      if (!ms.length) return;
-      var rounds = [];
-      ms.forEach(function (m) { (rounds[m.round] = rounds[m.round] || []).push(m); });
-      out += '<h3>' + SECTION[b] + '</h3><div style="display:flex;gap:14px;overflow-x:auto;padding-bottom:6px">';
-      rounds.forEach(function (list) {
-        if (!list) return;
-        out += '<div style="display:flex;flex-direction:column;justify-content:space-around;flex:0 0 auto">' + list.map(matchBox).join('') + '</div>';
-      });
-      out += '</div>';
-    });
-    return out;
+    return table() + ['W', 'L', 'GF', 'RR', 'P'].map(section).join('');
+  }
+
+  // where the tournament stands, in one line
+  function strip() {
+    var open = T.matches.filter(function (m) { return !m.done && !m.bye; });
+    var live = T.matches.filter(function (m) { return m.live; }).length;
+    var played = T.matches.filter(function (m) { return m.done && !m.bye; }).length;
+    var stage = T.champion ? 'Champion: ' + esc(teamName(T.champion)) : open.length ? esc(open.filter(function (m) { return m.playable; }).map(function (m) { return m.bracket === 'L' && m.label !== 'Losers final' ? 'Losers round ' + m.round : m.label; }).filter(function (x, i, a) { return a.indexOf(x) === i; }).join(', ') || 'Waiting') : '';
+    return '<div class="t-strip"><b>' + stage + '</b><span>' + plural(T.teams.length, 'team') + '</span><span>' + played + ' of ' + (played + open.length) + ' matches played</span>'
+      + (live ? '<span><span class="tm-tag live">live</span>' + plural(live, 'game') + '</span>' : '') + '</div>';
   }
 
   function organizer() {
     if (!me.organizer) return '';
-    var out = '<hr><h4>Organizer</h4><p>';
+    var out = (T.status === 'playing' || T.status === 'done' ? '' : '<hr><h4>Organizer</h4>') + '<p>';
     if (T.status === 'ready') out += btn('Start tournament', { type: 'start' }, 'btn-primary', ' data-confirm="1"');
     out += '<a class="btn btn-sm btn-default" href="/competitive/' + T.id + '/edit">Edit settings</a> ';
     out += btn('Delete tournament', { type: 'delete' }, 'btn-danger', ' data-confirm="1"') + '</p>';
@@ -252,9 +305,20 @@
     var typing = {};
     // typed but not sent yet: team names, usernames to add, Fortunate Maps IDs
     root.querySelectorAll('.t-rename, .t-add, .t-fm').forEach(function (e) { if (e.value && (!e.classList.contains('t-rename') || e === document.activeElement)) typing[e.className.match(/t-(rename|add|fm)/)[0] + '|' + (e.getAttribute('data-team') || e.getAttribute('data-round'))] = { value: e.value, focus: e === document.activeElement }; });
-    root.innerHTML = '<div id="t-error" class="alert alert-danger" style="display:none"></div>' + banner()
-      + '<p><b>Status:</b> ' + STATUS[T.status] + '</p>' + rules()
-      + (T.teamMode === 'draft' && T.status === 'signup' ? signups() : '') + draft() + teams() + maps() + bracket() + organizer();
+    var started = T.status === 'playing' || T.status === 'done';
+    if (started) {
+      // tabs: one part of the tournament at a time
+      var tabs = [['bracket', 'Bracket'], ['teams', 'Teams'], ['maps', 'Maps'], ['rules', 'Rules']].concat(me.organizer ? [['organizer', 'Organizer']] : []);
+      if (!tabs.some(function (x) { return x[0] === tab; })) tab = 'bracket';
+      var body = tab === 'teams' ? teams() : tab === 'maps' ? (maps() || '<p style="opacity:.7">Eggball always uses its own map.</p>') : tab === 'rules' ? rules(true) : tab === 'organizer' ? organizer() : bracket();
+      root.innerHTML = '<div id="t-error" class="alert alert-danger" style="display:none"></div>' + banner() + strip()
+        + '<div class="btn-group t-tabs">' + tabs.map(function (x) { return '<button type="button" class="btn btn-sm ' + (x[0] === tab ? 'btn-primary' : 'btn-default') + '" data-tab="' + x[0] + '">' + x[1] + '</button>'; }).join('') + '</div>'
+        + body;
+    } else {
+      root.innerHTML = '<div id="t-error" class="alert alert-danger" style="display:none"></div>' + banner()
+        + '<p><b>Status:</b> ' + STATUS[T.status] + '</p>' + rules()
+        + (T.teamMode === 'draft' && T.status === 'signup' ? signups() : '') + draft() + teams() + maps() + organizer();
+    }
     Object.keys(keep).forEach(function (id) { var e = document.getElementById(id); if (e && id !== 't-bid' && id !== 't-link') e.value = keep[id]; });
     Object.keys(typing).forEach(function (k) {
       var cls = k.slice(0, k.indexOf('|')), id = k.slice(k.indexOf('|') + 1);
@@ -277,6 +341,8 @@
     if (el.classList.contains('t-fm') && el.value.trim()) { useFm(el.getAttribute('data-round'), el.value.trim()); el.value = ''; }
   });
   root.addEventListener('click', function (e) {
+    var tb = e.target.closest('[data-tab]');
+    if (tb) { tab = tb.getAttribute('data-tab'); try { localStorage.setItem('t-tab', tab); } catch (x) { /* no storage */ } return render(); }
     var b = e.target.closest('[data-act]');
     if (!b) return;
     var a = JSON.parse(b.getAttribute('data-act'));
