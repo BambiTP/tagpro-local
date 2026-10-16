@@ -141,29 +141,36 @@ app.post('/register', async (req, res) => {
 app.get('/logout', (req, res) => { if (ownLink(req)) { accounts.unbind(req.session); sessions.rotate(req, res); } res.redirect('/'); });
 app.get('/profile', (req, res) => {
   if (!req.session.account) return res.redirect('/login');
-  const msg = req.session.tpMessage || {};
-  req.session.tpMessage = null;
-  const back = req.session.account.tagpro ? req.session.afterLink : null; // linked: back to the tournament they came from
-  if (back) req.session.afterLink = null;
-  html(res, card('TagPro Profile', pages.profileCard(req.session.account, accounts.flairs, tpauth.state(req.session.account), msg.ok, msg.error, back, !req.session.account.tagpro && req.session.afterLink), '/R-965af4e7a4b8-z/compact/global-profile.js'));
+  html(res, card('TagPro Profile', pages.profileCard(req.session.account, accounts.flairs), '/R-965af4e7a4b8-z/compact/global-profile.js'));
 });
-// link a real TagPro account (server/tpauth.js); the result is shown once on the profile page
-app.post('/profile/tagpro', async (req, res) => {
+// link a real TagPro account (server/tpauth.js), all on one page
+app.get('/tagpro-link', (req, res) => {
   const a = req.session.account;
   if (!a) return res.redirect('/login');
+  const back = req.session.afterLink || null; // the tournament that sent them; once linked, shown one last time
+  if (a.tagpro) req.session.afterLink = null;
+  html(res, card('TagPro Account Link', pages.tagproLinkCard(tpauth.state(a), back)));
+});
+app.post('/tagpro-link', async (req, res) => {
+  const a = req.session.account;
+  if (!a) return res.json({ error: 'Log in first.', state: { linked: null, pending: null } });
   const action = String(req.body.action || '');
+  const out = {};
   try {
-    let ok = null;
     if (action === 'start') await tpauth.start(a, req.body.link);
-    else if (action === 'check') ok = await tpauth.check(a);
-    else if (action === 'cancel') tpauth.cancel(a);
-    else if (action === 'unlink') { tpauth.unlink(a); ok = 'Unlinked.'; }
-    req.session.tpMessage = { ok };
+    else if (action === 'check') {
+      const r = await tpauth.check(a);
+      out.now = r.now;
+      if (r.done) out.message = 'Linked.';
+    } else if (action === 'cancel') tpauth.cancel(a);
+    else if (action === 'unlink') { tpauth.unlink(a); out.message = 'Unlinked.'; }
   } catch (e) {
     if (!e.user) console.error('tpauth', e);
-    req.session.tpMessage = { error: e.user ? e.message : 'Something went wrong.' };
+    // the page's own every-few-seconds check can land inside the wait: not worth showing
+    if (!(req.body.auto && /Wait a few seconds/.test(e.message))) out.error = e.user ? e.message : 'Something went wrong.';
   }
-  res.redirect('/profile#tagpro');
+  out.state = tpauth.state(a);
+  res.json(out);
 });
 app.post('/profile', (req, res) => {
   const r = accounts.setDisplayName(req.session, req.body.displayedName);
@@ -216,7 +223,7 @@ app.get('/competitive/:id/signup', (req, res, next) => {
   if (!t) return next();
   if (!req.session.account) { req.session.afterLogin = '/competitive/' + t.id + '/signup'; return res.redirect('/login'); }
   // signing up needs a linked TagPro account: link it on the profile, which then offers the way back
-  if (!req.session.account.tagpro) { req.session.afterLink = { url: '/competitive/' + t.id + '#signup', name: t.name }; return res.redirect('/profile#tagpro'); }
+  if (!req.session.account.tagpro) { req.session.afterLink = { url: '/competitive/' + t.id + '#signup', name: t.name }; return res.redirect('/tagpro-link'); }
   res.redirect('/competitive/' + t.id + '#signup');
 });
 app.get('/competitive/:id', (req, res, next) => {

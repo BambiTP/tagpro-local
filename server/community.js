@@ -102,7 +102,7 @@ function publicProfileCard(a, flairObj, games) {
       <td><a href="/game?replay=${key}" target="_blank">Watch</a></td></tr>`;
   }).join('');
   return `<div class="profile"><h1>${flairSpan(flairObj)}${esc(a.displayName)}</h1>
-    <p style="opacity:.7">${esc(a.username)} · joined ${when(a.created).slice(0, 10)}${a.tagpro ? ` · TagPro: <a href="https://tagpro.koalabeast.com/profile/${esc(a.tagpro.id)}" target="_blank" rel="noopener">${esc(a.tagpro.name || 'linked')}</a> (verified)` : ''}</p>
+    <p style="opacity:.7">${esc(a.username)} · joined ${when(a.created).slice(0, 10)}${a.tagpro ? ` · <!--norebrand-->TagPro: <a href="https://tagpro.koalabeast.com/profile/${esc(a.tagpro.id)}" target="_blank" rel="noopener">${esc(a.tagpro.name || 'linked')}</a> (verified)<!--/norebrand-->` : ''}</p>
     ${statsTable(a)}
     <h3>Recent Games</h3>
     ${rows ? `<table class="table"><thead><tr><th>Date</th><th>Map</th><th>Team</th><th>Score</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : '<p style="opacity:.7">No games yet.</p>'}</div>`;

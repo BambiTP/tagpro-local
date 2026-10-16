@@ -33,6 +33,7 @@ function rebrand(html) {
     if (rawUntil) { if (part.toLowerCase().startsWith(rawUntil)) rawUntil = null; return part; }
     if (/^<(title|textarea)/i.test(part)) return plain(part);
     if (/^<div\b[^>]*id="texture-pack-data"/i.test(part)) { rawUntil = '</div'; return part; } // JSON data, not text
+    if (part === '<!--norebrand-->') { rawUntil = '<!--/norebrand-->'; return part; } // about the real TagPro: keep its name
     if (part.startsWith('<')) {
       if (/^<option\b/i.test(part)) inOption = /\bvalue=/i.test(part) ? 'plain' : 'keep';
       else if (/^<\/(option|select)/i.test(part)) inOption = null;
@@ -131,32 +132,76 @@ function loginCard(error, tab) {
                         </form>`;
 }
 
-// link to a real TagPro account (server/tpauth.js): paste the profile link, switch the TagPro
-// flair to a low-degree one, then back
-function tagproSection(tp, message, error, back, waiting) {
-  const form = (fields, buttons) => `<form method="post" action="/profile/tagpro" class="form-inline" style="margin:8px 0">${fields}${buttons}</form>`;
-  const button = (action, label, cls) => `<button class="btn ${cls || 'btn-default'}" name="action" value="${action}" type="submit">${label}</button> `;
-  let body;
-  if (tp.linked) {
-    body = `<p>Linked to <a href="${esc(tp.linked.url)}" target="_blank" rel="noopener"><b>${esc(tp.linked.name || 'your TagPro account')}</b></a> <span class="label label-success">verified</span></p>
-      ${form('', button('unlink', 'Unlink'))}`;
-  } else if (tp.pending) {
-    const who = `<a href="${esc(tp.pending.url)}" target="_blank" rel="noopener">${esc(tp.pending.name || 'your TagPro profile')}</a>`;
-    body = tp.pending.step === 1
-      ? `<p>On ${who}, set your flair to <b>${esc(tp.pending.challenge)}</b>, then Check.</p>`
-      : `<p>Now set it back to <b>${esc(tp.pending.original)}</b>, then Check.</p>`;
-    body += form('', button('check', 'Check', 'btn-primary') + button('cancel', 'Cancel'));
-  } else {
-    body = form('<input class="form-control" name="link" placeholder="Your TagPro profile link" style="min-width:300px" required> ', button('start', 'Link', 'btn-primary'));
-  }
-  return `<h2 id="tagpro">TagPro account</h2>
-    ${waiting ? `<div class="alert alert-info">Link your TagPro account to sign up for <b>${esc(waiting.name)}</b>.</div>` : ''}
-    ${message ? `<div class="alert alert-success">${esc(message)}</div>` : ''}
-    ${back ? `<p><a class="btn btn-success" href="${esc(back.url)}">Back to ${esc(back.name)} to sign up</a></p>` : ''}${error ? `<div class="alert alert-danger">${esc(error)}</div>` : ''}
-    ${body}`;
+// linked real TagPro account (server/tpauth.js; linking happens on /tagpro-link)
+function tagproSection(account) {
+  const t = account.tagpro;
+  return `<!--norebrand--><h2 id="tagpro">TagPro account</h2>
+    ${t ? `<p>Linked to <a href="https://tagpro.koalabeast.com/profile/${esc(t.id)}" target="_blank" rel="noopener"><b>${esc(t.name || 'your TagPro account')}</b></a> <span class="label label-success">verified</span> <a class="btn btn-default btn-sm" href="/tagpro-link">Change</a></p>`
+    : '<p><a class="btn btn-primary" href="/tagpro-link">Link your TagPro account</a></p>'}<!--/norebrand-->`;
 }
 
-function profileCard(account, flairs, tp, message, error, back, waiting) {
+// /tagpro-link: the whole linking flow on one page; the inline script draws it from tpauth.state
+// and checks TagPro every few seconds while a step is open. Not renamed to BambiPro: it's about
+// the real TagPro.
+function tagproLinkCard(state, back) {
+  const data = JSON.stringify({ state, back }).replace(/</g, '\\u003c');
+  return `<!--norebrand--><div class="profile" id="tp-link"><h1>Link your TagPro account</h1>
+    <p style="opacity:.7;margin-top:-6px">Prove a TagPro account is yours by changing its flair a few times.</p>
+    <div id="tp-body"></div></div><!--/norebrand-->
+    <script>(function () {
+      var D = ${data}, S = D.state, busy = false, timer = null, now = null, msg = '', err = '';
+      var body = document.getElementById('tp-body');
+      function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+      function icon(f) {
+        if (f.className) return '<span class="flair ' + esc(f.className) + '" style="--flair-col: ' + f.x + '; --flair-row: ' + f.y + '; display:inline-block; vertical-align:middle"></span>';
+        return '<span style="display:inline-block;width:16px;height:16px;border:1px dashed #888;vertical-align:middle"></span>';
+      }
+      function post(fields) {
+        if (busy) return;
+        busy = true;
+        fetch('/tagpro-link', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(fields).toString() })
+          .then(function (r) { return r.json(); })
+          .then(function (j) { S = j.state; now = j.now || null; err = j.error || ''; msg = j.message || ''; })
+          .catch(function () { err = "Couldn't reach the server."; })
+          .then(function () { busy = false; render(); });
+      }
+      function render() {
+        clearTimeout(timer);
+        var out = (msg ? '<div class="alert alert-success">' + esc(msg) + '</div>' : '') + (err ? '<div class="alert alert-danger">' + esc(err) + '</div>' : '');
+        if (S.linked) {
+          out += '<p>Linked to <a href="' + esc(S.linked.url) + '" target="_blank" rel="noopener"><b>' + esc(S.linked.name || 'your TagPro account') + '</b></a> <span class="label label-success">verified</span></p>';
+          if (D.back) out += '<p><a class="btn btn-success" href="' + esc(D.back.url) + '">Back to ' + esc(D.back.name) + ' to sign up</a></p>';
+          out += '<p><button class="btn btn-default btn-sm" data-a="unlink">Unlink</button> <a class="btn btn-default btn-sm" href="/profile">Profile</a></p>';
+        } else if (S.pending) {
+          var P = S.pending;
+          out += '<p>Account: <a href="' + esc(P.url) + '" target="_blank" rel="noopener"><b>' + esc(P.name || 'your TagPro profile') + '</b></a>. Change its flair on <a href="https://tagpro.koalabeast.com/profile" target="_blank" rel="noopener">tagpro.koalabeast.com/profile</a>:</p><ol style="font-size:16px">';
+          P.steps.forEach(function (f, i) {
+            var st = i < P.step ? '<span style="color:#8BC34A">&#10003;</span>' : i === P.step ? '<b>&larr; now</b>' : '';
+            out += '<li style="margin:6px 0' + (i > P.step ? ';opacity:.5' : '') + '">' + icon(f) + ' ' + esc(f.name) + (i === P.steps.length - 1 && f.key === P.original.key && i > 0 ? ' (your original)' : '') + ' ' + st + '</li>';
+          });
+          out += '</ol>';
+          if (now) out += '<p style="opacity:.8">TagPro shows: ' + icon(now) + ' ' + esc(now.name) + '</p>';
+          out += '<p><button class="btn btn-primary" data-a="check">Check</button> <button class="btn btn-default" data-a="cancel">Cancel</button> <span style="opacity:.6">checks by itself every few seconds</span></p>';
+          timer = setTimeout(function () { if (!document.hidden && !busy) post({ action: 'check', auto: '1' }); else render(); }, 5000);
+        } else {
+          out += '<p>Your TagPro profile link (open your profile on <a href="https://tagpro.koalabeast.com/profile" target="_blank" rel="noopener">tagpro.koalabeast.com</a> and copy the address):</p>'
+            + '<form id="tp-start" class="form-inline"><input class="form-control" name="link" placeholder="https://tagpro.koalabeast.com/profile/..." style="min-width:340px" required> <button class="btn btn-primary" type="submit">Start</button></form>';
+        }
+        body.innerHTML = out;
+        var f = document.getElementById('tp-start');
+        if (f) f.addEventListener('submit', function (e) { e.preventDefault(); msg = ''; post({ action: 'start', link: f.link.value }); });
+      }
+      body.addEventListener('click', function (e) {
+        var a = e.target.getAttribute && e.target.getAttribute('data-a');
+        if (!a) return;
+        msg = ''; err = '';
+        post({ action: a });
+      });
+      render();
+    })();</script>`;
+}
+
+function profileCard(account, flairs) {
   const items = [{ key: '', className: '', x: -1, y: -1, description: 'No Flair', extra: 'Remove your flair', category: '' }].concat(flairs).map((f) => `
                                 <li class="otherFlair">
                                     <div class="flair-item flair-available${(account.flair || '') === f.key ? ' selected' : ''}" data-flair="${esc(f.key)}">
@@ -188,7 +233,8 @@ function profileCard(account, flairs, tp, message, error, back, waiting) {
                             </div>
                         </form>
                         <hr>
-                        ${tp ? tagproSection(tp, message, error, back, waiting) + '\n                        <hr>' : ''}
+                        ${tagproSection(account)}
+                        <hr>
                         ${statsTable(account)}
                         <hr>
                         <h2>Flair</h2>
@@ -244,4 +290,4 @@ ${members.map((m) => `                                            <div class="gr
                         </div>`;
 }
 
-module.exports = { leadersCard, render, esc, groupItem, setStatsProvider, loginCard, profileCard, statsTable };
+module.exports = { tagproLinkCard, leadersCard, render, esc, groupItem, setStatsProvider, loginCard, profileCard, statsTable };
