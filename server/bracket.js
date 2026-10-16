@@ -120,19 +120,15 @@ function resolve(matches) {
 const playable = (m) => !m.done && m.a !== null && m.b !== null && m.a !== BYE && m.b !== BYE;
 
 // a game's result: winner 'a' | 'b' | 'tie', score { a, b }. Best of N: first to ceil(N/2) wins.
-// Ties don't count in elimination (play again); in round robin a game is a game, and a match
-// that runs out of games level is a draw (winner null, draw true).
-function recordGame(m, game, bestOf, roundRobinMatch) {
+// There are no ties (games go to overtime); one that still ends level, e.g. everyone left, doesn't
+// count and is played again.
+function recordGame(m, game, bestOf) {
   const need = Math.ceil(bestOf / 2);
-  const counts = game.winner !== 'tie' || roundRobinMatch;
+  const counts = game.winner === 'a' || game.winner === 'b';
   m.games.push(Object.assign({}, game, { counted: counts }));
   if (!counts) return m;
-  if (game.winner !== 'tie') m.wins[game.winner]++;
-  const played = m.games.filter((g) => g.counted).length;
+  m.wins[game.winner]++;
   if (m.wins.a >= need || m.wins.b >= need) finish(m, m.wins.a > m.wins.b ? 'a' : 'b');
-  else if (roundRobinMatch && played >= bestOf) {
-    if (m.wins.a === m.wins.b) { m.done = true; m.draw = true; } else finish(m, m.wins.a > m.wins.b ? 'a' : 'b');
-  }
   return m;
 }
 function finish(m, side) {
@@ -141,20 +137,18 @@ function finish(m, side) {
   m.loser = m[side === 'a' ? 'b' : 'a'];
 }
 
-// round robin table: 2 points a win, 1 a draw; then wins, then score difference, then seed
+// round robin table: most match wins, then score difference (all counted games), then seed
 function standings(matches, teams) {
-  const row = Object.fromEntries(teams.map((t, i) => [t, { team: t, seed: i, played: 0, wins: 0, losses: 0, draws: 0, points: 0, for: 0, against: 0 }]));
+  const row = Object.fromEntries(teams.map((t, i) => [t, { team: t, seed: i, played: 0, wins: 0, losses: 0, for: 0, against: 0 }]));
   for (const m of matches) {
     if (m.bracket !== 'RR' || !m.done || m.bye || !row[m.a] || !row[m.b]) continue;
     const A = row[m.a], B = row[m.b];
     A.played++; B.played++;
     for (const g of m.games) if (g.counted) { A.for += g.score.a; A.against += g.score.b; B.for += g.score.b; B.against += g.score.a; }
-    if (m.draw) { A.draws++; B.draws++; A.points++; B.points++; } else {
-      const W = m.winner === m.a ? A : B, L = W === A ? B : A;
-      W.wins++; L.losses++; W.points += 2;
-    }
+    const W = m.winner === m.a ? A : B, L = W === A ? B : A;
+    W.wins++; L.losses++;
   }
-  return Object.values(row).sort((x, y) => y.points - x.points || y.wins - x.wins || (y.for - y.against) - (x.for - x.against) || x.seed - y.seed);
+  return Object.values(row).sort((x, y) => y.wins - x.wins || (y.for - y.against) - (x.for - x.against) || x.seed - y.seed);
 }
 
 // the champion, once the tournament is decided (null before)

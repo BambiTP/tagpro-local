@@ -141,6 +141,15 @@ function updateRanked(accountId, fn) {
   fn(st);
   save();
 }
+// change an account and save it (tpauth.js)
+function updateAccount(accountId, fn) {
+  const a = byId(accountId);
+  if (!a) return;
+  fn(a);
+  save();
+}
+// accounts linked to a TagPro profile id
+function withTagpro(id) { return Object.values(accounts).filter((a) => a.tagpro && a.tagpro.id === id); }
 function rankedBoard() {
   return Object.values(accounts).filter((a) => a.id && a.eggRanked && a.eggRanked.games > 0)
     .map((a) => ({ account: a, ...rankedOf(a) })).sort((x, y) => y.rating - x.rating);
@@ -162,4 +171,4 @@ function search(q) {
 function byUsername(u) { const k = String(u || '').trim().toLowerCase(); return Object.hasOwn(accounts, k) ? accounts[k] : null; }
 function byId(id) { return Object.values(accounts).find((a) => a.id === id) || null; }
 
-module.exports = { rankedOf, updateRanked, rankedBoard, recordGame, degreeFor, winsForDegree, emptyStats, STAT_KEYS, setTextures, search, byId, byUsername, register, login, knownSession, bind, unbind, apply, setDisplayName, setFlair, flairs, flairByKey };
+module.exports = { updateAccount, withTagpro, rankedOf, updateRanked, rankedBoard, recordGame, degreeFor, winsForDegree, emptyStats, STAT_KEYS, setTextures, search, byId, byUsername, register, login, knownSession, bind, unbind, apply, setDisplayName, setFlair, flairs, flairByKey };

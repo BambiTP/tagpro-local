@@ -16,6 +16,7 @@ const admin = require('./admin');
 const p2p = require('./p2p');
 const tournaments = require('./tournaments');
 const competitive = require('./competitive');
+const tpauth = require('./tpauth');
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0'; // the VPS service sets 127.0.0.1 so only Caddy is public
@@ -112,6 +113,12 @@ app.use((req, res, next) => requestStore.run(req, next));
 const card = (title, content, script) => pages.render('card.html', { TITLE: title, CARD: content, PAGE_SCRIPT: script || '/R-965af4e7a4b8-z/compact/global-settings.js' });
 
 // ---- accounts (local username/password instead of the real site's OAuth logins) ----
+// a page that sent the visitor to log in (a tournament sign up link) gets them back afterwards
+function afterLogin(req, fallback) {
+  const to = req.session.afterLogin;
+  req.session.afterLogin = null;
+  return typeof to === 'string' && /^\/competitive\/[0-9a-f]{10}\/signup$/.test(to) ? to : fallback;
+}
 app.get('/login', (req, res) => req.session.account ? res.redirect('/profile') : html(res, card('TagPro Log In', pages.loginCard())));
 const TOO_MANY = 'Too many tries. Wait a few minutes and try again.';
 app.post('/login', async (req, res) => {
@@ -120,7 +127,7 @@ app.post('/login', async (req, res) => {
   const r = await accounts.login(req.body.username, req.body.password);
   if (r.error) { note(ipKey); note(userKey); return html(res, card('TagPro Log In', pages.loginCard(r.error))); }
   accounts.bind(sessions.rotate(req, res), r.account); // new cookie: an id seen before log in is worthless
-  res.redirect('/');
+  res.redirect(afterLogin(req, '/'));
 });
 app.post('/register', async (req, res) => {
   const ipKey = 'register-ip:' + clientIp(req);
@@ -129,12 +136,34 @@ app.post('/register', async (req, res) => {
   if (r.error) return html(res, card('TagPro Log In', pages.loginCard(r.error)));
   note(ipKey);
   accounts.bind(sessions.rotate(req, res), r.account);
-  res.redirect('/profile');
+  res.redirect(afterLogin(req, '/profile'));
 });
 app.get('/logout', (req, res) => { if (ownLink(req)) { accounts.unbind(req.session); sessions.rotate(req, res); } res.redirect('/'); });
 app.get('/profile', (req, res) => {
   if (!req.session.account) return res.redirect('/login');
-  html(res, card('TagPro Profile', pages.profileCard(req.session.account, accounts.flairs), '/R-965af4e7a4b8-z/compact/global-profile.js'));
+  const msg = req.session.tpMessage || {};
+  req.session.tpMessage = null;
+  const back = req.session.account.tagpro ? req.session.afterLink : null; // linked: back to the tournament they came from
+  if (back) req.session.afterLink = null;
+  html(res, card('TagPro Profile', pages.profileCard(req.session.account, accounts.flairs, tpauth.state(req.session.account), msg.ok, msg.error, back, !req.session.account.tagpro && req.session.afterLink), '/R-965af4e7a4b8-z/compact/global-profile.js'));
+});
+// link a real TagPro account (server/tpauth.js); the result is shown once on the profile page
+app.post('/profile/tagpro', async (req, res) => {
+  const a = req.session.account;
+  if (!a) return res.redirect('/login');
+  const action = String(req.body.action || '');
+  try {
+    let ok = null;
+    if (action === 'start') await tpauth.start(a, req.body.link);
+    else if (action === 'check') ok = await tpauth.check(a);
+    else if (action === 'cancel') tpauth.cancel(a);
+    else if (action === 'unlink') { tpauth.unlink(a); ok = 'Unlinked.'; }
+    req.session.tpMessage = { ok };
+  } catch (e) {
+    if (!e.user) console.error('tpauth', e);
+    req.session.tpMessage = { error: e.user ? e.message : 'Something went wrong.' };
+  }
+  res.redirect('/profile#tagpro');
 });
 app.post('/profile', (req, res) => {
   const r = accounts.setDisplayName(req.session, req.body.displayedName);
@@ -158,13 +187,37 @@ app.get('/replays/gameFile', (req, res) => {
 // ---- feedback (login required to post) ----
 app.get('/leaders', (req, res) => html(res, card('TagPro Leaders', pages.leadersCard(accounts.rankedBoard()))));
 // ---- Competitive: tournaments (server/tournaments.js; only the organizer account creates them) ----
-app.get('/competitive', (req, res) => html(res, card('TagPro Competitive', competitive.listCard(tournaments.list(), tournaments.isOrganizer(req.session)))));
+app.get('/competitive', (req, res) => html(res, card('TagPro Competitive', competitive.listCard(tournaments.list(), tournaments.isOrganizer(req.session), tournaments.signupsOpen))));
 app.post('/competitive/create', (req, res) => {
   if (!tournaments.isOrganizer(req.session)) return res.status(403).send('Only the organizer creates tournaments');
   try { res.redirect('/competitive/' + tournaments.create(req.body).id); } catch (e) {
     if (!e.user) throw e;
-    html(res, card('TagPro Competitive', competitive.listCard(tournaments.list(), true, e.message, req.body)));
+    html(res, card('TagPro Competitive', competitive.listCard(tournaments.list(), true, tournaments.signupsOpen, e.message, req.body)));
   }
+});
+app.get('/competitive/:id/edit', (req, res, next) => {
+  const t = tournaments.get(req.params.id);
+  if (!t) return next();
+  if (!tournaments.isOrganizer(req.session)) return req.session.account ? res.status(403).send('Only the organizer edits tournaments') : res.redirect('/login');
+  html(res, card('TagPro ' + pages.esc(t.name), competitive.editCard(t, tournaments.editable(t))));
+});
+app.post('/competitive/:id/edit', (req, res, next) => {
+  const t = tournaments.get(req.params.id);
+  if (!t) return next();
+  if (!tournaments.isOrganizer(req.session)) return res.status(403).send('Only the organizer edits tournaments');
+  try { tournaments.edit(t, req.body); res.redirect('/competitive/' + t.id); } catch (e) {
+    if (!e.user) throw e;
+    html(res, card('TagPro ' + pages.esc(t.name), competitive.editCard(t, tournaments.editable(t), e.message, req.body)));
+  }
+});
+// the link to share: log in (and come back here) or go straight to the tournament's sign up button
+app.get('/competitive/:id/signup', (req, res, next) => {
+  const t = tournaments.get(req.params.id);
+  if (!t) return next();
+  if (!req.session.account) { req.session.afterLogin = '/competitive/' + t.id + '/signup'; return res.redirect('/login'); }
+  // signing up needs a linked TagPro account: link it on the profile, which then offers the way back
+  if (!req.session.account.tagpro) { req.session.afterLink = { url: '/competitive/' + t.id + '#signup', name: t.name }; return res.redirect('/profile#tagpro'); }
+  res.redirect('/competitive/' + t.id + '#signup');
 });
 app.get('/competitive/:id', (req, res, next) => {
   const t = tournaments.get(req.params.id);

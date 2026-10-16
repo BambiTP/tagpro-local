@@ -131,7 +131,35 @@ function loginCard(error, tab) {
                         </form>`;
 }
 
-function profileCard(account, flairs) {
+// link to a real TagPro account (server/tpauth.js): paste the profile link, switch the TagPro
+// flair to a low-degree one, then back
+function tagproSection(tp, message, error, back, waiting) {
+  const form = (fields, buttons) => `<form method="post" action="/profile/tagpro" class="form-inline" style="margin:8px 0">${fields}${buttons}</form>`;
+  const button = (action, label, cls) => `<button class="btn ${cls || 'btn-default'}" name="action" value="${action}" type="submit">${label}</button> `;
+  let body;
+  if (tp.linked) {
+    body = `<p>Linked to <a href="${esc(tp.linked.url)}" target="_blank" rel="noopener"><b>${esc(tp.linked.name || 'your TagPro account')}</b></a> <span class="label label-success">verified</span></p>
+      ${form('', button('unlink', 'Unlink'))}`;
+  } else if (tp.pending) {
+    const who = `<a href="${esc(tp.pending.url)}" target="_blank" rel="noopener">${esc(tp.pending.name || 'your TagPro profile')}</a>`;
+    body = tp.pending.step === 1
+      ? `<p><b>Step 2 of 3.</b> On <a href="https://tagpro.koalabeast.com/profile" target="_blank" rel="noopener">your TagPro profile</a> (${who}), select the <b>${esc(tp.pending.challenge)}</b> as your flair. Then click Check.</p>`
+      : `<p><b>Step 3 of 3.</b> Now change your TagPro flair back to <b>${esc(tp.pending.original)}</b>, then click Check.</p>`;
+    body += form('', button('check', 'Check', 'btn-primary') + button('cancel', 'Cancel'))
+      + '<p style="opacity:.7;font-size:12px">Only the owner of a TagPro account can change its flair, so seeing it change and change back proves the account is yours. You have 30 minutes.</p>';
+  } else {
+    body = `<p><b>Step 1 of 3.</b> Go to <a href="https://tagpro.koalabeast.com/profile" target="_blank" rel="noopener">tagpro.koalabeast.com</a>, open your profile and copy its address (it looks like <code>https://tagpro.koalabeast.com/profile/60e8f6acf2eba8232c430731</code>). Paste it here:</p>
+      ${form('<input class="form-control" name="link" placeholder="https://tagpro.koalabeast.com/profile/..." style="min-width:340px" required> ', button('start', 'Start', 'btn-primary'))}
+      <p style="opacity:.7;font-size:12px">Next you'll change your TagPro flair to a low-degree one and then back to the one you have now. That proves the account is yours.</p>`;
+  }
+  return `<h2 id="tagpro">TagPro account</h2>
+    ${waiting ? `<div class="alert alert-info">Link your TagPro account to sign up for <b>${esc(waiting.name)}</b>.</div>` : ''}
+    ${message ? `<div class="alert alert-success">${esc(message)}</div>` : ''}
+    ${back ? `<p><a class="btn btn-success" href="${esc(back.url)}">Back to ${esc(back.name)} to sign up</a></p>` : ''}${error ? `<div class="alert alert-danger">${esc(error)}</div>` : ''}
+    ${body}`;
+}
+
+function profileCard(account, flairs, tp, message, error, back, waiting) {
   const items = [{ key: '', className: '', x: -1, y: -1, description: 'No Flair', extra: 'Remove your flair', category: '' }].concat(flairs).map((f) => `
                                 <li class="otherFlair">
                                     <div class="flair-item flair-available${(account.flair || '') === f.key ? ' selected' : ''}" data-flair="${esc(f.key)}">
@@ -163,6 +191,7 @@ function profileCard(account, flairs) {
                             </div>
                         </form>
                         <hr>
+                        ${tp ? tagproSection(tp, message, error, back, waiting) + '\n                        <hr>' : ''}
                         ${statsTable(account)}
                         <hr>
                         <h2>Flair</h2>

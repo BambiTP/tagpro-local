@@ -13,7 +13,7 @@ const playAll = (ms, done, bestOf = 1) => {
     const m = ms.find(B.playable);
     if (!m) break;
     const r = Math.random(), winner = r < 0.1 ? 'tie' : r < 0.55 ? 'a' : 'b';
-    B.recordGame(m, { winner, score: { a: winner === 'a' ? 2 : 1, b: winner === 'b' ? 2 : 1 } }, bestOf, m.bracket === 'RR');
+    B.recordGame(m, { winner, score: { a: winner === 'a' ? 2 : 1, b: winner === 'b' ? 2 : 1 } }, bestOf);
     B.resolve(ms);
   }
 };
@@ -39,7 +39,7 @@ for (let n = 2; n <= 20; n++) {
   ok(rr.every((m) => { const k = m.round; perRound[k] = perRound[k] || new Set(); const dup = perRound[k].has(m.a) || perRound[k].has(m.b); perRound[k].add(m.a).add(m.b); return !dup; }), `round robin ${n} teams: nobody plays twice in a round`);
   playAll(rr, () => rr.every((m) => m.done));
   const table = B.standings(rr, ids);
-  ok(table.reduce((s, r) => s + r.points, 0) === rr.length * 2, `round robin ${n} teams: 2 points handed out per match`);
+  ok(table.reduce((s, r) => s + r.wins, 0) === rr.length && rr.every((x) => x.winner), `round robin ${n} teams: every match has a winner`);
   ok(B.champion(rr, 'roundrobin', ids, 0) === table[0].team && B.champion(rr, 'roundrobin', ids, 4) === null, `round robin ${n} teams: table leader wins without playoffs only`);
 }
 
@@ -48,22 +48,18 @@ ok(B.seedOrder(8).join() === '1,8,4,5,2,7,3,6', 'seed order for 8');
 const six = B.resolve(B.singleElim(teams(6)));
 ok(six.filter((m) => m.bye).map((m) => m.winner).sort().join() === 't0,t1', '6 teams: seeds 1 and 2 get the byes');
 
-// best of 3: a tie isn't counted in a bracket; first to 2 wins
+// best of 3: a level game isn't counted; first to 2 wins
 const m = B.singleElim(teams(2))[0];
-B.recordGame(m, { winner: 'tie', score: { a: 1, b: 1 } }, 3, false);
-B.recordGame(m, { winner: 'a', score: { a: 1, b: 0 } }, 3, false);
-ok(!m.done && m.wins.a === 1 && m.games.length === 2 && !m.games[0].counted, 'bracket tie is replayed');
-B.recordGame(m, { winner: 'b', score: { a: 0, b: 1 } }, 3, false);
-B.recordGame(m, { winner: 'a', score: { a: 3, b: 0 } }, 3, false);
+B.recordGame(m, { winner: 'tie', score: { a: 1, b: 1 } }, 3);
+B.recordGame(m, { winner: 'a', score: { a: 1, b: 0 } }, 3);
+ok(!m.done && m.wins.a === 1 && m.games.length === 2 && !m.games[0].counted, 'level game is played again');
+B.recordGame(m, { winner: 'b', score: { a: 0, b: 1 } }, 3);
+B.recordGame(m, { winner: 'a', score: { a: 3, b: 0 } }, 3);
 ok(m.done && m.winner === 't0', 'best of 3 decided at 2 wins');
-// round robin best of 1 tie = draw
-const r = B.roundRobin(teams(2))[0];
-B.recordGame(r, { winner: 'tie', score: { a: 0, b: 0 } }, 1, true);
-ok(r.done && r.draw && r.winner === null, 'round robin tie is a draw');
 
 // grand final reset: losers-bracket team wins the first grand final -> a second one
 const de = B.resolve(B.doubleElim(teams(4)));
-const win = (id, side) => { const x = de.find((y) => y.id === id); B.recordGame(x, { winner: side, score: { a: 1, b: 0 } }, 1, false); B.resolve(de); };
+const win = (id, side) => { const x = de.find((y) => y.id === id); B.recordGame(x, { winner: side, score: { a: 1, b: 0 } }, 1); B.resolve(de); };
 win('W1-1', 'a'); win('W1-2', 'a'); win('W2-1', 'a'); win('L1-1', 'a'); win('L2-1', 'a'); win('GF', 'b');
 ok(de.some((x) => x.id === 'GF2') && B.champion(de, 'double', teams(4)) === null, 'grand final reset added');
 win('GF2', 'b');
