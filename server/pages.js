@@ -143,14 +143,11 @@ function tagproSection(tp, message, error, back, waiting) {
   } else if (tp.pending) {
     const who = `<a href="${esc(tp.pending.url)}" target="_blank" rel="noopener">${esc(tp.pending.name || 'your TagPro profile')}</a>`;
     body = tp.pending.step === 1
-      ? `<p><b>Step 2 of 3.</b> On <a href="https://tagpro.koalabeast.com/profile" target="_blank" rel="noopener">your TagPro profile</a> (${who}), select the <b>${esc(tp.pending.challenge)}</b> as your flair. Then click Check.</p>`
-      : `<p><b>Step 3 of 3.</b> Now change your TagPro flair back to <b>${esc(tp.pending.original)}</b>, then click Check.</p>`;
-    body += form('', button('check', 'Check', 'btn-primary') + button('cancel', 'Cancel'))
-      + '<p style="opacity:.7;font-size:12px">Only the owner of a TagPro account can change its flair, so seeing it change and change back proves the account is yours. You have 30 minutes.</p>';
+      ? `<p>On ${who}, set your flair to <b>${esc(tp.pending.challenge)}</b>, then Check.</p>`
+      : `<p>Now set it back to <b>${esc(tp.pending.original)}</b>, then Check.</p>`;
+    body += form('', button('check', 'Check', 'btn-primary') + button('cancel', 'Cancel'));
   } else {
-    body = `<p><b>Step 1 of 3.</b> Go to <a href="https://tagpro.koalabeast.com/profile" target="_blank" rel="noopener">tagpro.koalabeast.com</a>, open your profile and copy its address (it looks like <code>https://tagpro.koalabeast.com/profile/60e8f6acf2eba8232c430731</code>). Paste it here:</p>
-      ${form('<input class="form-control" name="link" placeholder="https://tagpro.koalabeast.com/profile/..." style="min-width:340px" required> ', button('start', 'Start', 'btn-primary'))}
-      <p style="opacity:.7;font-size:12px">Next you'll change your TagPro flair to a low-degree one and then back to the one you have now. That proves the account is yours.</p>`;
+    body = form('<input class="form-control" name="link" placeholder="Your TagPro profile link" style="min-width:300px" required> ', button('start', 'Link', 'btn-primary'));
   }
   return `<h2 id="tagpro">TagPro account</h2>
     ${waiting ? `<div class="alert alert-info">Link your TagPro account to sign up for <b>${esc(waiting.name)}</b>.</div>` : ''}

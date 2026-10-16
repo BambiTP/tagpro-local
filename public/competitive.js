@@ -32,32 +32,25 @@
     clearTimeout(flash.t); flash.t = setTimeout(function () { e.style.display = 'none'; }, 6000);
   }
 
-  // ---- rules: every setting and fixed rule, in plain words ----
+  // ---- rules: every setting and fixed rule, one short line each ----
   function rules() {
     var g = T.game, r = [];
-    var fmt = FORMAT[T.format] + '.';
-    if (T.format === 'single') fmt += ' Lose a match and you are out.';
-    if (T.format === 'double') fmt += ' You are out after losing two matches: a first loss drops you to the losers bracket. The grand final is the winners bracket champion against the losers bracket champion; if the losers bracket team wins it, a second grand final decides it.';
-    if (T.format === 'roundrobin') fmt += ' Every team plays every other team once. The table is ordered by match wins, then score difference (all games), then seed.' + (T.playoffTeams >= 2 ? ' The top ' + T.playoffTeams + ' then play a single elimination playoff.' : ' The top team wins; there are no playoffs.');
-    r.push(['Format', fmt + (T.format !== 'roundrobin' ? ' Byes, when the number of teams needs them, go to the top seeds.' : '')]);
+    r.push(FORMAT[T.format] + (T.format === 'double' ? ' (grand final reset if the losers bracket team wins)' : '') + (T.format === 'roundrobin' ? (T.playoffTeams >= 2 ? ', top ' + T.playoffTeams + ' to playoffs' : ', no playoffs') : ''));
+    if (T.format === 'roundrobin') r.push('Table: wins, then score difference');
     if (T.teamMode === 'draft') {
-      var count = T.teamCount ? plural(T.teamCount, 'team') + ' of ' + T.teamSize + '.' : 'As many teams of ' + T.teamSize + ' as the sign ups make (sign ups divided by ' + T.teamSize + ', rounded down; set when the draft starts). Anyone left over isn\'t drafted.';
-      r.push(['Teams', count]);
-      r.push(['Sign ups', 'Log in, link your TagPro account (on your profile), and click Sign up, or use the sign up link. The organizer opens and closes sign ups.']);
-      var d = 'The organizer picks the captains. Captains pick in a random order, shown when the draft starts. ';
-      if (T.draftType === 'snake') d += 'Snake draft: the order reverses every round (1-2-3-4, 4-3-2-1, ...). Each pick has ' + T.pickSeconds + ' seconds; when time runs out, a random player left is picked.';
-      if (T.draftType === 'straight') d += 'Straight order draft: the same order every round (1-2-3-4, 1-2-3-4, ...). Each pick has ' + T.pickSeconds + ' seconds; when time runs out, a random player left is picked.';
-      if (T.draftType === 'auction') d += 'Auction draft: every captain has ' + T.budget + ' to spend. Captains take turns nominating a player with an opening bid (' + T.pickSeconds + ' seconds, or a random player is nominated for 1). Bidding then runs ' + T.bidSeconds + ' seconds; each bid puts the clock back up to at least ' + T.bidResetSeconds + ' seconds. The top bid gets the player. Every captain must keep 1 for each open spot on their team.';
-      r.push(['Draft', d]);
-      r.push(['After the draft', 'Seeds start in a random order. The organizer can rename teams, move or add players, change captains and reorder seeds, then starts the tournament.']);
-    } else r.push(['Teams', 'Entered by the organizer, who can change them and the seeds before starting. ' + plural(T.teamSize, 'player') + ' per team.']);
-    r.push(['Matches', 'When both teams are there, each captain clicks Ready; the game starts when both have. The organizer can also start it. Click Join game to play; the server puts you on your team. ' + (g.finalBestOf !== g.bestOf ? 'Best of ' + g.bestOf + ' (final: best of ' + g.finalBestOf + ').' : 'Best of ' + g.bestOf + '.')]);
-    r.push(['Games', (g.mode === 'eggball' ? 'Eggball' : 'Capture the flag on ' + (g.map === 'random' ? 'a random map from the public rotation' : g.mapName) + ' unless the organizer picks a map for the match') + '. ' + plural(g.time, 'minute') + (g.caps ? ', first to ' + g.caps + ' caps' : '') + (g.mercyRule ? ', mercy rule at a ' + g.mercyRule + ' point lead' : '') + '. Teams swap colours every game.']);
-    r.push(['No ties', 'If the score is level at the end, overtime is played until someone scores.']);
-    r.push(['Problems', 'A game nobody joins is cancelled after ' + T.emptyGameMinutes + ' minutes. A game cut short by a server restart, or cancelled by the organizer, doesn\'t count and is played again. The organizer can decide a match (for example a no-show).']);
-    var open = rulesOpen === null ? T.status === 'signup' || T.status === 'draft' : rulesOpen;
-    return '<details id="t-rules" class="panel panel-default" style="padding:8px 12px"' + (open ? ' open' : '') + '><summary style="cursor:pointer;font-weight:bold">Rules</summary><dl class="dl-horizontal" style="margin:8px 0 0">'
-      + r.map(function (x) { return '<dt>' + x[0] + '</dt><dd style="margin-bottom:6px">' + esc(x[1]) + '</dd>'; }).join('') + '</dl></details>';
+      r.push((T.teamCount ? plural(T.teamCount, 'team') : 'Teams from sign ups') + ' of ' + T.teamSize + '; sign up needs a linked TagPro account');
+      r.push(({ snake: 'Snake draft', straight: 'Straight order draft', auction: 'Auction draft, ' + T.budget + ' each' })[T.draftType] + ', random captain order');
+      r.push(T.draftType === 'auction' ? 'Nominate ' + T.pickSeconds + 's, bidding ' + T.bidSeconds + 's, each bid back to at least ' + T.bidResetSeconds + 's' : T.pickSeconds + 's per pick; time out = random pick');
+    }
+    r.push('Best of ' + g.bestOf + (g.finalBestOf !== g.bestOf ? ', final best of ' + g.finalBestOf : ''));
+    r.push((g.mode === 'eggball' ? 'Eggball' : g.map === 'random' ? 'Random map' : g.mapName) + ', ' + plural(g.time, 'minute') + (g.caps ? ', ' + g.caps + ' caps' : '') + (g.mercyRule ? ', mercy ' + g.mercyRule : ''));
+    r.push('No ties: overtime until someone scores');
+    r.push('Colours swap every game');
+    r.push('Both captains ready up to start');
+    r.push('Empty game cancelled after ' + T.emptyGameMinutes + ' min');
+    var open = rulesOpen === null ? false : rulesOpen;
+    return '<details id="t-rules" style="margin-bottom:10px"' + (open ? ' open' : '') + '><summary style="cursor:pointer;font-weight:bold">Rules</summary><ul style="margin:6px 0 0;padding-left:20px">'
+      + r.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></details>';
   }
 
   function banner() {
@@ -79,7 +72,7 @@
     }
     if (!me.id) out += '<p><a class="btn btn-success" href="/competitive/' + T.id + '/signup">Log in to sign up</a></p>';
     else if (signedUp()) out += '<p>You\'re signed up. ' + btn('Withdraw', { type: 'withdraw' }) + '</p>';
-    else if (T.signupsOpen && !me.tagpro) out += '<p>To sign up, first link your TagPro account (it takes a minute: you change your TagPro flair and change it back). <a class="btn btn-success" href="/competitive/' + T.id + '/signup">Link TagPro account</a></p>';
+    else if (T.signupsOpen && !me.tagpro) out += '<p><a class="btn btn-success" href="/competitive/' + T.id + '/signup">Link TagPro account to sign up</a></p>';
     else if (T.signupsOpen) out += '<p>' + btn('Sign up', { type: 'signup' }, 'btn-success btn-lg') + '</p>';
     else out += '<p style="opacity:.7">Sign ups are closed.</p>';
     if (me.organizer) {
@@ -141,7 +134,6 @@
     if (!T.teams.length) return '';
     var d = T.draft, editing = me.organizer && (T.status === 'ready' || T.status === 'playing'), seeding = me.organizer && T.status === 'ready';
     var out = '<h3>Teams</h3>';
-    if (editing) out += '<p style="opacity:.7;margin-top:-6px">' + (seeding ? 'Change anything before you start: rename teams, move or add players, change captains, reorder seeds.' : 'Team changes apply to the next game. Seeds are fixed now.') + '</p>';
     out += '<div style="display:flex;flex-wrap:wrap;gap:10px">' + T.teams.map(function (t, i) {
       var onClock = d && !d.done && d.onClock === t.id;
       var head = editing

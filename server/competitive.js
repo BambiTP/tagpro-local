@@ -61,26 +61,25 @@ function settingsForm({ error, form, t, can }) {
   const draftMode = editing ? t.teamMode === 'draft' : true;
   return `<h3 id="create">${editing ? 'Tournament settings' : 'Create a tournament'}</h3>
     ${error ? `<div class="alert alert-danger">${esc(error)}</div>` : ''}
-    ${editing ? '<p style="opacity:.7">Game settings apply to games that start after you save. A match that has already played a game keeps its best-of.</p>' : ''}
     <form class="form-horizontal" method="post" action="${editing ? `/competitive/${esc(t.id)}/edit` : '/competitive/create'}" id="t-settings">
       ${row('Name', `<input class="form-control" name="name" maxlength="60" required value="${v('name', '')}">`)}
       ${row('Format' + lockNote('format', 'the bracket has started'), sel('format', [['single', FORMAT.single], ['double', FORMAT.double], ['roundrobin', FORMAT.roundrobin]], 'single', 'format'))}
-      ${row('Playoff teams', num('playoffTeams', 4, 0, 16, 'format'), 'c-playoffs', 'After the round robin, the top teams play a single elimination bracket. 0 = no playoffs (the table decides).')}
+      ${row('Playoff teams', num('playoffTeams', 4, 0, 16, 'format'), 'c-playoffs', '0 = no playoffs')}
       ${editing ? '' : row('Teams', sel('teamMode', [['draft', 'Draft from sign ups'], ['premade', 'Premade teams']], 'draft'))}
       ${draftMode ? `
-      ${row('Draft type' + lockNote('teams', 'the draft has started'), sel('draftType', [['snake', 'Snake (1-2-3-4, 4-3-2-1, ...)'], ['straight', 'Straight order (1-2-3-4 every round)'], ['auction', 'Auction (captains bid)']], 'snake', 'teams'), 'c-draft', 'You pick the captains. They pick in a random order, shown when the draft starts.')}
-      ${row('Number of teams', sel('teamsFrom', [['signups', 'From sign ups (sign ups / players per team)'], ['fixed', 'Fixed number']], 'signups', 'teams'), 'c-from', 'From sign ups: the team count is set when you start the draft; anyone left over after the last full team isn\'t drafted.')}
+      ${row('Draft type' + lockNote('teams', 'the draft has started'), sel('draftType', [['snake', 'Snake (1-2-3-4, 4-3-2-1, ...)'], ['straight', 'Straight order (1-2-3-4 every round)'], ['auction', 'Auction (captains bid)']], 'snake', 'teams'), 'c-draft', 'Random captain order')}
+      ${row('Number of teams', sel('teamsFrom', [['signups', 'From sign ups (sign ups / players per team)'], ['fixed', 'Fixed number']], 'signups', 'teams'), 'c-from', '')}
       ${row('Fixed number of teams', num('teamCount', 4, 2, 32, 'teams'), 'c-count')}` : ''}
       ${row('Players per team' + lockNote('teams', 'the draft has started'), num('teamSize', 4, 1, 8, 'teams'))}
       ${draftMode ? `
-      ${row('Pick timer (seconds)' + lockNote('timers', 'the draft is over'), num('pickSeconds', 45, 10, 600, 'timers'), 'c-pick', 'Time for each pick (or auction nomination). When it runs out, a random player left is picked (or nominated for 1).')}
-      ${row('Auction budget', num('budget', 100, 1, 10000, 'teams'), 'c-budget', 'Each captain\'s money. Every player costs at least 1.')}
-      ${row('Bid timer (seconds)', num('bidSeconds', 12, 5, 120, 'timers'), 'c-bid', 'How long bidding runs after a player is nominated. The top bid wins when it runs out.')}
-      ${row('Clock after a bid (seconds)', num('bidResetSeconds', 8, 1, 120, 'timers'), 'c-bidreset', 'Each bid puts the clock back up to at least this. Set it the same as the bid timer to restart the full timer on every bid.')}` : ''}
-      ${editing ? '' : row('Premade teams', `<textarea class="form-control" name="premade" rows="5" placeholder="Team name: captain, player, player, player">${v('premade', '')}</textarea>`, 'c-premade', 'One team per line, players by username. The first player is the captain. Seeds follow the order of the lines; you can change teams and seeds afterwards.')}
+      ${row('Pick timer (seconds)' + lockNote('timers', 'the draft is over'), num('pickSeconds', 45, 10, 600, 'timers'), 'c-pick', 'Time out = random pick')}
+      ${row('Auction budget', num('budget', 100, 1, 10000, 'teams'), 'c-budget', '')}
+      ${row('Bid timer (seconds)', num('bidSeconds', 12, 5, 120, 'timers'), 'c-bid', '')}
+      ${row('Clock after a bid (seconds)', num('bidResetSeconds', 8, 1, 120, 'timers'), 'c-bidreset', 'Each bid resets the clock to at least this')}` : ''}
+      ${editing ? '' : row('Premade teams', `<textarea class="form-control" name="premade" rows="5" placeholder="Team name: captain, player, player, player">${v('premade', '')}</textarea>`, 'c-premade', 'One team per line; first player is captain')}
       ${row('Game mode', sel('mode', [['classic', 'Capture the flag'], ['eggball', 'Eggball']], 'classic'))}
-      ${row('Default map', `<select class="form-control" name="map">${maps.map(([k, n]) => `<option value="${k}"${k === esc(f.map || 'random') ? ' selected' : ''}>${n}</option>`).join('')}</select>`, 'c-map', 'Used unless you pick a map for a match (or a whole round) on the bracket.')}
-      ${row('Time limit (minutes)', num('time', 10, 1, 60), '', 'If the score is level at the end, overtime is played until someone scores. There are no ties.')}
+      ${row('Default map', `<select class="form-control" name="map">${maps.map(([k, n]) => `<option value="${k}"${k === esc(f.map || 'random') ? ' selected' : ''}>${n}</option>`).join('')}</select>`, 'c-map', '')}
+      ${row('Time limit (minutes)', num('time', 10, 1, 60), '', '')}
       ${row('Cap limit (0 = none)', num('caps', 0, 0, 50))}
       ${row('Mercy rule (lead, 0 = off)', num('mercyRule', 0, 0, 50))}
       ${row('Games per match', sel('bestOf', [[1, 'Best of 1'], [3, 'Best of 3'], [5, 'Best of 5'], [7, 'Best of 7']], 1))}
