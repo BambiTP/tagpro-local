@@ -47,7 +47,7 @@ function rebrand(html) {
 }
 
 // pages that don't exist on this server: shown greyed out and unclickable
-const DEAD_LINKS = ['/competitive', '/donate'];
+const DEAD_LINKS = ['/donate'];
 function disableDeadLinks(html) {
   return html.replace(/<a\b([^>]*?)\bhref="([^"]*)"([^>]*)>/gi, (m, pre, href, post) =>
     DEAD_LINKS.includes(href) ? `<a${pre}${post} aria-disabled="true" style="pointer-events:none;opacity:.4;cursor:default">` : m);

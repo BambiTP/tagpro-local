@@ -10,6 +10,7 @@ const groups = require('./groups');
 const replays = require('./replays');
 const queue = require('./queue');
 const ranked = require('./ranked');
+const tournaments = require('./tournaments');
 
 const MAPS_DIR = path.join(__dirname, '..', 'maps');
 const games = new Map();
@@ -133,6 +134,7 @@ function createGame({ mapKey, settings, isPrivate, groupId, onFinish }) {
       setTimeout(() => r.recorder && r.recorder.finish(), 3000); // replay saved shortly after the end
       if (r.countsForStats) recordStats(r, winner);
       if (r.ranked) ranked.finish(r, winner);
+      if (r.tournament) tournaments.finish(r, winner);
       const g = groupId && groups.groups.get(groupId);
       if (g && g.game.gameId === id) g.setGame(null);
       finish();
@@ -230,5 +232,6 @@ function attachGames(io) {
 
 queue.init({ createGame, resolveMap, games });
 ranked.init({ createGame, resolveMap, games });
+tournaments.init({ createGame, resolveMap, games });
 
 module.exports = { games, MapError, mapProblem, checkPngSize, createGame, launchGroupGame, endGame, attachJoiner, attachGames, resolveMap, fetchFortunateMap, mapKeys };

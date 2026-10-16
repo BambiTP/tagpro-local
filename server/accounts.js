@@ -159,6 +159,7 @@ function search(q) {
   return Object.values(accounts).filter((a) => a.id && (a.username.toLowerCase().includes(q) || a.displayName.toLowerCase().includes(q)))
     .slice(0, 50).map((a) => ({ ...a, flairObj: a.flair ? flairByKey[a.flair] : null }));
 }
+function byUsername(u) { const k = String(u || '').trim().toLowerCase(); return Object.hasOwn(accounts, k) ? accounts[k] : null; }
 function byId(id) { return Object.values(accounts).find((a) => a.id === id) || null; }
 
-module.exports = { rankedOf, updateRanked, rankedBoard, recordGame, degreeFor, winsForDegree, emptyStats, STAT_KEYS, setTextures, search, byId, register, login, knownSession, bind, unbind, apply, setDisplayName, setFlair, flairs, flairByKey };
+module.exports = { rankedOf, updateRanked, rankedBoard, recordGame, degreeFor, winsForDegree, emptyStats, STAT_KEYS, setTextures, search, byId, byUsername, register, login, knownSession, bind, unbind, apply, setDisplayName, setFlair, flairs, flairByKey };

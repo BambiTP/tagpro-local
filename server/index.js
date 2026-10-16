@@ -14,6 +14,8 @@ const community = require('./community');
 const mapstats = require('./mapstats');
 const admin = require('./admin');
 const p2p = require('./p2p');
+const tournaments = require('./tournaments');
+const competitive = require('./competitive');
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0'; // the VPS service sets 127.0.0.1 so only Caddy is public
@@ -155,6 +157,30 @@ app.get('/replays/gameFile', (req, res) => {
 
 // ---- feedback (login required to post) ----
 app.get('/leaders', (req, res) => html(res, card('TagPro Leaders', pages.leadersCard(accounts.rankedBoard()))));
+// ---- Competitive: tournaments (server/tournaments.js; only the organizer account creates them) ----
+app.get('/competitive', (req, res) => html(res, card('TagPro Competitive', competitive.listCard(tournaments.list(), tournaments.isOrganizer(req.session)))));
+app.post('/competitive/create', (req, res) => {
+  if (!tournaments.isOrganizer(req.session)) return res.status(403).send('Only the organizer creates tournaments');
+  try { res.redirect('/competitive/' + tournaments.create(req.body).id); } catch (e) {
+    if (!e.user) throw e;
+    html(res, card('TagPro Competitive', competitive.listCard(tournaments.list(), true, e.message, req.body)));
+  }
+});
+app.get('/competitive/:id', (req, res, next) => {
+  const t = tournaments.get(req.params.id);
+  if (!t) return next();
+  const ver = Math.floor(require('fs').statSync(path.join(PUBLIC, 'competitive.js')).mtimeMs);
+  html(res, card('TagPro ' + pages.esc(t.name), competitive.tournamentCard(t, ver)));
+});
+// a player's own match game (their team, their colour), or ?match=<id> to watch one
+app.get('/competitive/:id/play', (req, res, next) => {
+  const t = tournaments.get(req.params.id);
+  if (!t) return next();
+  const pg = tournaments.playTarget(t, req.session, req.query.match ? String(req.query.match) : null);
+  if (!pg) return res.redirect('/competitive/' + t.id);
+  req.session.pendingGame = pg;
+  res.redirect('/game');
+});
 app.get('/feedback', (req, res) => html(res, card('TagPro Feedback', community.feedbackCard(req.session.account))));
 app.post('/feedback', (req, res) => {
   if (!req.session.account) return res.redirect('/login');
@@ -448,6 +474,7 @@ if (!process.env.P2P_CODE) p2p.attach(io, groups.groups);
 // a P2P host's PC only runs the games the main site sends it: no groups or Play Now queue of its own
 if (!process.env.P2P_CODE) groups.attach(io, { launchGroupGame: (g) => games.launchGroupGame(g).catch((e) => console.error('launch failed', e)), endGame: games.endGame });
 if (!process.env.P2P_CODE) games.attachJoiner(io);
+if (!process.env.P2P_CODE) tournaments.attach(io);
 mapstats.attach(io, replays.index);
 games.attachGames(io);
 
