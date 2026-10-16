@@ -16,7 +16,6 @@ const admin = require('./admin');
 const p2p = require('./p2p');
 const tournaments = require('./tournaments');
 const competitive = require('./competitive');
-const tpauth = require('./tpauth');
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0'; // the VPS service sets 127.0.0.1 so only Caddy is public
@@ -143,33 +142,6 @@ app.get('/profile', (req, res) => {
   if (!req.session.account) return res.redirect('/login');
   html(res, card('TagPro Profile', pages.profileCard(req.session.account, accounts.flairs), '/R-965af4e7a4b8-z/compact/global-profile.js'));
 });
-// link a real TagPro account (server/tpauth.js), all on one page
-app.get('/tagpro-link', (req, res) => {
-  const a = req.session.account;
-  if (!a) return res.redirect('/login');
-  const back = req.session.afterLink || null; // the tournament that sent them; once linked, shown one last time
-  if (a.tagpro) req.session.afterLink = null;
-  html(res, card('TagPro Account Link', pages.tagproLinkCard(tpauth.state(a), back)));
-});
-app.post('/tagpro-link', (req, res) => {
-  const a = req.session.account;
-  if (!a) return res.json({ error: 'Log in first.', state: { linked: null, pending: null, now: Date.now() } });
-  const action = String(req.body.action || '');
-  const out = {};
-  try {
-    if (action === 'start') tpauth.start(a, req.body.link);
-    else if (action === 'check') tpauth.check(a);
-    else if (action === 'cancel') tpauth.cancel(a);
-    else if (action === 'unlink') { tpauth.unlink(a); out.message = 'Unlinked.'; }
-  } catch (e) {
-    if (!e.user) console.error('tpauth', e);
-    out.error = e.user ? e.message : 'Something went wrong.';
-  }
-  out.state = tpauth.state(a);
-  res.json(out);
-});
-// the link page asks this (not TagPro) while a shared check is waiting
-app.get('/tagpro-link/state', (req, res) => res.json({ state: req.session.account ? tpauth.state(req.session.account) : { linked: null, pending: null, now: Date.now() } }));
 app.post('/profile', (req, res) => {
   const r = accounts.setDisplayName(req.session, req.body.displayedName);
   if (r.error) return res.json(r);
@@ -220,8 +192,6 @@ app.get('/competitive/:id/signup', (req, res, next) => {
   const t = tournaments.get(req.params.id);
   if (!t) return next();
   if (!req.session.account) { req.session.afterLogin = '/competitive/' + t.id + '/signup'; return res.redirect('/login'); }
-  // signing up needs a linked TagPro account: link it on the profile, which then offers the way back
-  if (!req.session.account.tagpro) { req.session.afterLink = { url: '/competitive/' + t.id + '#signup', name: t.name }; return res.redirect('/tagpro-link'); }
   res.redirect('/competitive/' + t.id + '#signup');
 });
 app.get('/competitive/:id', (req, res, next) => {

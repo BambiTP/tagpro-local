@@ -148,7 +148,6 @@ function parsePremade(text, teamSize) {
 // ---- sign ups ----
 function signup(t, session) {
   if (!session.account) fail('Log in to sign up.');
-  if (!session.account.tagpro) fail('Link your TagPro account on your profile first.');
   if (!signupsOpen(t)) fail('Sign ups are closed.');
   if (!t.signups.includes(session.account.id)) t.signups.push(session.account.id);
 }
@@ -475,7 +474,7 @@ function setRoundMap(t, roundKey, key) {
 
 // ---- views ----
 function view(t) {
-  const person = (id) => { const a = acct(id); return { id, name: nameOf(id), tagpro: a && a.tagpro ? { id: a.tagpro.id, name: a.tagpro.name } : null }; };
+  const person = (id) => ({ id, name: nameOf(id) });
   const d = t.draft;
   const maps = mapList();
   const mapName = (key) => (key === 'random' ? 'Random' : (maps.find((x) => x.key === key) || { name: key }).name);
@@ -522,7 +521,7 @@ function attach(io) {
       t = get(String(id));
       if (!t) return socket.emit('gone');
       socket.join('t:' + t.id);
-      socket.emit('me', { id: session.account ? session.account.id : null, organizer: isOrganizer(session), tagpro: !!(session.account && session.account.tagpro) });
+      socket.emit('me', { id: session.account ? session.account.id : null, organizer: isOrganizer(session) });
       socket.emit('state', view(t));
     });
     socket.on('act', (a, ack) => {

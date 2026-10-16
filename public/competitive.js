@@ -20,8 +20,7 @@
   function secs(deadline) { return Math.max(0, Math.ceil((deadline - (Date.now() + skew)) / 1000)); }
   function clock(deadline) { return '<span class="t-clock" data-deadline="' + deadline + '">' + secs(deadline) + '</span>s'; }
   function signupLink() { return location.origin + '/competitive/' + T.id + '/signup'; }
-  // a player's name, with their verified TagPro account when they linked one
-  function who(p) { return '<a href="/profile/' + esc(p.id) + '">' + esc(p.name) + '</a>' + (p.tagpro ? ' <a href="https://tagpro.koalabeast.com/profile/' + esc(p.tagpro.id) + '" target="_blank" rel="noopener" title="Verified TagPro account" style="opacity:.75;font-size:11px">(TagPro: ' + esc(p.tagpro.name || 'linked') + ')</a>' : ''); }
+  function who(p) { return '<a href="/profile/' + esc(p.id) + '">' + esc(p.name) + '</a>'; }
   function plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
 
   function act(a) { socket.emit('act', a, function (err) { if (err) flash(err); }); }
@@ -38,7 +37,7 @@
     r.push(FORMAT[T.format] + (T.format === 'double' ? ' (grand final reset if the losers bracket team wins)' : '') + (T.format === 'roundrobin' ? (T.playoffTeams >= 2 ? ', top ' + T.playoffTeams + ' to playoffs' : ', no playoffs') : ''));
     if (T.format === 'roundrobin') r.push('Table: wins, then score difference');
     if (T.teamMode === 'draft') {
-      r.push((T.teamCount ? plural(T.teamCount, 'team') : 'Teams from sign ups') + ' of ' + T.teamSize + '; sign up needs a linked TagPro account');
+      r.push((T.teamCount ? plural(T.teamCount, 'team') : 'Teams from sign ups') + ' of ' + T.teamSize + '');
       r.push(({ snake: 'Snake draft', straight: 'Straight order draft', auction: 'Auction draft, ' + T.budget + ' each' })[T.draftType] + ', random captain order');
       r.push(T.draftType === 'auction' ? 'Nominate ' + T.pickSeconds + 's, bidding ' + T.bidSeconds + 's, each bid back to at least ' + T.bidResetSeconds + 's' : T.pickSeconds + 's per pick; time out = random pick');
     }
@@ -72,7 +71,6 @@
     }
     if (!me.id) out += '<p><a class="btn btn-success" href="/competitive/' + T.id + '/signup">Log in to sign up</a></p>';
     else if (signedUp()) out += '<p>You\'re signed up. ' + btn('Withdraw', { type: 'withdraw' }) + '</p>';
-    else if (T.signupsOpen && !me.tagpro) out += '<p><a class="btn btn-success" href="/competitive/' + T.id + '/signup">Link TagPro account to sign up</a></p>';
     else if (T.signupsOpen) out += '<p>' + btn('Sign up', { type: 'signup' }, 'btn-success btn-lg') + '</p>';
     else out += '<p style="opacity:.7">Sign ups are closed.</p>';
     if (me.organizer) {
