@@ -35,7 +35,7 @@ function flush() {
 const save = () => { clearTimeout(saveTimer); saveTimer = setTimeout(flush, 200); };
 process.on('exit', () => { if (saveTimer) flush(); });
 
-let gamesApi = null; // { createGame, resolveMap, games }
+let gamesApi = null; // { createGame, resolveMap, games, fetchFortunateMap, mapProblem }
 let nsp = null;      // socket.io namespace
 const timers = {};   // tournament id -> draft timer
 
@@ -385,21 +385,24 @@ function ready(t, session, matchId, on) {
 // grand final reset before they exist. [{ key: 'W:1', bracket, round, label }]
 function rounds(t) {
   const out = [], seen = new Set();
-  const add = (bracket, round, label) => { const key = bracket + ':' + round; if (!seen.has(key)) { seen.add(key); out.push({ key, bracket, round, label }); } };
-  // before the start: the bracket the current teams would make
-  const ids = t.teams.map((x) => x.id);
-  const matches = t.matches.length || ids.length < 2 ? t.matches : t.format === 'single' ? B.singleElim(ids) : t.format === 'double' ? B.doubleElim(ids) : B.roundRobin(ids);
-  for (const m of matches) add(m.bracket, m.round, m.bracket === 'L' && m.label !== 'Losers final' ? `Losers round ${m.round}` : m.label);
-  if (t.format === 'double') add('GF', 2, 'Grand final (reset)');
+  const add = (bracket, label, shown) => { const key = bracket + ':' + label; if (!seen.has(key)) { seen.add(key); out.push({ key, label: shown || label }); } };
+  // before the start: the bracket the teams would make (before the draft: the expected number)
+  const n = t.teams.length || t.teamCount || Math.max(2, teamsWanted(t));
+  const ids = t.teams.length ? t.teams.map((x) => x.id) : Array.from({ length: n }, (_, i) => 'x' + i);
+  const matches = t.matches.length ? t.matches : t.format === 'single' ? B.singleElim(ids) : t.format === 'double' ? B.doubleElim(ids) : B.roundRobin(ids);
+  for (const m of matches) add(m.bracket, m.label, m.bracket === 'P' ? 'Playoff ' + m.label.toLowerCase() : null);
+  if (t.format === 'double') add('GF', 'Grand final (reset)');
   if (t.format === 'roundrobin' && t.playoffTeams >= 2 && !t.matches.some((m) => m.bracket === 'P')) {
-    for (const m of B.singleElim(Array.from({ length: Math.min(t.playoffTeams, Math.max(2, ids.length)) }, (_, i) => i), 'P')) add('P', m.round, 'Playoff ' + m.label.toLowerCase());
+    for (const m of B.singleElim(Array.from({ length: Math.min(t.playoffTeams, n) }, (_, i) => i), 'P')) add('P', m.label, 'Playoff ' + m.label.toLowerCase());
   }
   return out;
 }
-// a round's chosen map; the grand final reset uses the grand final's unless it has its own
-const roundMap = (t, bracket, round) => (t.roundMaps || {})[bracket + ':' + round] || (bracket === 'GF' && round === 2 ? (t.roundMaps || {})['GF:1'] : null);
+// maps are chosen per round, by the round's name ("W:Semifinal", "L:Losers final", "RR:Round 3"),
+// so a choice stays with the same round when the number of teams changes; the grand final
+// reset uses the grand final's map unless it has its own
+const roundMap = (t, key) => (t.roundMaps || {})[key] || (key === 'GF:Grand final (reset)' ? (t.roundMaps || {})['GF:Grand final'] : null);
 // the map for a match's next game: the organizer's choice for its round, else the default
-const mapFor = (t, m) => (t.game.mode === 'eggball' ? 'eggball' : roundMap(t, m.bracket, m.round) || t.game.map);
+const mapFor = (t, m) => (t.game.mode === 'eggball' ? 'eggball' : roundMap(t, m.bracket + ':' + m.label) || t.game.map);
 
 async function startGame(t, m) {
   if (m.live || m.starting) return;
@@ -462,12 +465,25 @@ function decide(t, m, side) {
   advance(t);
 }
 
-// the organizer picks the map for a round ('' = the default map)
-function setRoundMap(t, roundKey, key) {
-  if (t.game.mode === 'eggball') fail('Eggball has its own map.');
-  if (!rounds(t).some((r) => r.key === roundKey)) fail('No such round.');
-  key = String(key || '');
+// a map the organizer chose: an installed map's key, or a Fortunate Maps id (downloaded now,
+// not added to the public rotation); '' = none
+async function chooseMap(fm, key) {
+  key = String(key || '').trim();
+  if (fm) {
+    if (!/^\d{1,9}$/.test(key)) fail('A Fortunate Maps ID is a number, like 93653.');
+    try { key = await gamesApi.fetchFortunateMap(key); } catch (e) { fail(`Couldn't download Fortunate Maps map ${key}.`); }
+  }
   if (key && !validMap(key)) fail("That map isn't installed.");
+  const problem = key && key !== 'random' && gamesApi.mapProblem(key);
+  if (problem) fail(problem);
+  return key;
+}
+// the organizer picks the map for a round, or the default ('' = back to the default)
+async function setRoundMap(t, roundKey, key, fm) {
+  if (t.game.mode === 'eggball') fail('Eggball has its own map.');
+  if (roundKey !== 'default' && !rounds(t).some((r) => r.key === roundKey)) fail('No such round.');
+  key = await chooseMap(fm, key);
+  if (roundKey === 'default') { t.game.map = key || 'random'; return; }
   t.roundMaps = t.roundMaps || {};
   if (key) t.roundMaps[roundKey] = key; else delete t.roundMaps[roundKey];
 }
@@ -483,7 +499,7 @@ function view(t) {
     teamCount: t.teamCount, teamsWanted: teamsWanted(t), teamSize: t.teamSize, budget: t.budget, pickSeconds: t.pickSeconds, bidSeconds: t.bidSeconds, bidResetSeconds: bidReset(t),
     game: Object.assign({}, t.game, { mapName: mapName(t.game.map) }), emptyGameMinutes: EMPTY_GAME_MS / 60000, maxTeam: MAX_TEAM,
     maps: t.game.mode === 'eggball' ? [] : maps,
-    rounds: t.game.mode === 'eggball' ? [] : rounds(t).map((r) => Object.assign(r, { map: (t.roundMaps || {})[r.key] || null, mapName: mapName(roundMap(t, r.bracket, r.round) || t.game.map) })),
+    rounds: t.game.mode === 'eggball' ? [] : rounds(t).map((r) => Object.assign(r, { map: (t.roundMaps || {})[r.key] || null, mapName: mapName(roundMap(t, r.key) || t.game.map) })),
     signups: t.signups.map(person), captains: t.captains,
     teams: t.teams.map((x) => ({ id: x.id, name: x.name, captain: x.captain, players: x.players.map(person) })),
     draft: d && {
@@ -524,11 +540,11 @@ function attach(io) {
       socket.emit('me', { id: session.account ? session.account.id : null, organizer: isOrganizer(session) });
       socket.emit('state', view(t));
     });
-    socket.on('act', (a, ack) => {
+    socket.on('act', async (a, ack) => {
       const reply = typeof ack === 'function' ? ack : () => {};
       if (!t || !a || typeof a !== 'object' || !tournaments[t.id]) return reply('No tournament.');
       try {
-        act(t, session, a);
+        await act(t, session, a);
         if (tournaments[t.id]) changed(t); else nsp.to('t:' + t.id).emit('gone');
         reply(null);
       } catch (e) {
@@ -563,7 +579,7 @@ function act(t, session, a) {
     case 'forceStart': needOrg(); if (!m || !B.playable(m) || m.live) fail("That match can't start."); return startGame(t, m);
     case 'cancelGame': needOrg(); if (!m) fail('No such match.'); return cancelGame(t, m);
     case 'award': needOrg(); if (!m) fail('No such match.'); return decide(t, m, a.side === 'b' ? 'b' : 'a');
-    case 'setRoundMap': needOrg(); return setRoundMap(t, String(a.round), a.map);
+    case 'setRoundMap': needOrg(); return setRoundMap(t, String(a.round), a.map, !!a.fm);
     case 'delete': needOrg();
       clearTimeout(timers[t.id]);
       for (const x of t.matches) if (x.live) { const r = gamesApi.games.get(x.live.gameId); if (r && !r.ended) { r.tournament.cancelled = true; r.end('tie', false); } }

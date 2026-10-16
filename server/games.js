@@ -232,6 +232,6 @@ function attachGames(io) {
 
 queue.init({ createGame, resolveMap, games });
 ranked.init({ createGame, resolveMap, games });
-tournaments.init({ createGame, resolveMap, games });
+tournaments.init({ createGame, resolveMap, games, fetchFortunateMap, mapProblem });
 
 module.exports = { games, MapError, mapProblem, checkPngSize, createGame, launchGroupGame, endGame, attachJoiner, attachGames, resolveMap, fetchFortunateMap, mapKeys };

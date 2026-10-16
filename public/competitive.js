@@ -157,15 +157,20 @@
     return out;
   }
 
-  // the map for each round: dropdowns for the organizer, a list for everyone else
+  // the map for each round: dropdowns (or a Fortunate Maps ID) for the organizer, a list for everyone else
   function maps() {
-    if (!T.rounds.length || T.status === 'signup' || T.status === 'draft') return '';
+    if (T.game.mode === 'eggball' || !T.rounds.length) return '';
     var out = '<h3>Maps</h3>';
     if (!me.organizer) return out + '<ul style="padding-left:20px">' + T.rounds.map(function (r) { return '<li>' + esc(r.label) + ': ' + esc(r.mapName) + '</li>'; }).join('') + '</ul>';
-    return out + '<table class="table table-condensed" style="max-width:520px"><tbody>' + T.rounds.map(function (r) {
-      return '<tr><td>' + esc(r.label) + '</td><td><select class="form-control input-sm t-roundmap" data-round="' + esc(r.key) + '"><option value="">Default (' + esc(T.game.mapName) + ')</option>'
-        + T.maps.map(function (x) { return '<option value="' + esc(x.key) + '"' + (r.map === x.key ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('') + '</select></td></tr>';
-    }).join('') + '</tbody></table>';
+    var row = function (key, label, chosen, firstOption) {
+      return '<tr><td style="vertical-align:middle">' + esc(label) + '</td><td><select class="form-control input-sm t-roundmap" data-round="' + esc(key) + '" style="max-width:220px">' + firstOption
+        + T.maps.map(function (x) { return '<option value="' + esc(x.key) + '"' + (chosen === x.key ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('') + '</select></td>'
+        + '<td style="white-space:nowrap"><input class="form-control input-sm t-fm" data-round="' + esc(key) + '" placeholder="FM ID" style="display:inline-block;width:80px"> ' + btn('Use', { type: 'fmFromBox', round: key }, 'btn-xs') + '</td></tr>';
+    };
+    return out + '<table class="table table-condensed" style="max-width:640px"><tbody>'
+      + row('default', 'Default', T.game.map, '<option value="random"' + (T.game.map === 'random' ? ' selected' : '') + '>Random (public rotation)</option>')
+      + T.rounds.map(function (r) { return row(r.key, r.label, r.map, '<option value="">Default (' + esc(T.game.mapName) + ')</option>'); }).join('')
+      + '</tbody></table>';
   }
 
   function matchBox(m) {
@@ -236,13 +241,15 @@
     var keep = {}, focus = document.activeElement && document.activeElement.id;
     root.querySelectorAll('input[id]').forEach(function (e) { keep[e.id] = e.value; });
     var typing = {};
-    root.querySelectorAll('.t-rename, .t-add').forEach(function (e) { if (e.value && (e.classList.contains('t-add') || e === document.activeElement)) typing[(e.classList.contains('t-add') ? 'add:' : 'rename:') + e.getAttribute('data-team')] = { value: e.value, focus: e === document.activeElement }; });
+    // typed but not sent yet: team names, usernames to add, Fortunate Maps IDs
+    root.querySelectorAll('.t-rename, .t-add, .t-fm').forEach(function (e) { if (e.value && (!e.classList.contains('t-rename') || e === document.activeElement)) typing[e.className.match(/t-(rename|add|fm)/)[0] + '|' + (e.getAttribute('data-team') || e.getAttribute('data-round'))] = { value: e.value, focus: e === document.activeElement }; });
     root.innerHTML = '<div id="t-error" class="alert alert-danger" style="display:none"></div>' + banner()
       + '<p><b>Status:</b> ' + STATUS[T.status] + '</p>' + rules()
       + (T.teamMode === 'draft' && T.status === 'signup' ? signups() : '') + draft() + teams() + maps() + bracket() + organizer();
     Object.keys(keep).forEach(function (id) { var e = document.getElementById(id); if (e && id !== 't-bid' && id !== 't-link') e.value = keep[id]; });
     Object.keys(typing).forEach(function (k) {
-      var parts = k.split(':'), e = root.querySelector((parts[0] === 'add' ? '.t-add' : '.t-rename') + '[data-team="' + parts[1] + '"]');
+      var cls = k.slice(0, k.indexOf('|')), id = k.slice(k.indexOf('|') + 1);
+      var e = root.querySelector('.' + cls + '[' + (cls === 't-fm' ? 'data-round' : 'data-team') + '="' + id.replace(/"/g, '\\"') + '"]');
       if (e) { e.value = typing[k].value; if (typing[k].focus) e.focus(); }
     });
     if (focus && document.getElementById(focus)) document.getElementById(focus).focus();
@@ -255,6 +262,7 @@
     if (el.classList.contains('t-cap')) captainPicks = [].map.call(root.querySelectorAll('.t-cap:checked'), function (x) { return x.value; });
     if (el.classList.contains('t-move') && el.value) act({ type: 'movePlayer', player: el.getAttribute('data-player'), team: el.value === '__out' ? null : el.value });
     if (el.classList.contains('t-roundmap')) act({ type: 'setRoundMap', round: el.getAttribute('data-round'), map: el.value });
+    if (el.classList.contains('t-fm') && el.value.trim()) { act({ type: 'setRoundMap', round: el.getAttribute('data-round'), map: el.value.trim(), fm: true }); el.value = ''; }
   });
   root.addEventListener('click', function (e) {
     var b = e.target.closest('[data-act]');
@@ -273,6 +281,7 @@
     if (a.type === 'renameFromBox') a = { type: 'renameTeam', team: a.team, name: box('.t-rename[data-team="' + a.team + '"]') };
     if (a.type === 'addFromBox') { a = { type: 'addPlayer', team: a.team, username: box('.t-add[data-team="' + a.team + '"]') }; var input = root.querySelector('.t-add[data-team="' + a.team + '"]'); if (input) input.value = ''; }
     if (a.type === 'addTeamFromBox') { a = { type: 'addTeam', name: box('#t-newteam') }; document.getElementById('t-newteam').value = ''; }
+    if (a.type === 'fmFromBox') { var fmBox = root.querySelector('.t-fm[data-round="' + a.round + '"]'); if (!fmBox || !fmBox.value.trim()) return; a = { type: 'setRoundMap', round: a.round, map: fmBox.value.trim(), fm: true }; fmBox.value = ''; }
     if (a.type === 'captains') captainPicks = null;
     act(a);
   });
