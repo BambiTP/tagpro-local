@@ -43,7 +43,7 @@
       r.push(T.draftType === 'auction' ? 'Nominate ' + T.pickSeconds + 's, bidding ' + T.bidSeconds + 's, each bid back to at least ' + T.bidResetSeconds + 's' : T.pickSeconds + 's per pick; time out = random pick');
     }
     r.push('Best of ' + g.bestOf + (g.finalBestOf !== g.bestOf ? ', final best of ' + g.finalBestOf : ''));
-    r.push((g.mode === 'eggball' ? 'Eggball' : g.map === 'random' ? 'Random map' : g.mapName) + ', ' + plural(g.time, 'minute') + (g.caps ? ', ' + g.caps + ' caps' : '') + (g.mercyRule ? ', mercy ' + g.mercyRule : ''));
+    r.push((g.mode === 'eggball' ? 'Eggball' : 'Maps per round (see Maps)') + ', ' + plural(g.time, 'minute') + (g.caps ? ', ' + g.caps + ' caps' : '') + (g.mercyRule ? ', mercy ' + g.mercyRule : ''));
     r.push('No ties: overtime until someone scores');
     r.push('Colours swap every game');
     r.push('Both captains ready up to start');
@@ -159,11 +159,15 @@
     return out;
   }
 
-  function mapSelect(m) {
-    if (!me.organizer || !T.maps.length || m.done) return '';
-    return '<div style="margin-top:3px;font-size:11px"><select class="t-map" data-match="' + esc(m.id) + '" style="max-width:150px;font-size:11px"><option value="">default (' + esc(T.game.mapName) + ')</option>'
-      + T.maps.map(function (x) { return '<option value="' + esc(x.key) + '"' + (m.map === x.key ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('')
-      + '</select> <label style="font-weight:normal"><input type="checkbox" class="t-maproundbox" data-match="' + esc(m.id) + '"> whole round</label></div>';
+  // the map for each round: dropdowns for the organizer, a list for everyone else
+  function maps() {
+    if (!T.rounds.length || T.status === 'signup' || T.status === 'draft') return '';
+    var out = '<h3>Maps</h3>';
+    if (!me.organizer) return out + '<ul style="padding-left:20px">' + T.rounds.map(function (r) { return '<li>' + esc(r.label) + ': ' + esc(r.mapName) + '</li>'; }).join('') + '</ul>';
+    return out + '<table class="table table-condensed" style="max-width:520px"><tbody>' + T.rounds.map(function (r) {
+      return '<tr><td>' + esc(r.label) + '</td><td><select class="form-control input-sm t-roundmap" data-round="' + esc(r.key) + '"><option value="">Default (' + esc(T.game.mapName) + ')</option>'
+        + T.maps.map(function (x) { return '<option value="' + esc(x.key) + '"' + (r.map === x.key ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('') + '</select></td></tr>';
+    }).join('') + '</tbody></table>';
   }
 
   function matchBox(m) {
@@ -191,7 +195,6 @@
       if (me.organizer) out += btn('Start now', { type: 'forceStart', match: m.id }, 'btn-xs btn-primary') + btn(esc(teamName(m.a)) + ' wins', { type: 'award', match: m.id, side: 'a' }, 'btn-xs btn-link', ' data-confirm="1"') + btn(esc(teamName(m.b)) + ' wins', { type: 'award', match: m.id, side: 'b' }, 'btn-xs btn-link', ' data-confirm="1"');
       out += '</div>';
     }
-    if (!m.bye && !m.live && T.status !== 'done') out += mapSelect(m);
     return out + '</div>';
   }
 
@@ -238,7 +241,7 @@
     root.querySelectorAll('.t-rename, .t-add').forEach(function (e) { if (e.value && (e.classList.contains('t-add') || e === document.activeElement)) typing[(e.classList.contains('t-add') ? 'add:' : 'rename:') + e.getAttribute('data-team')] = { value: e.value, focus: e === document.activeElement }; });
     root.innerHTML = '<div id="t-error" class="alert alert-danger" style="display:none"></div>' + banner()
       + '<p><b>Status:</b> ' + STATUS[T.status] + '</p>' + rules()
-      + (T.teamMode === 'draft' && T.status === 'signup' ? signups() : '') + draft() + teams() + bracket() + organizer();
+      + (T.teamMode === 'draft' && T.status === 'signup' ? signups() : '') + draft() + teams() + maps() + bracket() + organizer();
     Object.keys(keep).forEach(function (id) { var e = document.getElementById(id); if (e && id !== 't-bid' && id !== 't-link') e.value = keep[id]; });
     Object.keys(typing).forEach(function (k) {
       var parts = k.split(':'), e = root.querySelector((parts[0] === 'add' ? '.t-add' : '.t-rename') + '[data-team="' + parts[1] + '"]');
@@ -253,10 +256,7 @@
     var el = e.target;
     if (el.classList.contains('t-cap')) captainPicks = [].map.call(root.querySelectorAll('.t-cap:checked'), function (x) { return x.value; });
     if (el.classList.contains('t-move') && el.value) act({ type: 'movePlayer', player: el.getAttribute('data-player'), team: el.value === '__out' ? null : el.value });
-    if (el.classList.contains('t-map')) {
-      var whole = root.querySelector('.t-maproundbox[data-match="' + el.getAttribute('data-match') + '"]');
-      act({ type: 'setMap', match: el.getAttribute('data-match'), map: el.value, round: !!(whole && whole.checked) });
-    }
+    if (el.classList.contains('t-roundmap')) act({ type: 'setRoundMap', round: el.getAttribute('data-round'), map: el.value });
   });
   root.addEventListener('click', function (e) {
     var b = e.target.closest('[data-act]');

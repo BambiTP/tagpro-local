@@ -382,8 +382,25 @@ function ready(t, session, matchId, on) {
   if (m.ready.length === 2) return startGame(t, m);
 }
 
-// the map for a match's next game: the organizer's choice for that match, else the tournament's
-const mapFor = (t, m) => (t.game.mode === 'eggball' ? 'eggball' : m.map || t.game.map);
+// rounds the organizer picks maps for: every round of the bracket, plus playoff rounds and the
+// grand final reset before they exist. [{ key: 'W:1', bracket, round, label }]
+function rounds(t) {
+  const out = [], seen = new Set();
+  const add = (bracket, round, label) => { const key = bracket + ':' + round; if (!seen.has(key)) { seen.add(key); out.push({ key, bracket, round, label }); } };
+  // before the start: the bracket the current teams would make
+  const ids = t.teams.map((x) => x.id);
+  const matches = t.matches.length || ids.length < 2 ? t.matches : t.format === 'single' ? B.singleElim(ids) : t.format === 'double' ? B.doubleElim(ids) : B.roundRobin(ids);
+  for (const m of matches) add(m.bracket, m.round, m.bracket === 'L' && m.label !== 'Losers final' ? `Losers round ${m.round}` : m.label);
+  if (t.format === 'double') add('GF', 2, 'Grand final (reset)');
+  if (t.format === 'roundrobin' && t.playoffTeams >= 2 && !t.matches.some((m) => m.bracket === 'P')) {
+    for (const m of B.singleElim(Array.from({ length: Math.min(t.playoffTeams, Math.max(2, ids.length)) }, (_, i) => i), 'P')) add('P', m.round, 'Playoff ' + m.label.toLowerCase());
+  }
+  return out;
+}
+// a round's chosen map; the grand final reset uses the grand final's unless it has its own
+const roundMap = (t, bracket, round) => (t.roundMaps || {})[bracket + ':' + round] || (bracket === 'GF' && round === 2 ? (t.roundMaps || {})['GF:1'] : null);
+// the map for a match's next game: the organizer's choice for its round, else the default
+const mapFor = (t, m) => (t.game.mode === 'eggball' ? 'eggball' : roundMap(t, m.bracket, m.round) || t.game.map);
 
 async function startGame(t, m) {
   if (m.live || m.starting) return;
@@ -446,13 +463,14 @@ function decide(t, m, side) {
   advance(t);
 }
 
-// the organizer picks the map for a match, or for every unfinished match in its round
-function setMap(t, m, key, wholeRound) {
+// the organizer picks the map for a round ('' = the default map)
+function setRoundMap(t, roundKey, key) {
   if (t.game.mode === 'eggball') fail('Eggball has its own map.');
+  if (!rounds(t).some((r) => r.key === roundKey)) fail('No such round.');
   key = String(key || '');
   if (key && !validMap(key)) fail("That map isn't installed.");
-  const list = wholeRound ? t.matches.filter((x) => x.bracket === m.bracket && x.round === m.round) : [m];
-  for (const x of list) if (!x.done) { if (key) x.map = key; else delete x.map; }
+  t.roundMaps = t.roundMaps || {};
+  if (key) t.roundMaps[roundKey] = key; else delete t.roundMaps[roundKey];
 }
 
 // ---- views ----
@@ -466,6 +484,7 @@ function view(t) {
     teamCount: t.teamCount, teamsWanted: teamsWanted(t), teamSize: t.teamSize, budget: t.budget, pickSeconds: t.pickSeconds, bidSeconds: t.bidSeconds, bidResetSeconds: bidReset(t),
     game: Object.assign({}, t.game, { mapName: mapName(t.game.map) }), emptyGameMinutes: EMPTY_GAME_MS / 60000, maxTeam: MAX_TEAM,
     maps: t.game.mode === 'eggball' ? [] : maps,
+    rounds: t.game.mode === 'eggball' ? [] : rounds(t).map((r) => Object.assign(r, { map: (t.roundMaps || {})[r.key] || null, mapName: mapName(roundMap(t, r.bracket, r.round) || t.game.map) })),
     signups: t.signups.map(person), captains: t.captains,
     teams: t.teams.map((x) => ({ id: x.id, name: x.name, captain: x.captain, players: x.players.map(person) })),
     draft: d && {
@@ -478,7 +497,7 @@ function view(t) {
       id: m.id, bracket: m.bracket, round: m.round, label: m.label, a: m.a, b: m.b, wins: m.wins, done: m.done, bye: !!m.bye,
       forfeit: !!m.forfeit, winner: m.winner, playable: B.playable(m), ready: m.ready || [], live: m.live || null,
       note: m.note || m.error || null, bestOf: bestOfFor(t, m), games: m.games,
-      map: m.map || null, mapName: t.game.mode === 'eggball' ? 'Eggball' : mapName(m.map || t.game.map),
+      mapName: t.game.mode === 'eggball' ? 'Eggball' : mapName(mapFor(t, m)),
     })),
     standings: t.format === 'roundrobin' && t.matches.length ? B.standings(t.matches, t.teams.map((x) => x.id)) : null,
     champion: t.champion, now: Date.now(),
@@ -545,7 +564,7 @@ function act(t, session, a) {
     case 'forceStart': needOrg(); if (!m || !B.playable(m) || m.live) fail("That match can't start."); return startGame(t, m);
     case 'cancelGame': needOrg(); if (!m) fail('No such match.'); return cancelGame(t, m);
     case 'award': needOrg(); if (!m) fail('No such match.'); return decide(t, m, a.side === 'b' ? 'b' : 'a');
-    case 'setMap': needOrg(); if (!m) fail('No such match.'); return setMap(t, m, a.map, !!a.round);
+    case 'setRoundMap': needOrg(); return setRoundMap(t, String(a.round), a.map);
     case 'delete': needOrg();
       clearTimeout(timers[t.id]);
       for (const x of t.matches) if (x.live) { const r = gamesApi.games.get(x.live.gameId); if (r && !r.ended) { r.tournament.cancelled = true; r.end('tie', false); } }
