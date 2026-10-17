@@ -59,6 +59,7 @@ room.explode({ x: qp.x - 0.5, y: qp.y }, 2.8, 4, null);
 check('untrusted ball still pushed by the server', q.body.GetLinearVelocity().x > qv);
 
 // snapshots
+q.body.SetPosition(new V(p.body.GetPosition().x + 1, p.body.GetPosition().y)); // B close enough to see A
 a.got.length = 0; b.got.length = 0; t += 33; send({ x: p.body.GetPosition().x + 0.02, y: p.body.GetPosition().y, vx: 1 });
 room.snapshot();
 const ids = (c) => c.got.filter(([e]) => e === 'p').flatMap(([, d]) => d.u).filter((o) => o.id === p.id);

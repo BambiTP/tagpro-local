@@ -51,6 +51,10 @@ const PUBLIC_DEFAULTS = {
 const TRUST_GHOST = new Set(['noPlayerCollisions', 'noPlayerOrMarsCollisions']);
 const TRUST_MAX_SPEED = 30;   // m/s; boost + bomb on top of each other stays under this
 const TRUST_SLACK = 0.6;      // m of extra movement allowed per report (jitter, late packets)
+// viewport culling (see viewFor): half the 1280 x 800 view, plus 40 px, in metres
+const VIEW_HALF_W = (640 + 40) / PH.SCALE;
+const VIEW_HALF_H = (400 + 40) / PH.SCALE;
+const VIEW_ONLY = new Set(['rx', 'ry', 'lx', 'ly', 'a', 'ra', 'draw', 'directSet']); // never sent for an unseen ball
 
 // Eggball (the official easter-2017 event mode). Client files are the real ones, served from
 // /events; every number below was measured from 95 real eggball replays (Oct 2026).
@@ -296,7 +300,8 @@ class GameRoom {
     if (!session.auth) this.send(client, 'chat', { from: null, message: "Hi! You're currently playing unregistered which means you can't pick a custom name and your chat is limited. To register, click the Log In button on the homepage. Have fun!", to: p.id, c: '#ffffff', for: p.id });
     this.send(client, 'tips', false);
     this.send(client, 'preferredServer', '');
-    if (others.length) this.send(client, 'p', others);
+    // without positions: updateViews reveals the ones near this player once their ball spawns
+    if (others.length) this.send(client, 'p', others.map((o) => this.viewFor(client, this.players[o.id], o)));
     this.players[p.id] = p;
     (this.playerHistory || (this.playerHistory = {}))[p.id] = {
       id: p.id, team, userId: (session.account && session.account.id) || null, displayName: p.name,
@@ -308,7 +313,7 @@ class GameRoom {
     if (this.onPlayerJoined) this.onPlayerJoined(p); // Eggball Ranked (server/ranked.js)
     if (this.egg) this.broadcast('eggBall', { state: this.egg.state, holder: this.egg.holder });
     this.spawnPlayer(p, this.egg && this.state !== STATES.COUNTDOWN ? this.respawnDelay() : 0);
-    this.broadcastP([this.fullPlayer(p)], (c) => c !== client);
+    for (const c of this.clients) if (c !== client) this.sendP(c, [this.viewFor(c, p, this.fullPlayer(p))]);
     this.bindClient(client);
     if (this.egg) this.eggWelcome(client, p);
   }
@@ -456,8 +461,6 @@ class GameRoom {
     for (const f of fields) set.add(f);
   }
 
-  broadcastP(u, filter) { if (u.length) this.broadcast('p', { u, t: this.tick }, filter); }
-
   flushDirty() {
     if (!this.dirty || !this.dirty.size) return;
     const u = [];
@@ -469,10 +472,76 @@ class GameRoom {
         if (f === 'pos') Object.assign(o, this.posDelta(p, true));
         else o[f] = p[f];
       }
-      u.push(o);
+      u.push([p, o]);
     }
     this.dirty.clear();
-    this.broadcastP(u);
+    for (const c of this.clients) this.sendP(c, u.map(([p, o]) => this.viewFor(c, p, o)));
+  }
+
+  // ---------- viewport culling ----------
+  // Like the real server, a player is only sent other balls' positions while they're inside the
+  // 1280 x 800 view around their own ball (VIEW_HALF_*, a little wider so a ball at the edge isn't
+  // cut). Leaving it sends draw: false, which the client already handles (it hides the ball and
+  // parks its body); coming back sends draw: true with the full position, which snaps it into place.
+  // Everything except position still goes to everyone (names, flags, powerups, stats). Spectators
+  // and the replay recorder have no ball of their own and get everything.
+  sendP(c, list) {
+    const u = list.filter((o) => o && Object.keys(o).length > 1);
+    if (u.length) this.send(c, 'p', { u, t: this.tick });
+  }
+
+  seesAll(c) { return c.spectator || c.playerId == null; }
+
+  // the middle of c's view: their ball, or where it was last seen while they wait to respawn
+  viewCenter(c) {
+    const v = this.players[c.playerId];
+    if (v && !v.dead && v.body.IsActive()) { const pos = v.body.GetPosition(); c.viewAt = { x: pos.x, y: pos.y }; }
+    return c.viewAt || null;
+  }
+
+  inView(c, p) {
+    if (p.dead || !p.body.IsActive()) return false;
+    const at = this.viewCenter(c);
+    if (!at) return false;
+    const pos = p.body.GetPosition();
+    return Math.abs(pos.x - at.x) <= VIEW_HALF_W && Math.abs(pos.y - at.y) <= VIEW_HALF_H;
+  }
+
+  // the update `o` about player p, as client c should get it (null: nothing to send)
+  viewFor(c, p, o) {
+    if (this.seesAll(c) || p.id === c.playerId) return o;
+    const seen = c.seen || (c.seen = new Set());
+    const had = seen.has(p.id);
+    if (this.inView(c, p)) {
+      if (had) return o;
+      seen.add(p.id);
+      return Object.assign({}, o, this.fullPos(p), { draw: p.draw });
+    }
+    const out = {};
+    for (const k in o) if (!VIEW_ONLY.has(k)) out[k] = o[k];
+    if (had) { seen.delete(p.id); out.draw = false; }
+    return out;
+  }
+
+  fullPos(p) {
+    const pos = p.body.GetPosition(), vel = p.body.GetLinearVelocity();
+    return { rx: r2(pos.x), ry: r2(pos.y), lx: r2(vel.x), ly: r2(vel.y), a: r2(p.body.GetAngularVelocity()), ra: r2(p.body.GetAngle()) };
+  }
+
+  // every tick: balls crossing the edge of someone's view appear or disappear for them at once,
+  // instead of waiting for the next snapshot
+  updateViews() {
+    const players = Object.values(this.players);
+    for (const c of this.clients) {
+      if (this.seesAll(c)) continue;
+      const seen = c.seen || (c.seen = new Set());
+      const list = [];
+      for (const p of players) {
+        if (p.id === c.playerId) continue;
+        if (this.inView(c, p) !== seen.has(p.id)) list.push(this.viewFor(c, p, { id: p.id }));
+      }
+      this.sendP(c, list);
+    }
   }
 
   posDelta(p, force) {
@@ -485,17 +554,20 @@ class GameRoom {
   }
 
   snapshot() {
-    const u = [];
-    for (const p of Object.values(this.players)) {
+    const players = Object.values(this.players), u = new Map();
+    for (const p of players) {
       const d = this.posDelta(p, false);
-      if (Object.keys(d).length) u.push(Object.assign({ id: p.id }, d));
+      if (Object.keys(d).length) u.set(p.id, Object.assign({ id: p.id }, d));
     }
-    if (!this.localTrust) return this.broadcastP(u);
-    // local trust: a player's own client owns its position, so it never gets its own snapshot back
     for (const c of this.clients) {
-      const own = c.playerId;
-      const mine = own != null && this.isTrusted(this.players[own]) && u.some((o) => o.id === own);
-      this.broadcastP(mine ? u.filter((o) => o.id !== own) : u, (x) => x === c);
+      // local trust: a player's own client owns its position, so it never gets its own snapshot back
+      const own = c.playerId, skipOwn = own != null && this.isTrusted(this.players[own]);
+      const list = [];
+      for (const p of players) {
+        if (skipOwn && p.id === own) continue;
+        list.push(this.viewFor(c, p, u.get(p.id) || { id: p.id }));
+      }
+      this.sendP(c, list);
     }
   }
 
@@ -1538,6 +1610,7 @@ class GameRoom {
       this.pendingDirectReset = null;
     }
     this.flushDirty();
+    this.updateViews();
     if (this.resetDirectSet && this.resetDirectSet.size) { this.pendingDirectReset = this.resetDirectSet; this.resetDirectSet = null; }
     if (this.tick % TU.SNAPSHOT_TICKS === 0) { this.snapshot(); if (this.egg && this.egg.body) this.egg.sync = true; }
     if (this.egg && this.egg.sync) { this.egg.sync = false; if (this.egg.body) this.broadcast('object', this.eggPacket()); }
